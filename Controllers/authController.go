@@ -336,18 +336,14 @@ func RegisterUser(c *fiber.Ctx) error {
 
 	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
 	var user Models.User
-	if CurrentUser.Permission >= 3 {
-		permissionlevel, err := strconv.Atoi(data["permission"])
-		if err != nil {
-			log.Println(err.Error())
-			return c.JSON(fiber.Map{
-				"message": err.Error(),
-			})
-		}
-		user.Permission = permissionlevel
-	} else {
-		user.Permission = 2
+	permissionlevel, err := strconv.Atoi(data["permission"])
+	if err != nil {
+		log.Println(err.Error())
+		return c.JSON(fiber.Map{
+			"message": err.Error(),
+		})
 	}
+	user.Permission = permissionlevel
 
 	// user := Models.User{
 	// 	Name:                        data["name"],

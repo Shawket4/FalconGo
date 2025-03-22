@@ -81,7 +81,7 @@ func FiberConfig() {
 	app.Post("/RegisterInstapay", Controllers.RegisterInstapayNew)
 	app.Post("/RegisterFinancialNote", Controllers.RegisterFinancialNote)
 	app.Static("/static", "static/")
-	app.Post("/api/RegisterUser", Controllers.RegisterUser)
+	app.Post("/api/RegisterUser", Controllers.RegisterUser, middleware.Verify)
 	app.Post("/api/RegisterCar", Apis.RegisterCar)
 	app.Post("/api/RegisterTransporter", Apis.RegisterTransporter)
 	app.Post("/api/Login", Controllers.Login)
