@@ -1,0 +1,101 @@
+name: Build and Deploy Falcon Go App
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Ensure HTTPS is enabled
+      run: |
+        # Check if HTTPS is commented out, if so uncomment it
+        if grep -q "// app.ListenTLS" FiberConfig/Routes.go; then
+          # Uncomment the HTTPS line
+          sed -i 's|// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|g' FiberConfig/Routes.go
+          
+          # Comment out HTTP if it's uncommented
+          sed -i 's|app.Listen(":3001")|// app.Listen(":3001")|g' FiberConfig/Routes.go
+          
+          echo "Modified code to use HTTPS"
+        else
+          echo "HTTPS already enabled in the code, no changes needed"
+        fi
+
+    - name: Build Go application for Ubuntu
+      run: |
+        # Build for Linux (Ubuntu)
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o Falcon ./main.go
+        # Make the binary executable
+        chmod +x Falcon
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
+
+    - name: Deploy to VPS
+      run: |
+        # Create a backup script to run on the server
+        cat > deploy.sh << 'EOF'
+        #!/bin/bash
+        # Stop the service
+        sudo systemctl stop Falcon || true
+
+        # Backup the database
+        if [ -f /var/www/FalconGo/database.db ]; then
+          echo "Backing up database..."
+          cp /var/www/FalconGo/database.db /var/www/FalconGo/database.db.bak
+        fi
+
+        # Remove old binary (but not database)
+        cd /var/www/FalconGo
+        if [ -f Falcon ]; then
+          rm Falcon
+        fi
+
+        # Copy new files
+        echo "Copying new binary..."
+        chmod +x /tmp/Falcon
+        mv /tmp/Falcon /var/www/FalconGo/
+
+        # Restore permissions
+        sudo chown root:root /var/www/FalconGo/Falcon
+        sudo chmod 755 /var/www/FalconGo/Falcon
+
+        # Restart service
+        echo "Restarting service..."
+        sudo systemctl restart Falcon
+        echo "Deployment completed!"
+        EOF
+        
+        chmod +x deploy.sh
+        
+        # Copy the binary to a temporary location on the VPS
+        scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} Falcon ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+        
+        # Copy and execute the deployment script
+        scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+        ssh -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash /tmp/deploy.sh"
+
+    - name: Verify deployment
+      run: |
+        ssh -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "systemctl status Falcon | grep 'active'" || true
