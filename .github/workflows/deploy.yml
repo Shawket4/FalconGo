@@ -25,12 +25,12 @@ jobs:
     - name: Ensure HTTPS is enabled
       run: |
         # Check if HTTPS is commented out, if so uncomment it
-        if grep -q "// app.ListenTLS" FiberConfig/FiberConfig.go; then
+        if grep -q "// app.ListenTLS" FiberConfig/Routes.go; then
           # Uncomment the HTTPS line
-          sed -i 's|// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|g' FiberConfig/FiberConfig.go
+          sed -i 's|// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|g' FiberConfig/Routes.go
           
           # Comment out HTTP if it's uncommented
-          sed -i 's|app.Listen(":3001")|// app.Listen(":3001")|g' FiberConfig/FiberConfig.go
+          sed -i 's|app.Listen(":3001")|// app.Listen(":3001")|g' FiberConfig/Routes.go
           
           echo "Modified code to use HTTPS"
         else
@@ -40,9 +40,9 @@ jobs:
     - name: Build Go application for Ubuntu
       run: |
         # Build for Linux (Ubuntu)
-        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o Falcon ./main.go
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o main ./main.go
         # Make the binary executable
-        chmod +x Falcon
+        chmod +x main
 
     - name: Prepare deployment package
       run: |
@@ -50,7 +50,7 @@ jobs:
         mkdir -p deployment
         
         # Copy the binary
-        cp Falcon deployment/
+        cp main deployment/
         
         # Copy all necessary directories for static files
         cp -r Templates static deployment/ || true
@@ -94,7 +94,7 @@ jobs:
         tar -xzf /tmp/deployment.tar.gz --skip-old-files
         
         # Make sure binary is executable
-        chmod +x /var/www/FalconGo/Falcon
+        chmod +x /var/www/FalconGo/main
         
         # Set ownership
         sudo chown -R root:root /var/www/FalconGo
