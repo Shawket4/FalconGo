@@ -556,6 +556,8 @@ func Login(c *fiber.Ctx) error {
 		"jwt":        token,
 		"success":    "success message",
 		"permission": user.Permission,
+		"name":       user.Name,
+		"email":      user.Email,
 	})
 }
 
