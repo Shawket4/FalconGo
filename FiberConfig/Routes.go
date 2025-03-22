@@ -227,6 +227,6 @@ func FiberConfig() {
 	// 	}
 
 	// }))
-	app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")
-	// app.Listen(":3001")
+	// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")
+	app.Listen(":3001")
 }

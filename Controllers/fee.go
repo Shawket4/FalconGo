@@ -338,23 +338,42 @@ func (h *FeeMappingHandler) GetDropOffPointsByTerminal(c *fiber.Ctx) error {
 		})
 	}
 
-	var dropOffPoints []string
+	terminal, err = url.QueryUnescape(terminal)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid terminal name format",
+			"error":   err.Error(),
+		})
+	}
 
-	result := h.DB.Model(&Models.FeeMapping{}).
-		Where("company = ? AND terminal = ?", company, terminal).
-		Distinct().
-		Pluck("drop_off_point", &dropOffPoints)
+	// Fetch all fee mappings for the given company and terminal
+	var feeMappings []Models.FeeMapping
+	result := h.DB.Where("company = ? AND terminal = ?", company, terminal).Find(&feeMappings)
 
 	if result.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to fetch drop-off points list",
+			"message": "Failed to fetch fee mappings",
 			"error":   result.Error.Error(),
 		})
 	}
 
+	// Create a map of drop-off points with their fee and distance
+	mappingsMap := make(map[string]map[string]interface{})
+	dropOffPoints := []string{}
+
+	for _, mapping := range feeMappings {
+		dropOffPoints = append(dropOffPoints, mapping.DropOffPoint)
+
+		mappingsMap[mapping.DropOffPoint] = map[string]interface{}{
+			"fee":      mapping.Fee,
+			"distance": mapping.Distance,
+		}
+	}
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Drop-off points list retrieved successfully",
-		"data":    dropOffPoints,
+		"message":  "Fee mappings retrieved successfully",
+		"data":     dropOffPoints,
+		"mappings": mappingsMap,
 	})
 }
 
