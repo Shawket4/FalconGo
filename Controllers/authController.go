@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"Falcon/Models"
@@ -583,6 +584,76 @@ func User(c *fiber.Ctx) error {
 	Models.DB.Where("id = ?", claims.Issuer).First(&user)
 	CurrentUser = &user
 	return c.JSON(user)
+}
+
+func ValidateToken(c *fiber.Ctx) error {
+	// Extract token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Authorization header is required",
+		})
+	}
+
+	// Check if the format is "Bearer <token>"
+	headerParts := strings.Split(authHeader, " ")
+	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid authorization format",
+		})
+	}
+
+	tokenString := headerParts[1]
+
+	// Parse and validate the token
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SecretKey), nil
+	})
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid or expired token",
+			"error":   err.Error(),
+		})
+	}
+
+	// Verify token is valid
+	if !token.Valid {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid token",
+		})
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid token claims",
+		})
+	}
+
+	// Optional: Verify the token hasn't expired
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Token has expired",
+		})
+	}
+
+	// Verify user exists in database
+	var user Models.User
+	result := Models.DB.Where("id = ?", claims.Issuer).First(&user)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "User not found",
+		})
+	}
+
+	// Token is valid
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Valid token",
+		"user_id": claims.Issuer,
+	})
 }
 
 func Logout(c *fiber.Ctx) error {
