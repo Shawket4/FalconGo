@@ -33,11 +33,34 @@ func Connect() {
 	// connection, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	connection, err := gorm.Open(sqlite.Open("database.db"))
 	DB = connection
-	connection.AutoMigrate(&Truck{}, &Tire{}, &TirePosition{})
-	connection.AutoMigrate(&User{}, &FuelEvent{}, &Driver{}, &Service{}, &TripStruct{}, &Location{}, &Terminal{}, &OilChange{})
-	connection.AutoMigrate(&Expense{}, &Loan{})
-	connection.AutoMigrate(&LandMark{})
-	connection.AutoMigrate(&FeeMapping{})
+	connection.AutoMigrate(
+		&User{},     // Users typically have no dependencies
+		&Location{}, // Base location data
+		&Terminal{}, // Base terminal data
+		&Driver{},   // Base driver information
+		&Car{},      // Base car information
+		&Tire{},     // Base tire data
+		&LandMark{}, // No obvious dependencies shown
+	)
+
+	// 2. Then migrate models with simple foreign key relationships
+	connection.AutoMigrate(
+		&Truck{},        // Once tires are created
+		&TirePosition{}, // Depends on Truck and Tire
+		&Expense{},      // Depends on Driver
+		&Loan{},         // Depends on Driver
+	)
+
+	// 3. Finally, migrate models with complex relationships or that depend on multiple other models
+	connection.AutoMigrate(
+		&FeeMapping{}, // Required for trips but has no dependencies itself
+		&TripStruct{}, // Depends on Car, Driver, and relates to FeeMapping
+		&FuelEvent{},  // Depends on Car info
+		&Service{},    // Depends on Car info
+		&OilChange{},  // Depends on Car info
+	)
+
+	// 4. After migrations, set up any special indexes
 	// var admin User
 	// admin.Email = "Apex"
 	// passwordByte, _ := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.DefaultCost)
