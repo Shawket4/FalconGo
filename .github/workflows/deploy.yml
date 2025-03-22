@@ -25,12 +25,12 @@ jobs:
     - name: Ensure HTTPS is enabled
       run: |
         # Check if HTTPS is commented out, if so uncomment it
-        if grep -q "// app.ListenTLS" FiberConfig/Routes.go; then
+        if grep -q "// app.ListenTLS" FiberConfig/FiberConfig.go; then
           # Uncomment the HTTPS line
-          sed -i 's|// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|g' FiberConfig/Routes.go
+          sed -i 's|// app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|app.ListenTLS(":3001", "/etc/letsencrypt/live/apextransport.ddns.net/fullchain.pem", "/etc/letsencrypt/live/apextransport.ddns.net/privkey.pem")|g' FiberConfig/FiberConfig.go
           
           # Comment out HTTP if it's uncommented
-          sed -i 's|app.Listen(":3001")|// app.Listen(":3001")|g' FiberConfig/Routes.go
+          sed -i 's|app.Listen(":3001")|// app.Listen(":3001")|g' FiberConfig/FiberConfig.go
           
           echo "Modified code to use HTTPS"
         else
@@ -43,6 +43,23 @@ jobs:
         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o Falcon ./main.go
         # Make the binary executable
         chmod +x Falcon
+
+    - name: Prepare deployment package
+      run: |
+        # Create a directory for all files to deploy
+        mkdir -p deployment
+        
+        # Copy the binary
+        cp Falcon deployment/
+        
+        # Copy all necessary directories for static files
+        cp -r Templates static deployment/ || true
+        
+        # Copy any config files you might need
+        cp -r config*.* deployment/ || true
+        
+        # Create a tarball for easier transfer
+        tar -czf deployment.tar.gz -C deployment .
 
     - name: Setup SSH
       run: |
@@ -57,6 +74,9 @@ jobs:
         # Create a backup script to run on the server
         cat > deploy.sh << 'EOF'
         #!/bin/bash
+        # Create directory if it doesn't exist
+        sudo mkdir -p /var/www/FalconGo
+        
         # Stop the service
         sudo systemctl stop Falcon || true
 
@@ -66,20 +86,34 @@ jobs:
           cp /var/www/FalconGo/database.db /var/www/FalconGo/database.db.bak
         fi
 
-        # Remove old binary (but not database)
+        # Extract new files (preserving database)
+        echo "Extracting new files..."
         cd /var/www/FalconGo
-        if [ -f Falcon ]; then
-          rm Falcon
-        fi
-
-        # Copy new files
-        echo "Copying new binary..."
-        chmod +x /tmp/Falcon
-        mv /tmp/Falcon /var/www/FalconGo/
-
-        # Restore permissions
-        sudo chown root:root /var/www/FalconGo/Falcon
-        sudo chmod 755 /var/www/FalconGo/Falcon
+        
+        # Extract everything except database.db
+        tar -xzf /tmp/deployment.tar.gz --skip-old-files
+        
+        # Make sure binary is executable
+        chmod +x /var/www/FalconGo/Falcon
+        
+        # Set ownership
+        sudo chown -R root:root /var/www/FalconGo
+        
+        # Make sure directories for static files exist
+        mkdir -p /var/www/FalconGo/CarLicenses
+        mkdir -p /var/www/FalconGo/CarLicensesBack
+        mkdir -p /var/www/FalconGo/CalibrationLicenses
+        mkdir -p /var/www/FalconGo/CalibrationLicensesBack
+        mkdir -p /var/www/FalconGo/DriverLicenses
+        mkdir -p /var/www/FalconGo/SafetyLicenses
+        mkdir -p /var/www/FalconGo/DrugTests
+        mkdir -p /var/www/FalconGo/CriminalRecords
+        mkdir -p /var/www/FalconGo/IDLicenses
+        mkdir -p /var/www/FalconGo/IDLicensesBack
+        mkdir -p /var/www/FalconGo/TankLicenses
+        mkdir -p /var/www/FalconGo/TankLicensesBack
+        mkdir -p /var/www/FalconGo/ServiceProofs
+        mkdir -p /var/www/FalconGo/static
 
         # Restart service
         echo "Restarting service..."
@@ -89,8 +123,8 @@ jobs:
         
         chmod +x deploy.sh
         
-        # Copy the binary to a temporary location on the VPS
-        scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} Falcon ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+        # Copy the deployment package to the VPS
+        scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deployment.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
         
         # Copy and execute the deployment script
         scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
