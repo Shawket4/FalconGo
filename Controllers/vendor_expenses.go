@@ -59,7 +59,7 @@ func (h *VendorHandler) CreateVendor(c *fiber.Ctx) error {
 func (h *VendorHandler) GetVendors(c *fiber.Ctx) error {
 	var vendors []Models.Vendor
 
-	result := h.DB.Find(&vendors)
+	result := h.DB.Preload("Expenses").Find(&vendors)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch vendors",
