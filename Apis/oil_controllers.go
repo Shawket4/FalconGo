@@ -139,32 +139,16 @@ func DeleteOilChange(c *fiber.Ctx) error {
 }
 
 func GetAllOilChanges(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else {
-			var oilChanges []Models.OilChange
-			if Controllers.CurrentUser.Permission == 4 {
-				if err := Models.DB.Model(&Models.OilChange{}).Find(&oilChanges).Error; err != nil {
-					log.Println(err.Error())
-					return err
-				}
-			} else {
-				if err := Models.DB.Model(&Models.OilChange{}).Where("transporter = ?", Controllers.CurrentUser.Name).Find(&oilChanges).Error; err != nil {
-					log.Println(err.Error())
-					return err
-				}
-			}
-			return c.JSON(
-				oilChanges,
-			)
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
+	var oilChanges []Models.OilChange
+
+	if err := Models.DB.Model(&Models.OilChange{}).Find(&oilChanges).Error; err != nil {
+		log.Println(err.Error())
+		return err
 	}
+
+	return c.JSON(
+		oilChanges,
+	)
 }
 
 func GetOilChange(c *fiber.Ctx) error {
