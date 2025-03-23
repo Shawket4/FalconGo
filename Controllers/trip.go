@@ -527,8 +527,10 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Base query
-	query := h.DB.Where("date >= ? AND date <= ?", startDate, endDate)
+	// Base query with model and proper sorting
+	query := h.DB.Model(&Models.TripStruct{}).
+		Where("date >= ? AND date <= ?", startDate, endDate).
+		Order("date DESC, receipt_no DESC")
 
 	// Apply company filter if provided
 	if company != "" {
@@ -537,13 +539,10 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 
 	// Count total records for this date range
 	var total int64
-	query.Model(&Models.TripStruct{}).Count(&total)
+	query.Count(&total)
 
-	// Get trips for this date range with pagination
-	result := query.Order("date DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&trips)
+	// Get trips for this date range with pagination (using the same query)
+	result := query.Limit(limit).Offset(offset).Find(&trips)
 
 	if result.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
