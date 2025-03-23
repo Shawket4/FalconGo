@@ -32,8 +32,13 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	// Count total records
+	tx := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC")
+
+	// Clone it for the count
 	var total int64
-	h.DB.Model(&Models.TripStruct{}).Count(&total)
+	tx.Count(&total)
+
+	tx.Find(&trips)
 
 	// Get trips with pagination
 	result := h.DB.Order("created_at DESC").Limit(limit).Offset(offset).Find(&trips)
