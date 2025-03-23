@@ -31,17 +31,15 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
+	// Create a base query with proper sorting
+	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC")
+
 	// Count total records
-	tx := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC")
-
-	// Clone it for the count
 	var total int64
-	tx.Count(&total)
+	query.Count(&total)
 
-	tx.Find(&trips)
-
-	// Get trips with pagination
-	result := h.DB.Order("created_at DESC").Limit(limit).Offset(offset).Find(&trips)
+	// Get trips with pagination (using the same sorting)
+	result := query.Limit(limit).Offset(offset).Find(&trips)
 	if result.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch trips",
@@ -98,16 +96,17 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
+	// Create a base query with company filter and proper sorting
+	query := h.DB.Model(&Models.TripStruct{}).
+		Where("company = ?", company).
+		Order("date DESC, receipt_no DESC")
+
 	// Count total records for this company
 	var total int64
-	h.DB.Model(&Models.TripStruct{}).Where("company = ?", company).Count(&total)
+	query.Count(&total)
 
-	// Get trips for this company with pagination
-	result := h.DB.Where("company = ?", company).
-		Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&trips)
+	// Get trips for this company with pagination (using the same sorting)
+	result := query.Limit(limit).Offset(offset).Find(&trips)
 
 	if result.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
