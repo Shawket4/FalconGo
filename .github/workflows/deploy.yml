@@ -84,14 +84,22 @@ jobs:
         if [ -f /var/www/FalconGo/database.db ]; then
           echo "Backing up database..."
           cp /var/www/FalconGo/database.db /var/www/FalconGo/database.db.bak
+          # Save the database temporarily
+          cp /var/www/FalconGo/database.db /tmp/database.db.temp
         fi
 
-        # Extract new files (preserving database)
+        # Extract new files
         echo "Extracting new files..."
         cd /var/www/FalconGo
         
-        # Extract everything except database.db
-        tar -xzf /tmp/deployment.tar.gz --skip-old-files
+        # Extract everything, overwriting existing files
+        tar -xzf /tmp/deployment.tar.gz
+
+        # Restore the database if it was backed up
+        if [ -f /tmp/database.db.temp ]; then
+          echo "Restoring database..."
+          mv /tmp/database.db.temp /var/www/FalconGo/database.db
+        fi
         
         # Make sure binary is executable
         chmod +x /var/www/FalconGo/main
