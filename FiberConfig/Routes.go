@@ -26,6 +26,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Initialize handlers
 	feeMappingHandler := Controllers.NewFeeMappingHandler(db)
 	tripHandler := Controllers.NewTripHandler(db)
+	vendorHandler := Controllers.NewVendorHandler(db)
+	expenseHandler := Controllers.NewExpenseHandler(db)
 
 	// API group
 	api := app.Group("/api")
@@ -58,6 +60,20 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
 
 	trips.Get("/stats", tripHandler.GetTripStats)
+
+	vendors := api.Group("/vendors")
+	vendors.Post("/", vendorHandler.CreateVendor)
+	vendors.Get("/", vendorHandler.GetVendors)
+	vendors.Get("/:id", vendorHandler.GetVendor)
+	vendors.Put("/:id", vendorHandler.UpdateVendor)
+	vendors.Delete("/:id", vendorHandler.DeleteVendor)
+
+	// Expense routes
+	vendors.Post("/:vendorId/expenses", expenseHandler.CreateExpense)
+	vendors.Get("/:vendorId/expenses", expenseHandler.GetExpenses)
+	vendors.Get("/:vendorId/expenses/:expenseId", expenseHandler.GetExpense)
+	vendors.Put("/:vendorId/expenses/:expenseId", expenseHandler.UpdateExpense)
+	vendors.Delete("/:vendorId/expenses/:expenseId", expenseHandler.DeleteExpense)
 }
 
 func FiberConfig() {
