@@ -16,7 +16,7 @@ type Truck struct {
 // Tire represents a single tire in the system
 type Tire struct {
 	gorm.Model
-	Serial          string `json:"serial" gorm:"type:varchar(100);uniqueIndex"`
+	Serial          string `json:"serial" gorm:"type:varchar(100);"`
 	Brand           string `json:"brand"`
 	Size            string `json:"size"`
 	ManufactureDate string `json:"manufacture_date"`
