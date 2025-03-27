@@ -142,6 +142,7 @@ func FiberConfig() {
 	app.Use("/api/GetVehicleMilage", Scrapper.GetVehicleMileageHistory)
 	app.Get("/api/GetLocations", Apis.GetLocations)
 	app.Post("/api/RegisterDriverLoan", Apis.RegisterDriverLoan, middleware.Verify(3))
+	app.Post("/api/loans/stats", Apis.FetchLoanStats)
 	app.Post("/api/RegisterDriverExpense", Apis.RegisterDriverExpense)
 	app.Post("/api/DeleteExpense", Apis.DeleteExpense)
 	app.Post("/api/DeleteLoan", Apis.DeleteLoan, middleware.Verify(3))

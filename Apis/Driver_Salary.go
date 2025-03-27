@@ -29,6 +29,84 @@ func RegisterDriverLoan(c *fiber.Ctx) error {
 	})
 }
 
+type LoanStatRequest struct {
+	FromDate string `json:"from_date"`
+	ToDate   string `json:"to_date"`
+}
+
+// Define a response structure for the statistics
+type LoanStatResponse struct {
+	TotalLoans    int                `json:"total_loans"`
+	TotalAmount   float64            `json:"total_amount"`
+	AverageAmount float64            `json:"average_amount"`
+	MethodStats   map[string]int     `json:"method_stats"`
+	MethodAmounts map[string]float64 `json:"method_amounts"`
+}
+
+// FetchLoanStats retrieves loan statistics between two dates
+func FetchLoanStats(c *fiber.Ctx) error {
+	// Parse request body
+	var req LoanStatRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Cannot parse request body",
+		})
+	}
+
+	// Validate dates
+	if req.FromDate == "" || req.ToDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Both from_date and to_date are required",
+		})
+	}
+
+	// Query loans between the dates
+	var loans []Models.Loan
+	if err := Models.DB.Where("date BETWEEN ? AND ?", req.FromDate, req.ToDate).Find(&loans).Error; err != nil {
+		log.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch loans",
+		})
+	}
+
+	// Calculate statistics
+	stats := calculateLoanStats(loans)
+
+	// Return the statistics
+	return c.JSON(fiber.Map{
+		"message": "Loan statistics retrieved successfully",
+		"stats":   stats,
+	})
+}
+
+// Helper function to calculate loan statistics
+func calculateLoanStats(loans []Models.Loan) LoanStatResponse {
+	var totalAmount float64
+	methodStats := make(map[string]int)
+	methodAmounts := make(map[string]float64)
+
+	// Calculate totals and breakdown by method
+	for _, loan := range loans {
+		totalAmount += loan.Amount
+		methodStats[loan.Method]++
+		methodAmounts[loan.Method] += loan.Amount
+	}
+
+	// Calculate average
+	var averageAmount float64
+	if len(loans) > 0 {
+		averageAmount = totalAmount / float64(len(loans))
+	}
+
+	return LoanStatResponse{
+		TotalLoans:    len(loans),
+		TotalAmount:   totalAmount,
+		AverageAmount: averageAmount,
+		MethodStats:   methodStats,
+		MethodAmounts: methodAmounts,
+	}
+}
+
 func RegisterDriverExpense(c *fiber.Ctx) error {
 	var input struct {
 		DriverID uint           `json:"driver_id"`
