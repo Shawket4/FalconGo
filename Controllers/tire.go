@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
@@ -114,12 +115,16 @@ type OCRRequest struct {
 }
 
 type OCRResponse struct {
-	Success bool   `json:"success"`
-	DOT     string `json:"dot,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Success        bool    `json:"success"`
+	DOT            string  `json:"dot,omitempty"`
+	Error          string  `json:"error,omitempty"`
+	ProcessingTime float64 `json:"processingTime,omitempty"` // in milliseconds
+	RawText        string  `json:"rawText,omitempty"`        // for debugging
 }
 
 func DOTOCR(c *fiber.Ctx) error {
+	startTime := time.Now()
+
 	var req OCRRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(OCRResponse{
@@ -157,20 +162,14 @@ func DOTOCR(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
 			Success: false,
-			Error:   "Failed to decode image",
+			Error:   fmt.Sprintf("Failed to decode image: %v", err),
 		})
 	}
 
 	// Preprocess image to enhance DOT visibility
-	processedImg, err := preprocessImage(img)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
-			Success: false,
-			Error:   "Failed to preprocess image",
-		})
-	}
+	processedImg := preprocessImage(img)
 
-	// Save processed image to temporary file
+	// Save processed image to a temporary file for OCR
 	tmpfile, err := os.CreateTemp("", "tire-*.jpg")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
@@ -187,107 +186,181 @@ func DOTOCR(c *fiber.Ctx) error {
 			Error:   "Failed to encode processed image",
 		})
 	}
+	tmpfile.Close() // Close before gosseract reads it
 
-	// Perform OCR using Tesseract
-	dot, err := performOCR(tmpfile.Name())
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
-			Success: false,
-			Error:   fmt.Sprintf("OCR failed: %v", err),
-		})
+	// Try multiple OCR configurations for better results
+	var bestText string
+	var dot string
+
+	// Try different PSM modes (Page Segmentation Modes)
+	psmModes := []gosseract.PageSegMode{
+		gosseract.PSM_SINGLE_LINE, // 7
+		gosseract.PSM_SINGLE_WORD, // 8
+		gosseract.PSM_AUTO,        // 3
+		gosseract.PSM_SINGLE_CHAR, // 10
 	}
+
+	for _, psm := range psmModes {
+		text, err := performOCR(tmpfile.Name(), psm)
+		if err != nil {
+			continue
+		}
+
+		// Try to extract DOT number
+		extractedDOT := extractDOTNumber(text)
+		if extractedDOT != "" {
+			dot = extractedDOT
+			bestText = text
+			break
+		}
+
+		// Save the text for future tries if no DOT found yet
+		if bestText == "" {
+			bestText = text
+		}
+	}
+
+	// If no DOT found yet, try one more time with a broader whitelist
+	if dot == "" && bestText == "" {
+		text, _ := performOCRWithBroadWhitelist(tmpfile.Name())
+		bestText = text
+		dot = extractDOTNumber(text)
+	}
+
+	// Calculate processing time
+	processingTime := float64(time.Since(startTime).Milliseconds())
 
 	// No DOT found
 	if dot == "" {
 		return c.Status(fiber.StatusOK).JSON(OCRResponse{
-			Success: false,
-			Error:   "No DOT number found in the image",
+			Success:        false,
+			Error:          "No DOT number found in the image",
+			ProcessingTime: processingTime,
+			RawText:        bestText,
 		})
 	}
 
 	return c.JSON(OCRResponse{
-		Success: true,
-		DOT:     dot,
+		Success:        true,
+		DOT:            dot,
+		ProcessingTime: processingTime,
+		RawText:        bestText,
 	})
 }
 
-func preprocessImage(img image.Image) (image.Image, error) {
+func preprocessImage(img image.Image) image.Image {
 	// Step 1: Convert to grayscale
 	grayImg := imaging.Grayscale(img)
 
 	// Step 2: Increase contrast to make engravings more visible
-	contrastedImg := imaging.AdjustContrast(grayImg, 50)
+	contrastedImg := imaging.AdjustContrast(grayImg, 80)
 
 	// Step 3: Apply sharpening to enhance edges (engravings)
-	sharpenedImg := imaging.Sharpen(contrastedImg, 2.0)
+	sharpenedImg := imaging.Sharpen(contrastedImg, 2.5)
 
-	// Step 4: Apply threshold to create binary image
-	// This helps in isolating the text from background
-	thresholdedImg := imaging.AdjustBrightness(sharpenedImg, 10)
-	thresholdedImg = imaging.AdjustContrast(thresholdedImg, 40)
+	// Step 4: Apply brightness adjustment for better text recognition
+	brightImg := imaging.AdjustBrightness(sharpenedImg, 15)
 
-	return thresholdedImg, nil
+	// Return the processed image
+	return brightImg
 }
 
-func performOCR(imagePath string) (string, error) {
+func performOCR(imagePath string, pageSegMode gosseract.PageSegMode) (string, error) {
 	client := gosseract.NewClient()
 	defer client.Close()
 
-	// Set Tesseract configurations for improved DOT detection
-	client.SetImage(imagePath)
-
-	// Configure Tesseract for DOT number recognition
-	// We'll set it to only look for digits, letters, and spaces
-	client.SetWhitelist("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
-
-	// Set page segmentation mode to treat the image as a single line of text
-	client.SetPageSegMode(gosseract.PSM_SINGLE_LINE)
-
-	// Obtain the text from the image
-	text, err := client.Text()
-	if err != nil {
-		return "", err
+	// Set image path
+	if err := client.SetImage(imagePath); err != nil {
+		return "", fmt.Errorf("failed to set image: %v", err)
 	}
 
+	// Configure Tesseract for DOT number recognition
+	client.SetLanguage("eng")
+	client.SetPageSegMode(pageSegMode)
+	client.SetWhitelist("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
+
+	// Get the text
+	text, err := client.Text()
+	if err != nil {
+		return "", fmt.Errorf("OCR processing failed: %v", err)
+	}
+
+	return text, nil
+}
+
+func performOCRWithBroadWhitelist(imagePath string) (string, error) {
+	client := gosseract.NewClient()
+	defer client.Close()
+
+	// Set image path
+	if err := client.SetImage(imagePath); err != nil {
+		return "", fmt.Errorf("failed to set image: %v", err)
+	}
+
+	// Configure Tesseract with a broader whitelist and different PSM
+	client.SetLanguage("eng")
+	client.SetPageSegMode(gosseract.PSM_AUTO)
+	// No whitelist restriction - allow all characters
+
+	// Get the text
+	text, err := client.Text()
+	if err != nil {
+		return "", fmt.Errorf("OCR processing failed: %v", err)
+	}
+
+	return text, nil
+}
+
+func extractDOTNumber(text string) string {
 	// Clean up the text
 	text = strings.TrimSpace(text)
 
-	// Look for DOT pattern
-	dotPattern := regexp.MustCompile(`DOT\s*([A-Z0-9\s]+)`)
+	// Look for explicit DOT pattern
+	dotPattern := regexp.MustCompile(`(?i)DOT\s*([A-Z0-9\s]+)`)
 	matches := dotPattern.FindStringSubmatch(text)
 
 	if len(matches) >= 2 {
-		return fmt.Sprintf("DOT %s", strings.TrimSpace(matches[1])), nil
+		return fmt.Sprintf("DOT %s", strings.TrimSpace(matches[1]))
 	}
 
-	// If no DOT prefix found, try to extract just the pattern
-	// DOT numbers typically follow a pattern like: plant code (2 chars) + date code (4 chars) + optional code
-	altPattern := regexp.MustCompile(`([A-Z0-9]{2,3})\s*([A-Z0-9]{3,4})\s*([A-Z0-9]{3,4})`)
-	altMatches := altPattern.FindStringSubmatch(text)
+	// General pattern for DOT numbers: typically a mix of letters and numbers in grouped patterns
+	// Format is typically: plant code (1-3 chars) + date code (3-4 chars) + optional code
 
-	if len(altMatches) >= 4 {
-		return fmt.Sprintf("DOT %s %s %s",
-			strings.TrimSpace(altMatches[1]),
-			strings.TrimSpace(altMatches[2]),
-			strings.TrimSpace(altMatches[3])), nil
+	// Common DOT patterns:
+	// - 3 characters, 2 characters, 3-4 numbers
+	// - 2-3 characters, 3-4 numbers, 1-4 characters
+
+	// Try to match pattern like "XX YY ZZZZ" or "XXX YY ZZZZ"
+	dotFormatA := regexp.MustCompile(`([A-Z0-9]{1,3})\s*([A-Z0-9]{1,2})\s*([A-Z0-9]{3,4})`)
+	matchesA := dotFormatA.FindStringSubmatch(text)
+
+	if len(matchesA) >= 4 {
+		return fmt.Sprintf("DOT %s %s %s", matchesA[1], matchesA[2], matchesA[3])
 	}
 
-	// If no clear pattern detected, return the cleaned text
-	// Let the client application decide how to interpret it
-	if text != "" {
-		return text, nil
+	// Try to match pattern like "XXX YYYY ZZZ"
+	dotFormatB := regexp.MustCompile(`([A-Z0-9]{2,3})\s*([A-Z0-9]{3,4})\s*([A-Z0-9]{1,4})`)
+	matchesB := dotFormatB.FindStringSubmatch(text)
+
+	if len(matchesB) >= 4 {
+		return fmt.Sprintf("DOT %s %s %s", matchesB[1], matchesB[2], matchesB[3])
 	}
 
-	return "", nil
-}
+	// No standard pattern found, but we can still look for DOT-like patterns
+	// This is a more generic approach without hardcoding specific numbers
 
-// Helper function to save debug images during development
-func saveDebugImage(img image.Image, name string) error {
-	outFile, err := os.Create(name)
-	if err != nil {
-		return err
+	// If text contains at least 2 groups of alphanumerics with 2+ chars each, it might be a DOT
+	potentialGroups := regexp.MustCompile(`[A-Z0-9]{2,}`)
+	groups := potentialGroups.FindAllString(text, -1)
+
+	if len(groups) >= 2 {
+		// Just format whatever we found as a DOT number
+		result := "DOT"
+		for _, group := range groups {
+			result += " " + group
+		}
+		return result
 	}
-	defer outFile.Close()
 
-	return jpeg.Encode(outFile, img, &jpeg.Options{Quality: 90})
+	return ""
 }

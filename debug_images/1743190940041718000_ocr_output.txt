@@ -1,0 +1,272 @@
+=== adaptive image ===
+## psm_4_dot ##
+TT MN SS B
+7
+4
+
+
+
+## psm_7 ##
+
+
+## psm_8_dot ##
+GEDONDM COG
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+GEDONDM COG
+
+
+## psm_10 ##
+GEDONDM COG
+
+
+## psm_3 ##
+
+
+## psm_3_dot ##
+
+
+## psm_4 ##
+TT MN SS B
+7
+4
+
+
+
+## psm_6 ##
+SC
+
+
+## psm_6_dot ##
+SC
+
+
+## psm_10_dot ##
+GEDONDM COG
+
+
+
+=== enhanced image ===
+## psm_3_dot ##
+
+
+## psm_4 ##
+
+
+## psm_7 ##
+
+
+## psm_8_dot ##
+ODD 5
+
+
+## psm_3 ##
+
+
+## psm_6 ##
+6 SI QQ GEE OS SRT ID S 0S I WD
+EA ON UM 4 CR A A D C L MN
+PA M RR SE OR 4 BODE
+FA S CO SS LEAR DR ERE H  RON I MAO SY Y 2 PY
+ATT FOES PS RE RE LSP
+
+
+## psm_6_dot ##
+6 SI QQ GEE OS SRT ID S 0S I WD
+EA ON UM 4 CR A A D C L MN
+PA M RR SE OR 4 BODE
+FA S CO SS LEAR DR ERE H  RON I MAO SY Y 2 PY
+ATT FOES PS RE RE LSP
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+ODD 5
+
+
+## psm_10 ##
+ODD 5
+
+
+## psm_10_dot ##
+ODD 5
+
+
+## psm_4_dot ##
+
+
+
+=== binary image ===
+## psm_8_dot ##
+POC DUDM CO
+
+
+## psm_10 ##
+POC DUDM CO
+
+
+## psm_10_dot ##
+POC DUDM CO
+
+
+## psm_3_dot ##
+
+
+## psm_4_dot ##
+
+
+## psm_8 ##
+POC DUDM CO
+
+
+## psm_6_dot ##
+CO BA GA V
+BERIT BS OR N
+
+
+## psm_7 ##
+OOD MUON OA 3 25
+
+
+## psm_7_dot ##
+OOD MUON OA 3 25
+
+
+## psm_3 ##
+
+
+## psm_4 ##
+
+
+## psm_6 ##
+CO BA GA V
+BERIT BS OR N
+
+
+
+=== edge image ===
+## psm_6_dot ##
+A OT
+
+LPN AAR DU SR ECP LPMA R NA
+HN CIR RRMIE EG SM G SEN DD
+CN TID WV WA ANCS TP 8 ES EY TW LL H
+G TAS WW VW NGS NR RS ERIS ROE A YA DB 3 SN
+A D0 RON EAS P P SEH O NM N H  3
+
+
+## psm_7 ##
+
+
+## psm_10_dot ##
+MOOD EOL C01 5
+
+
+## psm_4 ##
+
+
+## psm_6 ##
+A OT
+
+LPN AAR DU SR ECP LPMA R NA
+HN CIR RRMIE EG SM G SEN DD
+CN TID WV WA ANCS TP 8 ES EY TW LL H
+G TAS WW VW NGS NR RS ERIS ROE A ZA DB 3 SN
+A D0 RON EAS P P SEH O NM N H  3
+
+
+## psm_4_dot ##
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+MOOD EOL C01 5
+
+
+## psm_8_dot ##
+MOOD EOL C01 5
+
+
+## psm_10 ##
+MOOD EOL C01 5
+
+
+## psm_3 ##
+
+
+## psm_3_dot ##
+
+
+
+=== inverted image ===
+## psm_10 ##
+OOD 5
+
+
+## psm_10_dot ##
+OOD 5
+
+
+## psm_3_dot ##
+MT
+
+
+
+## psm_4 ##
+A
+
+
+
+## psm_4_dot ##
+A
+
+
+
+## psm_6_dot ##
+FQ PIV PLS OR HM
+OO C A WO SW D2 PE
+RE FS  S SRN 5 AP 4S
+PO JP S DM VG YY
+OIE ISS MI OO LE ST CN OS P ER 7
+
+RT SA TOO LR SP
+
+
+## psm_7 ##
+
+
+## psm_3 ##
+MT
+
+
+
+## psm_6 ##
+FQ PIV PLS OR HM
+OO C A WO SW D2 PE
+RE FS  S SRN 5 AP 4S
+PO JP S DM VG YY
+OIE ISS MI OO LE ST CN OS P ER 7
+
+RT SA TOO LR SP
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+OOD 5
+
+
+## psm_8_dot ##
+OOD 5
+
+
+

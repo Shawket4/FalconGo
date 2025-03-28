@@ -1,0 +1,206 @@
+=== inverted image ===
+## psm_3_dot ##
+
+
+## psm_6_dot ##
+A
+
+
+## psm_7 ##
+
+
+## psm_7_dot ##
+
+
+## psm_8_dot ##
+
+
+## psm_10 ##
+
+
+## psm_3 ##
+
+
+## psm_4 ##
+
+
+## psm_4_dot ##
+
+
+## psm_6 ##
+A
+
+
+## psm_8 ##
+
+
+## psm_10_dot ##
+
+
+
+=== adaptive image ===
+## psm_3 ##
+
+
+## psm_3_dot ##
+
+
+## psm_6_dot ##
+EES
+
+
+## psm_7 ##
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+
+
+## psm_8_dot ##
+
+
+## psm_4 ##
+
+
+## psm_4_dot ##
+
+
+## psm_6 ##
+EES
+
+
+## psm_10 ##
+
+
+## psm_10_dot ##
+
+
+
+=== enhanced image ===
+## psm_4_dot ##
+
+
+## psm_6 ##
+
+
+## psm_7 ##
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+
+
+## psm_10_dot ##
+
+
+## psm_3 ##
+
+
+## psm_4 ##
+
+
+## psm_8_dot ##
+
+
+## psm_10 ##
+
+
+## psm_3_dot ##
+
+
+## psm_6_dot ##
+
+
+
+=== binary image ===
+## psm_7_dot ##
+
+
+## psm_10 ##
+
+
+## psm_10_dot ##
+
+
+## psm_3 ##
+
+
+## psm_4 ##
+
+
+## psm_4_dot ##
+
+
+## psm_7 ##
+
+
+## psm_8_dot ##
+V
+
+
+## psm_3_dot ##
+
+
+## psm_6 ##
+A AS L F
+OL
+
+
+## psm_6_dot ##
+A AS L F
+OL
+
+
+## psm_8 ##
+V
+
+
+
+=== edge image ===
+## psm_3 ##
+
+
+## psm_4_dot ##
+
+
+## psm_7 ##
+
+
+## psm_8_dot ##
+
+
+## psm_10 ##
+
+
+## psm_10_dot ##
+
+
+## psm_3_dot ##
+
+
+## psm_4 ##
+
+
+## psm_6 ##
+BNS ON AWE F Q
+SL
+NS EG
+
+
+## psm_6_dot ##
+BNS ON AWE F Q
+SL
+NS EG
+
+
+## psm_7_dot ##
+
+
+## psm_8 ##
+
+
+
