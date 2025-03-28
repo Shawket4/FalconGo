@@ -31,8 +31,18 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
+	// Get search term from query parameter
+	searchTerm := c.Query("search", "")
+
 	// Create a base query with proper sorting
 	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC")
+
+	// Add search condition if search term is provided
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%" // For LIKE query
+		query = query.Where("car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
 
 	// Count total records
 	var total int64
