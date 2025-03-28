@@ -82,7 +82,7 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	})
 }
 
-// GetTripsByCompany returns trips filtered by company
+// GetTripsByCompany handles retrieving trips by company with search functionality
 func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	company := c.Params("company")
 	if company == "" {
@@ -99,6 +99,9 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get search term from query parameter
+	searchTerm := c.Query("search", "")
+
 	var trips []Models.TripStruct
 
 	// Support pagination
@@ -110,6 +113,14 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	query := h.DB.Model(&Models.TripStruct{}).
 		Where("company = ?", company).
 		Order("date DESC, receipt_no DESC")
+
+	// Add search condition if search term is provided
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%" // For LIKE query
+		query = query.Where(
+			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
 
 	// Count total records for this company
 	var total int64
@@ -147,6 +158,7 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 			"limit":   limit,
 			"pages":   (total + int64(limit) - 1) / int64(limit),
 			"company": company,
+			"search":  searchTerm,
 		},
 	})
 }
@@ -508,7 +520,7 @@ func (h *TripHandler) GetTripStats(c *fiber.Ctx) error {
 	})
 }
 
-// GetTripsByDate returns trips filtered by date range
+// GetTripsByDate handles retrieving trips by date range with search functionality
 func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
@@ -518,6 +530,9 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"message": "Start date and end date are required",
 		})
 	}
+
+	// Get search term from query parameter
+	searchTerm := c.Query("search", "")
 
 	var trips []Models.TripStruct
 
@@ -545,6 +560,14 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	// Apply company filter if provided
 	if company != "" {
 		query = query.Where("company = ?", company)
+	}
+
+	// Add search condition if search term is provided
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%" // For LIKE query
+		query = query.Where(
+			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
 	// Count total records for this date range
@@ -585,6 +608,7 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"start_date": startDate,
 			"end_date":   endDate,
 			"company":    company,
+			"search":     searchTerm,
 		},
 	})
 }
