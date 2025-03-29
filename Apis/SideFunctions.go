@@ -78,68 +78,27 @@ func GetFuelEvents(c *fiber.Ctx) error {
 
 	// If no dates provided, default to current month
 	if startDateStr == "" && endDateStr == "" {
-		// Define Cairo timezone (UTC+2)
-		cairoLocation, _ := time.LoadLocation("Africa/Cairo")
-		if cairoLocation == nil {
-			// Fallback if timezone data is not available
-			cairoLocation = time.FixedZone("EET", 2*60*60) // UTC+2
-		}
+		// Get current time
+		now := time.Now()
 
-		// Get current time in Cairo timezone
-		nowCairo := time.Now().In(cairoLocation)
+		// Format first day and last day of current month for SQL (YYYY-MM-DD format)
+		firstDayStr := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local).Format("2006-01-02")
+		lastDayStr := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.Local).Format("2006-01-02")
 
-		// First day of month in Cairo timezone at 00:00:00
-		firstDay := time.Date(nowCairo.Year(), nowCairo.Month(), 1, 0, 0, 0, 0, cairoLocation)
-
-		// Last day of month in Cairo timezone at 23:59:59
-		lastDay := time.Date(nowCairo.Year(), nowCairo.Month()+1, 0, 23, 59, 59, 999, cairoLocation)
-
-		// Convert to server's timezone for SQL query if needed
-		// No conversion needed here since we're using the date objects directly
-
-		// Log the date range for debugging
-		log.Printf("Default date range: %s to %s\n", firstDay.Format(time.RFC3339), lastDay.Format(time.RFC3339))
-
-		// Apply the date filter directly with the timezone-aware date objects
-		query = query.Where("date BETWEEN ? AND ?", firstDay, lastDay)
+		// Use string comparison for dates - this often works better with SQL databases
+		// DATE(date) extracts just the date part, ignoring the time component
+		log.Printf("Default date range: %s to %s\n", firstDayStr, lastDayStr)
+		query = query.Where("DATE(date) >= ? AND DATE(date) <= ?", firstDayStr, lastDayStr)
 	} else {
-		// For manually provided dates
+		// For manually provided dates - use string comparison approach
 		if startDateStr != "" {
-			// Parse the date in Cairo timezone
-			cairoLocation, _ := time.LoadLocation("Africa/Cairo")
-			if cairoLocation == nil {
-				cairoLocation = time.FixedZone("EET", 2*60*60) // UTC+2
-			}
-
-			// Parse the date (assuming format YYYY-MM-DD)
-			t, err := time.Parse("2006-01-02", startDateStr)
-			if err == nil {
-				// Create a new date in Cairo timezone at 00:00:00
-				startDate := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, cairoLocation)
-				log.Printf("Start date: %s\n", startDate.Format(time.RFC3339))
-				query = query.Where("date >= ?", startDate)
-			} else {
-				log.Printf("Error parsing start date: %v\n", err)
-			}
+			log.Printf("Manual start date: %s\n", startDateStr)
+			query = query.Where("DATE(date) >= ?", startDateStr)
 		}
 
 		if endDateStr != "" {
-			// Parse the date in Cairo timezone
-			cairoLocation, _ := time.LoadLocation("Africa/Cairo")
-			if cairoLocation == nil {
-				cairoLocation = time.FixedZone("EET", 2*60*60) // UTC+2
-			}
-
-			// Parse the date (assuming format YYYY-MM-DD)
-			t, err := time.Parse("2006-01-02", endDateStr)
-			if err == nil {
-				// Create a new date in Cairo timezone at 23:59:59
-				endDate := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 999, cairoLocation)
-				log.Printf("End date: %s\n", endDate.Format(time.RFC3339))
-				query = query.Where("date <= ?", endDate)
-			} else {
-				log.Printf("Error parsing end date: %v\n", err)
-			}
+			log.Printf("Manual end date: %s\n", endDateStr)
+			query = query.Where("DATE(date) <= ?", endDateStr)
 		}
 	}
 
