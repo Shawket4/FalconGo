@@ -6,15 +6,18 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
+	"io/ioutil"
+	"log"
 	"os"
-	"regexp"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
-	"github.com/otiai10/gosseract/v2"
 )
 
 // GetAllTires fetches all tires in the system
@@ -115,14 +118,15 @@ type OCRRequest struct {
 }
 
 type OCRResponse struct {
-	Success        bool    `json:"success"`
-	DOT            string  `json:"dot,omitempty"`
-	Error          string  `json:"error,omitempty"`
-	ProcessingTime float64 `json:"processingTime,omitempty"` // in milliseconds
-	RawText        string  `json:"rawText,omitempty"`        // for debugging
+	Success        bool     `json:"success"`
+	Text           string   `json:"text,omitempty"`
+	Error          string   `json:"error,omitempty"`
+	ProcessingTime float64  `json:"processingTime,omitempty"` // in milliseconds
+	RawResults     []string `json:"rawResults,omitempty"`     // for debugging
 }
 
-func DOTOCR(c *fiber.Ctx) error {
+// EngravedTextOCR processes images with engraved text (like tire markings)
+func EngravedTextOCR(c *fiber.Ctx) error {
 	startTime := time.Now()
 
 	var req OCRRequest
@@ -153,7 +157,7 @@ func DOTOCR(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(OCRResponse{
 			Success: false,
-			Error:   "Invalid image encoding",
+			Error:   fmt.Sprintf("Invalid image encoding: %v", err),
 		})
 	}
 
@@ -166,201 +170,305 @@ func DOTOCR(c *fiber.Ctx) error {
 		})
 	}
 
-	// Preprocess image to enhance DOT visibility
-	processedImg := preprocessImage(img)
-
-	// Save processed image to a temporary file for OCR
-	tmpfile, err := os.CreateTemp("", "tire-*.jpg")
+	// Create a temporary directory for processing
+	tempDir, err := ioutil.TempDir("", "engraved-ocr-*")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
 			Success: false,
-			Error:   "Failed to create temporary file",
+			Error:   "Failed to create temporary directory",
 		})
 	}
-	defer os.Remove(tmpfile.Name())
-	defer tmpfile.Close()
+	defer os.RemoveAll(tempDir)
 
-	if err := jpeg.Encode(tmpfile, processedImg, &jpeg.Options{Quality: 100}); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(OCRResponse{
-			Success: false,
-			Error:   "Failed to encode processed image",
-		})
+	// Process the image with techniques optimized for engraved text
+	processedImages := []struct {
+		path string
+		name string
+	}{
+		{processHighContrast(img, tempDir, "high_contrast"), "High Contrast"},
+		{processEdgeEnhanced(img, tempDir, "edge_enhanced"), "Edge Enhanced"},
+		{processBinarized(img, tempDir, "binarized"), "Binarized"},
 	}
-	tmpfile.Close() // Close before gosseract reads it
 
-	// Try multiple OCR configurations for better results
+	// Try OCR on each processed image
+	var allResults []string
 	var bestText string
-	var dot string
+	var bestConfidence float64
 
-	// Try different PSM modes (Page Segmentation Modes)
-	psmModes := []gosseract.PageSegMode{
-		gosseract.PSM_SINGLE_LINE, // 7
-		gosseract.PSM_SINGLE_WORD, // 8
-		gosseract.PSM_AUTO,        // 3
-		gosseract.PSM_SINGLE_CHAR, // 10
-	}
-
-	for _, psm := range psmModes {
-		text, err := performOCR(tmpfile.Name(), psm)
-		if err != nil {
+	for _, processedImg := range processedImages {
+		if processedImg.path == "" {
 			continue
 		}
 
-		// Try to extract DOT number
-		extractedDOT := extractDOTNumber(text)
-		if extractedDOT != "" {
-			dot = extractedDOT
-			bestText = text
-			break
+		// Try different OCR configurations
+		ocrConfigs := []struct {
+			name    string
+			psmMode string
+		}{
+			{"Single Line", "7"},
+			{"Single Word", "8"},
+			{"Single Char", "10"},
 		}
 
-		// Save the text for future tries if no DOT found yet
-		if bestText == "" {
-			bestText = text
-		}
-	}
+		for _, config := range ocrConfigs {
+			// Run OCR on the processed image
+			text, confidence, err := runOCR(processedImg.path, config.psmMode)
+			if err != nil {
+				log.Printf("OCR failed for %s with config %s: %v", processedImg.name, config.name, err)
+				continue
+			}
 
-	// If no DOT found yet, try one more time with a broader whitelist
-	if dot == "" && bestText == "" {
-		text, _ := performOCRWithBroadWhitelist(tmpfile.Name())
-		bestText = text
-		dot = extractDOTNumber(text)
+			if text != "" {
+				result := fmt.Sprintf("[%s, %s, Confidence: %.2f]: %s",
+					processedImg.name, config.name, confidence, text)
+				allResults = append(allResults, result)
+
+				// Keep track of the highest confidence result
+				if confidence > bestConfidence {
+					bestText = text
+					bestConfidence = confidence
+				}
+			}
+		}
 	}
 
 	// Calculate processing time
 	processingTime := float64(time.Since(startTime).Milliseconds())
 
-	// No DOT found
-	if dot == "" {
+	// Check if we found any text
+	if bestText == "" {
 		return c.Status(fiber.StatusOK).JSON(OCRResponse{
 			Success:        false,
-			Error:          "No DOT number found in the image",
+			Error:          "No text recognized in the image",
 			ProcessingTime: processingTime,
-			RawText:        bestText,
+			RawResults:     allResults,
 		})
 	}
 
+	// Clean up the result - remove extra spaces and special chars
+	bestText = cleanOCRResult(bestText)
+
 	return c.JSON(OCRResponse{
 		Success:        true,
-		DOT:            dot,
+		Text:           bestText,
 		ProcessingTime: processingTime,
-		RawText:        bestText,
+		RawResults:     allResults,
 	})
 }
 
-func preprocessImage(img image.Image) image.Image {
-	// Step 1: Convert to grayscale
+// High contrast processing for engraved text
+func processHighContrast(img image.Image, tempDir, name string) string {
+	// Convert to grayscale
 	grayImg := imaging.Grayscale(img)
 
-	// Step 2: Increase contrast to make engravings more visible
-	contrastedImg := imaging.AdjustContrast(grayImg, 80)
+	// Resize 3x to improve OCR on small text
+	resizedImg := imaging.Resize(grayImg, grayImg.Bounds().Dx()*3, 0, imaging.Lanczos)
 
-	// Step 3: Apply sharpening to enhance edges (engravings)
-	sharpenedImg := imaging.Sharpen(contrastedImg, 2.5)
+	// Apply extreme contrast
+	contrastImg := imaging.AdjustContrast(resizedImg, 150)
 
-	// Step 4: Apply brightness adjustment for better text recognition
-	brightImg := imaging.AdjustBrightness(sharpenedImg, 15)
+	// Apply sharpening to emphasize text
+	sharpImg := imaging.Sharpen(contrastImg, 3.0)
 
-	// Return the processed image
-	return brightImg
-}
-
-func performOCR(imagePath string, pageSegMode gosseract.PageSegMode) (string, error) {
-	client := gosseract.NewClient()
-	defer client.Close()
-
-	// Set image path
-	if err := client.SetImage(imagePath); err != nil {
-		return "", fmt.Errorf("failed to set image: %v", err)
-	}
-
-	// Configure Tesseract for DOT number recognition
-	client.SetLanguage("eng")
-	client.SetPageSegMode(pageSegMode)
-	client.SetWhitelist("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
-
-	// Get the text
-	text, err := client.Text()
+	// Save processed image
+	outputPath := filepath.Join(tempDir, name+".png")
+	err := imaging.Save(sharpImg, outputPath)
 	if err != nil {
-		return "", fmt.Errorf("OCR processing failed: %v", err)
+		log.Printf("Failed to save image: %v", err)
+		return ""
 	}
 
-	return text, nil
+	return outputPath
 }
 
-func performOCRWithBroadWhitelist(imagePath string) (string, error) {
-	client := gosseract.NewClient()
-	defer client.Close()
+// Edge enhancement for engraved text
+func processEdgeEnhanced(img image.Image, tempDir, name string) string {
+	// Convert to grayscale
+	grayImg := imaging.Grayscale(img)
 
-	// Set image path
-	if err := client.SetImage(imagePath); err != nil {
-		return "", fmt.Errorf("failed to set image: %v", err)
-	}
+	// Resize for better processing
+	resizedImg := imaging.Resize(grayImg, grayImg.Bounds().Dx()*3, 0, imaging.Lanczos)
 
-	// Configure Tesseract with a broader whitelist and different PSM
-	client.SetLanguage("eng")
-	client.SetPageSegMode(gosseract.PSM_AUTO)
-	// No whitelist restriction - allow all characters
+	// Apply contrast
+	contrastImg := imaging.AdjustContrast(resizedImg, 100)
 
-	// Get the text
-	text, err := client.Text()
+	// Sharpen to make edges more visible
+	sharpImg := imaging.Sharpen(contrastImg, 2.0)
+
+	// Enhance edges by sharpening multiple times
+	edgeImg := imaging.Sharpen(sharpImg, 3.0)
+	edgeImg = imaging.Sharpen(edgeImg, 2.0)
+
+	// Increase contrast
+	finalImg := imaging.AdjustContrast(edgeImg, 60)
+
+	// Save processed image
+	outputPath := filepath.Join(tempDir, name+".png")
+	err := imaging.Save(finalImg, outputPath)
 	if err != nil {
-		return "", fmt.Errorf("OCR processing failed: %v", err)
+		log.Printf("Failed to save processed image: %v", err)
+		return ""
 	}
 
-	return text, nil
+	return outputPath
 }
 
-func extractDOTNumber(text string) string {
-	// Clean up the text
-	text = strings.TrimSpace(text)
+// Binarization for engraved text
+func processBinarized(img image.Image, tempDir, name string) string {
+	// Convert to grayscale
+	grayImg := imaging.Grayscale(img)
 
-	// Look for explicit DOT pattern
-	dotPattern := regexp.MustCompile(`(?i)DOT\s*([A-Z0-9\s]+)`)
-	matches := dotPattern.FindStringSubmatch(text)
+	// Resize for better OCR
+	resizedImg := imaging.Resize(grayImg, grayImg.Bounds().Dx()*3, 0, imaging.Lanczos)
 
-	if len(matches) >= 2 {
-		return fmt.Sprintf("DOT %s", strings.TrimSpace(matches[1]))
-	}
+	// Apply contrast
+	contrastImg := imaging.AdjustContrast(resizedImg, 120)
 
-	// General pattern for DOT numbers: typically a mix of letters and numbers in grouped patterns
-	// Format is typically: plant code (1-3 chars) + date code (3-4 chars) + optional code
+	// Create binary image with a higher threshold for embossed text
+	bounds := contrastImg.Bounds()
+	binaryImg := image.NewGray(bounds)
 
-	// Common DOT patterns:
-	// - 3 characters, 2 characters, 3-4 numbers
-	// - 2-3 characters, 3-4 numbers, 1-4 characters
-
-	// Try to match pattern like "XX YY ZZZZ" or "XXX YY ZZZZ"
-	dotFormatA := regexp.MustCompile(`([A-Z0-9]{1,3})\s*([A-Z0-9]{1,2})\s*([A-Z0-9]{3,4})`)
-	matchesA := dotFormatA.FindStringSubmatch(text)
-
-	if len(matchesA) >= 4 {
-		return fmt.Sprintf("DOT %s %s %s", matchesA[1], matchesA[2], matchesA[3])
-	}
-
-	// Try to match pattern like "XXX YYYY ZZZ"
-	dotFormatB := regexp.MustCompile(`([A-Z0-9]{2,3})\s*([A-Z0-9]{3,4})\s*([A-Z0-9]{1,4})`)
-	matchesB := dotFormatB.FindStringSubmatch(text)
-
-	if len(matchesB) >= 4 {
-		return fmt.Sprintf("DOT %s %s %s", matchesB[1], matchesB[2], matchesB[3])
-	}
-
-	// No standard pattern found, but we can still look for DOT-like patterns
-	// This is a more generic approach without hardcoding specific numbers
-
-	// If text contains at least 2 groups of alphanumerics with 2+ chars each, it might be a DOT
-	potentialGroups := regexp.MustCompile(`[A-Z0-9]{2,}`)
-	groups := potentialGroups.FindAllString(text, -1)
-
-	if len(groups) >= 2 {
-		// Just format whatever we found as a DOT number
-		result := "DOT"
-		for _, group := range groups {
-			result += " " + group
+	// Use a high threshold specifically for embossed text
+	threshold := uint8(160)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			pixel := color.GrayModel.Convert(contrastImg.At(x, y)).(color.Gray)
+			if pixel.Y > threshold {
+				binaryImg.Set(x, y, color.White)
+			} else {
+				binaryImg.Set(x, y, color.Black)
+			}
 		}
-		return result
 	}
 
-	return ""
+	// Save processed image
+	outputPath := filepath.Join(tempDir, name+".png")
+	file, err := os.Create(outputPath)
+	if err != nil {
+		log.Printf("Failed to create file: %v", err)
+		return ""
+	}
+	defer file.Close()
+
+	if err := jpeg.Encode(file, binaryImg, &jpeg.Options{Quality: 100}); err != nil {
+		log.Printf("Failed to save image: %v", err)
+		return ""
+	}
+
+	return outputPath
+}
+
+// Run OCR on processed image
+func runOCR(imagePath, psmMode string) (string, float64, error) {
+	// Create a temporary output file base (tesseract will add .txt)
+	outputBase := imagePath + ".out"
+
+	// Build command arguments
+	args := []string{
+		imagePath,
+		outputBase,
+		"-l", "eng",
+		"--psm", psmMode,
+		"--dpi", "300",
+		"-c", "tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ",
+		"-c", "tessedit_do_invert=0", // Assume text is dark on light
+		"-c", "textord_min_linesize=1.5", // Help for engraved text
+		"-c", "textord_max_noise_size=8", // Ignore small noise
+	}
+
+	// Execute command
+	cmd := exec.Command("tesseract", args...)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", 0, fmt.Errorf("tesseract error: %v, stderr: %s", err, stderr.String())
+	}
+
+	// Read the output file
+	outputPath := outputBase + ".txt"
+	content, err := ioutil.ReadFile(outputPath)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to read OCR output: %v", err)
+	}
+
+	// Clean up the temporary output file
+	os.Remove(outputPath)
+
+	// Get confidence estimate
+	confidence := estimateConfidence(imagePath, psmMode)
+
+	return strings.TrimSpace(string(content)), confidence, nil
+}
+
+// Estimate OCR confidence
+func estimateConfidence(imagePath, psmMode string) float64 {
+	// This is a simplified approach. For a proper implementation,
+	// you'd need to run Tesseract with special parameters to get the actual confidence.
+
+	// Create a temporary output file base for confidence checking
+	outputBase := imagePath + ".conf"
+
+	args := []string{
+		imagePath,
+		outputBase,
+		"-l", "eng",
+		"--psm", psmMode,
+		"--dpi", "300",
+		"tsv", // Output format for confidence data
+	}
+
+	cmd := exec.Command("tesseract", args...)
+	if err := cmd.Run(); err != nil {
+		return 0
+	}
+
+	// Read the TSV output
+	outputPath := outputBase + ".tsv"
+	content, err := ioutil.ReadFile(outputPath)
+	if err != nil {
+		return 0
+	}
+
+	// Clean up
+	os.Remove(outputPath)
+
+	// Parse TSV to get confidence
+	lines := strings.Split(string(content), "\n")
+	var totalConf float64
+	var count int
+
+	for i, line := range lines {
+		if i == 0 { // Skip header line
+			continue
+		}
+
+		fields := strings.Split(line, "\t")
+		if len(fields) >= 11 { // Field 10 has confidence
+			var conf float64
+			fmt.Sscanf(fields[10], "%f", &conf)
+			totalConf += conf
+			count++
+		}
+	}
+
+	if count > 0 {
+		return totalConf / float64(count)
+	}
+
+	return 0
+}
+
+// Clean up OCR result
+func cleanOCRResult(text string) string {
+	// Remove newlines
+	text = strings.ReplaceAll(text, "\n", " ")
+
+	// Remove multiple spaces
+	for strings.Contains(text, "  ") {
+		text = strings.ReplaceAll(text, "  ", " ")
+	}
+
+	return strings.TrimSpace(text)
 }

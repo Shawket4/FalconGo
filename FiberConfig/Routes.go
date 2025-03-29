@@ -204,7 +204,7 @@ func FiberConfig() {
 	api.Put("/tires/:id", Controllers.UpdateTire)
 	api.Delete("/tires/:id", Controllers.DeleteTire)
 	api.Get("/tires/search", Controllers.SearchTires)
-	app.Post("/api/dot/ocr", Controllers.DOTOCR)
+	app.Post("/api/dot/ocr", Controllers.EngravedTextOCR)
 
 	// Position routes
 	api.Get("/trucks/:id/positions", Controllers.GetTruckPositions)

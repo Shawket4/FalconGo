@@ -69,21 +69,51 @@ func GetFuelEventById(c *fiber.Ctx) error {
 func GetFuelEvents(c *fiber.Ctx) error {
 	var FuelEvents []Models.FuelEvent
 
-	// if Controllers.CurrentUser.Permission == 4 {
-	if err := Models.DB.Find(&FuelEvents).Error; err != nil {
+	// Get query parameters for date filtering
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	// If no dates provided, default to current month
+	if startDateStr == "" || endDateStr == "" {
+		now := time.Now()
+		firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		lastDay := firstDay.AddDate(0, 1, 0).Add(-time.Second)
+
+		startDateStr = firstDay.Format("2006-01-02")
+		endDateStr = lastDay.Format("2006-01-02")
+	}
+
+	// Parse dates
+	startDate, startErr := time.Parse("2006-01-02", startDateStr)
+	endDate, endErr := time.Parse("2006-01-02", endDateStr)
+
+	// Build the query
+	query := Models.DB
+
+	// Apply date filtering if we have valid dates
+	if startErr == nil && endErr == nil {
+		// Adjust endDate to include the entire day
+		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("date BETWEEN ? AND ?", startDate, endDate)
+	} else if startErr == nil {
+		// Only start date is valid
+		query = query.Where("date >= ?", startDate)
+	} else if endErr == nil {
+		// Only end date is valid
+		// Adjust endDate to include the entire day
+		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("date <= ?", endDate)
+	}
+
+	// Execute the query
+	if err := query.Find(&FuelEvents).Error; err != nil {
 		log.Println(err.Error())
 		return c.JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	// } else {
-	// 	if err := Models.DB.Model(&Models.FuelEvent{}).Where("transporter = ?", Controllers.CurrentUser.Name).Order("date").Find(&FuelEvents).Error; err != nil {
-	// 		log.Println(err.Error())
-	// 		return c.JSON(fiber.Map{
-	// 			"error": err.Error(),
-	// 		})
-	// 	}
-	// }
+
+	// Sort the results
 	FuelEvents = sortFuelByDate(FuelEvents)
 
 	return c.JSON(FuelEvents)
