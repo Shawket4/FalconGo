@@ -74,10 +74,10 @@ func GetFuelEvents(c *fiber.Ctx) error {
 	endDateStr := c.Query("endDate")
 
 	// If no dates provided, default to current month
-	if startDateStr == "" || endDateStr == "" {
+	if startDateStr == "" && endDateStr == "" {
 		now := time.Now()
 		firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		lastDay := firstDay.AddDate(0, 1, 0).Add(-time.Second)
+		lastDay := time.Date(now.Year(), now.Month()+1, 0, 23, 59, 59, 0, now.Location())
 
 		startDateStr = firstDay.Format("2006-01-02")
 		endDateStr = lastDay.Format("2006-01-02")
