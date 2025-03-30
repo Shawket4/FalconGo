@@ -221,7 +221,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			h.DB.Raw(`
 				SELECT t.terminal, 
 					COUNT(*) as total_trips, 
-					COALESCE(SUM(t.capacity), 0) as total_volume,
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
 					COALESCE(SUM(fm.distance), 0) as total_distance,
 					COUNT(DISTINCT t.car_id) as distinct_cars
 				FROM trips t
