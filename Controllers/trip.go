@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -20,6 +21,272 @@ func NewTripHandler(db *gorm.DB) *TripHandler {
 	return &TripHandler{
 		DB: db,
 	}
+}
+
+type TripStatistics struct {
+	Company       string                  `json:"company"`
+	TotalTrips    int64                   `json:"total_trips"`
+	TotalVolume   float64                 `json:"total_volume"`
+	TotalDistance float64                 `json:"total_distance"`
+	TotalRevenue  float64                 `json:"total_revenue"`
+	Details       []TripStatisticsDetails `json:"details,omitempty"`
+}
+
+// TripStatisticsDetails holds the detailed statistics for each group
+type TripStatisticsDetails struct {
+	GroupName     string  `json:"group_name"` // Terminal, DropOffPoint, or Fee level
+	TotalTrips    int64   `json:"total_trips"`
+	TotalVolume   float64 `json:"total_volume"`
+	TotalDistance float64 `json:"total_distance"`
+	TotalRevenue  float64 `json:"total_revenue"`
+	Fee           float64 `json:"fee,omitempty"`
+}
+
+// GetTripStatistics returns aggregated trip statistics grouped by company
+func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
+	// Get filters from query parameters
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	companyFilter := c.Query("company")
+
+	// Base query
+	query := h.DB.Model(&Models.TripStruct{})
+
+	// Apply date filters if provided
+	if startDate != "" && endDate != "" {
+		query = query.Where("date >= ? AND date <= ?", startDate, endDate)
+	}
+
+	// Apply company filter if provided
+	if companyFilter != "" {
+		query = query.Where("company = ?", companyFilter)
+	}
+
+	// First, get all distinct companies
+	var companies []string
+	if err := query.Distinct("company").Pluck("company", &companies).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch company statistics",
+			"error":   err.Error(),
+		})
+	}
+
+	// Create the response array
+	statistics := make([]TripStatistics, 0, len(companies))
+
+	// For each company, calculate statistics
+	for _, company := range companies {
+		companyQuery := query.Where("company = ?", company)
+
+		// Initialize the company statistics
+		companyStats := TripStatistics{
+			Company: company,
+		}
+
+		// Calculate totals for the company
+		companyQuery.Count(&companyStats.TotalTrips)
+		companyQuery.Select("COALESCE(SUM(tank_capacity), 0)").Row().Scan(&companyStats.TotalVolume)
+
+		// Distance is a virtual field (gorm:"-"), so we need to calculate it by joining with fee_mappings
+		var totalDistance float64
+		h.DB.Raw(`
+			SELECT COALESCE(SUM(fm.distance), 0) as total_distance
+			FROM trips t
+			LEFT JOIN fee_mappings fm 
+				ON t.company = fm.company 
+				AND t.terminal = fm.terminal 
+				AND t.drop_off_point = fm.drop_off_point
+			WHERE t.company = ? AND t.deleted_at IS NULL
+		`, company).Row().Scan(&totalDistance)
+
+		companyStats.TotalDistance = totalDistance
+
+		// Handle company-specific grouping and revenue calculation
+		switch company {
+		case "Petrol Arrows":
+			// Group by drop off location
+			var dropOffStats []struct {
+				DropOffPoint  string
+				TotalTrips    int64
+				TotalVolume   float64
+				TotalDistance float64
+				Fee           float64
+			}
+
+			// For each drop-off point, we need to join with fee_mappings to get the distance
+			h.DB.Raw(`
+				SELECT t.drop_off_point, COUNT(*) as total_trips, 
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance,
+					fm.fee
+				FROM trips t
+				LEFT JOIN fee_mappings fm 
+					ON t.company = fm.company 
+					AND t.terminal = fm.terminal 
+					AND t.drop_off_point = fm.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				GROUP BY t.drop_off_point, fm.fee
+			`, company).Scan(&dropOffStats)
+
+			// Calculate details and total revenue
+			companyStats.Details = make([]TripStatisticsDetails, 0, len(dropOffStats))
+			companyStats.TotalRevenue = 0
+
+			for _, stat := range dropOffStats {
+				// Calculate revenue: fee * Total Volume / 1000
+				revenue := stat.Fee * stat.TotalVolume / 1000
+
+				detail := TripStatisticsDetails{
+					GroupName:     stat.DropOffPoint,
+					TotalTrips:    stat.TotalTrips,
+					TotalVolume:   stat.TotalVolume,
+					TotalDistance: stat.TotalDistance,
+					TotalRevenue:  revenue,
+					Fee:           stat.Fee,
+				}
+
+				companyStats.Details = append(companyStats.Details, detail)
+				companyStats.TotalRevenue += revenue
+			}
+
+		case "TAQA":
+			// Group by terminal
+			var terminalStats []struct {
+				Terminal      string
+				TotalTrips    int64
+				TotalVolume   float64
+				TotalDistance float64
+			}
+
+			// For each terminal, join with fee_mappings to get the distance
+			h.DB.Raw(`
+				SELECT t.terminal, COUNT(*) as total_trips, 
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance
+				FROM trips t
+				LEFT JOIN fee_mappings fm 
+					ON t.company = fm.company 
+					AND t.terminal = fm.terminal 
+					AND t.drop_off_point = fm.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				GROUP BY t.terminal
+			`, company).Scan(&terminalStats)
+
+			// Calculate details and total revenue
+			companyStats.Details = make([]TripStatisticsDetails, 0, len(terminalStats))
+			companyStats.TotalRevenue = 0
+
+			for _, stat := range terminalStats {
+				var ratePerKm float64
+				if stat.Terminal == "Alex" {
+					ratePerKm = 33.9
+				} else if stat.Terminal == "Suez" {
+					ratePerKm = 30.9
+				} else {
+					ratePerKm = 0 // Default if unknown terminal
+				}
+
+				revenue := stat.TotalDistance * ratePerKm
+
+				detail := TripStatisticsDetails{
+					GroupName:     stat.Terminal,
+					TotalTrips:    stat.TotalTrips,
+					TotalVolume:   stat.TotalVolume,
+					TotalDistance: stat.TotalDistance,
+					TotalRevenue:  revenue,
+					Fee:           ratePerKm,
+				}
+
+				companyStats.Details = append(companyStats.Details, detail)
+				companyStats.TotalRevenue += revenue
+			}
+
+		case "Watanya":
+			// Need to determine which fee category from fee mappings
+			var feeStats []struct {
+				Fee           float64
+				TotalTrips    int64
+				TotalVolume   float64
+				TotalDistance float64
+			}
+
+			// Join with fee mappings to get fee categories
+			h.DB.Raw(`
+				SELECT f.fee, COUNT(*) as total_trips, 
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume, 
+					COALESCE(SUM(f.distance), 0) as total_distance
+				FROM trips t
+				LEFT JOIN fee_mappings f 
+					ON t.company = f.company 
+					AND t.terminal = f.terminal 
+					AND t.drop_off_point = f.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				GROUP BY f.fee
+			`, company).Scan(&feeStats)
+
+			// Calculate details and total revenue
+			companyStats.Details = make([]TripStatisticsDetails, 0, len(feeStats))
+			companyStats.TotalRevenue = 0
+
+			for _, stat := range feeStats {
+				var ratePerVolume float64
+
+				switch int(stat.Fee) {
+				case 1:
+					ratePerVolume = 75
+				case 2:
+					ratePerVolume = 95
+				case 3:
+					ratePerVolume = 115
+				case 4:
+					ratePerVolume = 135
+				case 5:
+					ratePerVolume = 155
+				default:
+					ratePerVolume = 0 // Default if unknown fee
+				}
+
+				revenue := stat.TotalVolume * ratePerVolume
+
+				detail := TripStatisticsDetails{
+					GroupName:     "Fee " + fmt.Sprintf("%.0f", stat.Fee),
+					TotalTrips:    stat.TotalTrips,
+					TotalVolume:   stat.TotalVolume,
+					TotalDistance: stat.TotalDistance,
+					TotalRevenue:  revenue,
+					Fee:           stat.Fee,
+				}
+
+				companyStats.Details = append(companyStats.Details, detail)
+				companyStats.TotalRevenue += revenue
+			}
+
+		default:
+			// For other companies, just calculate basic totals
+			// Fetch average fee from mappings
+			var avgFee float64
+			h.DB.Raw(`
+				SELECT COALESCE(AVG(fee), 0)
+				FROM fee_mappings
+				WHERE company = ?
+			`, company).Row().Scan(&avgFee)
+
+			if avgFee == 0 {
+				avgFee = 50 // Default if no mappings found
+			}
+
+			revenue := companyStats.TotalVolume * avgFee
+			companyStats.TotalRevenue = revenue
+		}
+
+		// Add to the response array
+		statistics = append(statistics, companyStats)
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Trip statistics retrieved successfully",
+		"data":    statistics,
+	})
 }
 
 // GetAllTrips returns all trips
