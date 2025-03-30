@@ -206,7 +206,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			`, company, startDate, startDate, endDate, endDate).Scan(&carWorkingDays)
 
 			// Calculate total rental fee: 1433 per car per working day
-			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0
+			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0 * 1.14
 
 			// Group by terminal
 			var terminalStats []struct {
@@ -281,7 +281,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				// Proportionally based on the number of car-days
 				carRentalFee := 0.0
 				if terminalCarDays[stat.Terminal] > 0 {
-					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0
+					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0 * 1.14
 				}
 
 				// Calculate 14% VAT on the base revenue and car rental
