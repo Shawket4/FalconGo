@@ -23,31 +23,48 @@ func NewTripHandler(db *gorm.DB) *TripHandler {
 	}
 }
 
-type TripStatistics struct {
-	Company       string                  `json:"company"`
-	TotalTrips    int64                   `json:"total_trips"`
-	TotalVolume   float64                 `json:"total_volume"`
-	TotalDistance float64                 `json:"total_distance"`
-	TotalRevenue  float64                 `json:"total_revenue"`
-	Details       []TripStatisticsDetails `json:"details,omitempty"`
-}
-
-// TripStatisticsDetails holds the detailed statistics for each group
 type TripStatisticsDetails struct {
 	GroupName     string  `json:"group_name"` // Terminal, DropOffPoint, or Fee level
 	TotalTrips    int64   `json:"total_trips"`
 	TotalVolume   float64 `json:"total_volume"`
 	TotalDistance float64 `json:"total_distance"`
 	TotalRevenue  float64 `json:"total_revenue"`
+	CarRental     float64 `json:"car_rental,omitempty"` // Only for TAQA
+	VAT           float64 `json:"vat,omitempty"`        // For Watanya and TAQA
+	TotalWithVAT  float64 `json:"total_with_vat,omitempty"`
 	Fee           float64 `json:"fee,omitempty"`
+	DistinctCars  int64   `json:"distinct_cars,omitempty"` // Only for TAQA
+	DistinctDays  int64   `json:"distinct_days,omitempty"` // Only for TAQA
+	CarDays       int64   `json:"car_days,omitempty"`      // Number of car-days for this terminal
+}
+
+// Update the TripStatistics struct to include new fields:
+
+type TripStatistics struct {
+	Company       string                  `json:"company"`
+	TotalTrips    int64                   `json:"total_trips"`
+	TotalVolume   float64                 `json:"total_volume"`
+	TotalDistance float64                 `json:"total_distance"`
+	TotalRevenue  float64                 `json:"total_revenue"`
+	TotalCarRent  float64                 `json:"total_car_rent,omitempty"` // Only for TAQA
+	TotalVAT      float64                 `json:"total_vat,omitempty"`      // For Watanya and TAQA
+	TotalAmount   float64                 `json:"total_amount,omitempty"`   // Total including VAT and rentals
+	Details       []TripStatisticsDetails `json:"details,omitempty"`
 }
 
 // GetTripStatistics returns aggregated trip statistics grouped by company
+
 func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 	// Get filters from query parameters
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 	companyFilter := c.Query("company")
+
+	// Get user from context (set by Verify middleware)
+	user, ok := c.Locals("user").(Models.User)
+
+	// Check if user has permission to view financial data
+	hasFinancialAccess := ok && user.Permission >= 3
 
 	// Base query
 	query := h.DB.Model(&Models.TripStruct{})
@@ -76,15 +93,25 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 
 	// For each company, calculate statistics
 	for _, company := range companies {
-		companyQuery := query.Where("company = ?", company)
+		// Create a new query specific to this company
+		companyQuery := h.DB.Model(&Models.TripStruct{}).Where("company = ?", company)
+
+		// Apply the same date filters
+		if startDate != "" && endDate != "" {
+			companyQuery = companyQuery.Where("date >= ? AND date <= ?", startDate, endDate)
+		}
 
 		// Initialize the company statistics
 		companyStats := TripStatistics{
 			Company: company,
 		}
 
-		// Calculate totals for the company
-		companyQuery.Count(&companyStats.TotalTrips)
+		// Get total trips count correctly
+		var totalTrips int64
+		companyQuery.Count(&totalTrips)
+		companyStats.TotalTrips = totalTrips
+
+		// Get total volume
 		companyQuery.Select("COALESCE(SUM(tank_capacity), 0)").Row().Scan(&companyStats.TotalVolume)
 
 		// Distance is a virtual field (gorm:"-"), so we need to calculate it by joining with fee_mappings
@@ -97,7 +124,9 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				AND t.terminal = fm.terminal 
 				AND t.drop_off_point = fm.drop_off_point
 			WHERE t.company = ? AND t.deleted_at IS NULL
-		`, company).Row().Scan(&totalDistance)
+			AND (t.date >= ? OR ? = '')
+			AND (t.date <= ? OR ? = '')
+		`, company, startDate, startDate, endDate, endDate).Row().Scan(&totalDistance)
 
 		companyStats.TotalDistance = totalDistance
 
@@ -125,8 +154,10 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					AND t.terminal = fm.terminal 
 					AND t.drop_off_point = fm.drop_off_point
 				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
 				GROUP BY t.drop_off_point, fm.fee
-			`, company).Scan(&dropOffStats)
+			`, company, startDate, startDate, endDate, endDate).Scan(&dropOffStats)
 
 			// Calculate details and total revenue
 			companyStats.Details = make([]TripStatisticsDetails, 0, len(dropOffStats))
@@ -145,36 +176,93 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					Fee:           stat.Fee,
 				}
 
+				// Clear financial data if user doesn't have access
+				if !hasFinancialAccess {
+					detail.TotalRevenue = 0
+					detail.Fee = 0
+				}
+
 				companyStats.Details = append(companyStats.Details, detail)
-				companyStats.TotalRevenue += revenue
+				if hasFinancialAccess {
+					companyStats.TotalRevenue += revenue
+				}
 			}
 
 		case "TAQA":
+			// First, we need to calculate the actual car rental days - each car's working days
+			var carWorkingDays []struct {
+				CarID string
+				Date  string
+			}
+
+			// This query gets distinct car_id and date combinations
+			h.DB.Raw(`
+				SELECT DISTINCT car_id, date
+				FROM trips
+				WHERE company = ? AND deleted_at IS NULL
+				AND (date >= ? OR ? = '')
+				AND (date <= ? OR ? = '')
+				ORDER BY car_id, date
+			`, company, startDate, startDate, endDate, endDate).Scan(&carWorkingDays)
+
+			// Calculate total rental fee: 1433 per car per working day
+			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0
+
 			// Group by terminal
 			var terminalStats []struct {
 				Terminal      string
 				TotalTrips    int64
 				TotalVolume   float64
 				TotalDistance float64
+				DistinctCars  int64
 			}
 
 			// For each terminal, join with fee_mappings to get the distance
 			h.DB.Raw(`
-				SELECT t.terminal, COUNT(*) as total_trips, 
-					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-					COALESCE(SUM(fm.distance), 0) as total_distance
+				SELECT t.terminal, 
+					COUNT(*) as total_trips, 
+					COALESCE(SUM(t.capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance,
+					COUNT(DISTINCT t.car_id) as distinct_cars
 				FROM trips t
 				LEFT JOIN fee_mappings fm 
 					ON t.company = fm.company 
 					AND t.terminal = fm.terminal 
 					AND t.drop_off_point = fm.drop_off_point
 				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
 				GROUP BY t.terminal
-			`, company).Scan(&terminalStats)
+			`, company, startDate, startDate, endDate, endDate).Scan(&terminalStats)
+
+			// Now we need to get car working days per terminal
+			terminalCarDays := make(map[string]int)
+
+			for _, terminal := range terminalStats {
+				var terminalWorkingDays []struct {
+					CarID string
+					Date  string
+				}
+
+				h.DB.Raw(`
+					SELECT DISTINCT car_id, date
+					FROM trips
+					WHERE company = ? AND deleted_at IS NULL
+					AND terminal = ?
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					ORDER BY car_id, date
+				`, company, terminal.Terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
+
+				terminalCarDays[terminal.Terminal] = len(terminalWorkingDays)
+			}
 
 			// Calculate details and total revenue
 			companyStats.Details = make([]TripStatisticsDetails, 0, len(terminalStats))
 			companyStats.TotalRevenue = 0
+			companyStats.TotalVAT = 0
+			companyStats.TotalCarRent = totalCarRentalFee
+			companyStats.TotalAmount = 0
 
 			for _, stat := range terminalStats {
 				var ratePerKm float64
@@ -186,20 +274,72 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					ratePerKm = 0 // Default if unknown terminal
 				}
 
-				revenue := stat.TotalDistance * ratePerKm
+				// Base revenue from distance
+				baseRevenue := stat.TotalDistance * ratePerKm
+
+				// Get the terminal's portion of car rental fee
+				// Proportionally based on the number of car-days
+				carRentalFee := 0.0
+				if terminalCarDays[stat.Terminal] > 0 {
+					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0
+				}
+
+				// Calculate 14% VAT on the base revenue and car rental
+				vat := (baseRevenue + carRentalFee) * 0.14
+
+				// Total revenue including VAT
+				totalRevenue := baseRevenue + carRentalFee + vat
+
+				// Get distinct days for this terminal
+				var distinctDays int64
+				h.DB.Raw(`
+					SELECT COUNT(DISTINCT date)
+					FROM trips
+					WHERE company = ? AND deleted_at IS NULL
+					AND terminal = ?
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+				`, company, stat.Terminal, startDate, startDate, endDate, endDate).Row().Scan(&distinctDays)
 
 				detail := TripStatisticsDetails{
 					GroupName:     stat.Terminal,
 					TotalTrips:    stat.TotalTrips,
 					TotalVolume:   stat.TotalVolume,
 					TotalDistance: stat.TotalDistance,
-					TotalRevenue:  revenue,
+					TotalRevenue:  baseRevenue,
+					CarRental:     carRentalFee,
+					VAT:           vat,
+					TotalWithVAT:  totalRevenue,
 					Fee:           ratePerKm,
+					DistinctCars:  stat.DistinctCars,
+					DistinctDays:  distinctDays,
+					CarDays:       int64(terminalCarDays[stat.Terminal]),
+				}
+
+				// Clear financial data if user doesn't have access
+				if !hasFinancialAccess {
+					detail.TotalRevenue = 0
+					detail.CarRental = 0
+					detail.VAT = 0
+					detail.TotalWithVAT = 0
+					detail.Fee = 0
 				}
 
 				companyStats.Details = append(companyStats.Details, detail)
-				companyStats.TotalRevenue += revenue
+				if hasFinancialAccess {
+					companyStats.TotalRevenue += baseRevenue
+					// NOTE: We're not adding carRentalFee to TotalCarRent here because
+					// we've already set the total car rental fee for the company above
+					companyStats.TotalVAT += vat
+					companyStats.TotalAmount += totalRevenue
+				}
 			}
+
+			// Update TripStatisticsDetails struct to include CarDays field
+			// type TripStatisticsDetails struct {
+			//     ...existing fields...
+			//     CarDays        int64   `json:"car_days,omitempty"`  // Number of car-days for this terminal
+			// }
 
 		case "Watanya":
 			// Need to determine which fee category from fee mappings
@@ -221,12 +361,16 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					AND t.terminal = f.terminal 
 					AND t.drop_off_point = f.drop_off_point
 				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
 				GROUP BY f.fee
-			`, company).Scan(&feeStats)
+			`, company, startDate, startDate, endDate, endDate).Scan(&feeStats)
 
 			// Calculate details and total revenue
 			companyStats.Details = make([]TripStatisticsDetails, 0, len(feeStats))
 			companyStats.TotalRevenue = 0
+			companyStats.TotalVAT = 0
+			companyStats.TotalAmount = 0
 
 			for _, stat := range feeStats {
 				var ratePerVolume float64
@@ -246,19 +390,40 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					ratePerVolume = 0 // Default if unknown fee
 				}
 
-				revenue := stat.TotalVolume * ratePerVolume
+				// Base revenue from volume
+				baseRevenue := stat.TotalVolume * ratePerVolume / 1000
+
+				// Calculate 14% VAT
+				vat := baseRevenue * 0.14
+
+				// Total revenue including VAT
+				totalRevenue := baseRevenue + vat
 
 				detail := TripStatisticsDetails{
 					GroupName:     "Fee " + fmt.Sprintf("%.0f", stat.Fee),
 					TotalTrips:    stat.TotalTrips,
 					TotalVolume:   stat.TotalVolume,
 					TotalDistance: stat.TotalDistance,
-					TotalRevenue:  revenue,
+					TotalRevenue:  baseRevenue,
+					VAT:           vat,
+					TotalWithVAT:  totalRevenue,
 					Fee:           stat.Fee,
 				}
 
+				// Clear financial data if user doesn't have access
+				if !hasFinancialAccess {
+					detail.TotalRevenue = 0
+					detail.VAT = 0
+					detail.TotalWithVAT = 0
+					detail.Fee = 0
+				}
+
 				companyStats.Details = append(companyStats.Details, detail)
-				companyStats.TotalRevenue += revenue
+				if hasFinancialAccess {
+					companyStats.TotalRevenue += baseRevenue
+					companyStats.TotalVAT += vat
+					companyStats.TotalAmount += totalRevenue
+				}
 			}
 
 		default:
@@ -276,16 +441,37 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			}
 
 			revenue := companyStats.TotalVolume * avgFee
-			companyStats.TotalRevenue = revenue
+
+			// Only set revenue if user has financial access
+			if hasFinancialAccess {
+				companyStats.TotalRevenue = revenue
+			} else {
+				companyStats.TotalRevenue = 0
+			}
+		}
+
+		// Verify the sum of detail trips matches total trips
+		var detailTripSum int64 = 0
+		for _, detail := range companyStats.Details {
+			detailTripSum += detail.TotalTrips
+		}
+
+		// If we have details but the sum doesn't match the total, reconcile
+		if len(companyStats.Details) > 0 && detailTripSum != companyStats.TotalTrips {
+			// Log the discrepancy for debugging
+			fmt.Printf("Trip count discrepancy for %s: Total=%d, Sum of details=%d\n",
+				company, companyStats.TotalTrips, detailTripSum)
 		}
 
 		// Add to the response array
 		statistics = append(statistics, companyStats)
 	}
 
+	// Add a flag to inform frontend whether financial data is visible
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Trip statistics retrieved successfully",
-		"data":    statistics,
+		"message":            "Trip statistics retrieved successfully",
+		"data":               statistics,
+		"hasFinancialAccess": hasFinancialAccess,
 	})
 }
 
