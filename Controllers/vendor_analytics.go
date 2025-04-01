@@ -65,7 +65,7 @@ func (c *AnalyticsController) MonthlyTransactions(ctx *fiber.Ctx) error {
 				strftime('%Y-%m', date) as year_month,
 				CASE WHEN amount > 0 THEN amount ELSE 0 END as credits,
 				CASE WHEN amount < 0 THEN amount ELSE 0 END as debits
-			FROM transactions 
+			FROM vendor_transactions 
 			WHERE date BETWEEN ? AND ?
 			AND deleted_at IS NULL
 		)
@@ -150,7 +150,7 @@ func (c *AnalyticsController) TopVendors(ctx *fiber.Ctx) error {
 			SUM(t.amount) as net,
 			COUNT(t.id) as txn_count
 		FROM vendors v
-		JOIN transactions t ON v.id = t.vendor_id
+		JOIN vendor_transactions t ON v.id = t.vendor_id
 		WHERE v.deleted_at IS NULL
 		AND t.deleted_at IS NULL
 		GROUP BY v.id, v.name
@@ -180,7 +180,7 @@ func (c *AnalyticsController) RecentActivity(ctx *fiber.Ctx) error {
 			v.name as vendor_name,
 			t.description,
 			t.amount
-		FROM transactions t
+		FROM vendor_transactions t
 		JOIN vendors v ON t.vendor_id = v.id
 		WHERE t.deleted_at IS NULL
 		AND v.deleted_at IS NULL
