@@ -51,36 +51,20 @@ func (c *AnalyticsController) MonthlyTransactions(ctx *fiber.Ctx) error {
 	endDate := time.Now()
 	startDate := endDate.AddDate(-1, 0, 0)
 
-	// Query to extract monthly aggregates depends on the database
-	// This example is for SQLite, which has limited date functions
+	// Let's take a different approach - query all transactions in the date range
+	// and process them in Go rather than trying to do complex date formatting in SQL
+	var transactions []Models.VendorTransaction
 
-	var results []struct {
-		YearMonth string
-		Amount    float64
+	result := c.DB.Where("date BETWEEN ? AND ? AND deleted_at IS NULL",
+		startDate, endDate).
+		Find(&transactions)
+
+	if result.Error != nil {
+		return ctx.Status(fiber.StatusInternalServerError).
+			JSON(fiber.Map{"error": "Failed to retrieve transactions"})
 	}
 
-	query := `
-		WITH months AS (
-			SELECT 
-				strftime('%Y-%m', date) as year_month,
-				CASE WHEN amount > 0 THEN amount ELSE 0 END as credits,
-				CASE WHEN amount < 0 THEN amount ELSE 0 END as debits
-			FROM vendor_transactions 
-			WHERE date BETWEEN ? AND ?
-			AND deleted_at IS NULL
-		)
-		SELECT 
-			year_month,
-			SUM(credits) as credits,
-			SUM(debits) as debits
-		FROM months
-		GROUP BY year_month
-		ORDER BY year_month
-	`
-
-	c.DB.Raw(query, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")).Scan(&results)
-
-	// Process results
+	// Group transactions by month
 	monthlySummary := make(map[string]*MonthlyData)
 
 	// First, create entries for all 12 months (even if no data)
@@ -97,15 +81,20 @@ func (c *AnalyticsController) MonthlyTransactions(ctx *fiber.Ctx) error {
 		}
 	}
 
-	// Then fill in actual data where we have it
-	for _, result := range results {
-		monthKey := result.YearMonth
+	// Process each transaction
+	for _, txn := range transactions {
+		// Get the year-month as a string key
+		monthKey := txn.Date.Format("2006-01")
+
 		if data, exists := monthlySummary[monthKey]; exists {
-			if result.Amount > 0 {
-				data.Credits += result.Amount
+			// Add to credits or debits based on amount
+			if txn.Amount > 0 {
+				data.Credits += txn.Amount
 			} else {
-				data.Debits += result.Amount
+				data.Debits += txn.Amount // This will be negative
 			}
+
+			// Update the net balance
 			data.Net = data.Credits + data.Debits
 		}
 	}
