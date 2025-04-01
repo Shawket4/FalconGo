@@ -27,10 +27,10 @@ func (c *AnalyticsController) Summary(ctx *fiber.Ctx) error {
 	c.DB.Model(&Models.Vendor{}).Count(&summary.VendorCount)
 
 	// Calculate total credits (purchases from vendors)
-	c.DB.Model(&Models.Transaction{}).Where("amount > 0").Select("COALESCE(SUM(amount), 0)").Scan(&summary.TotalCredits)
+	c.DB.Model(&Models.VendorTransaction{}).Where("amount > 0").Select("COALESCE(SUM(amount), 0)").Scan(&summary.TotalCredits)
 
 	// Calculate total debits (payments to vendors)
-	c.DB.Model(&Models.Transaction{}).Where("amount < 0").Select("COALESCE(SUM(amount), 0)").Scan(&summary.TotalDebits)
+	c.DB.Model(&Models.VendorTransaction{}).Where("amount < 0").Select("COALESCE(SUM(amount), 0)").Scan(&summary.TotalDebits)
 
 	// Calculate net balance
 	summary.NetBalance = summary.TotalCredits + summary.TotalDebits
