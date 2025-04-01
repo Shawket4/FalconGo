@@ -4,10 +4,12 @@ import (
 	"Falcon/Models"
 	"fmt"
 	"log"
+	"net/http"
 	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func sortFuelByDate(events []Models.FuelEvent) []Models.FuelEvent {
@@ -114,6 +116,212 @@ func GetFuelEvents(c *fiber.Ctx) error {
 	FuelEvents = sortFuelByDate(FuelEvents)
 
 	return c.JSON(FuelEvents)
+}
+
+// FuelStatistics represents fuel consumption statistics grouped by car
+type FuelStatistics struct {
+	CarNoPlate       string             `json:"car_no_plate"`
+	TotalLiters      float64            `json:"total_liters"`
+	TotalDistance    float64            `json:"total_distance"`
+	TotalCost        float64            `json:"total_cost"`
+	AvgConsumption   float64            `json:"avg_consumption"` // Liters per 100km
+	MinConsumption   float64            `json:"min_consumption"` // Min liters per 100km for any refill
+	MaxConsumption   float64            `json:"max_consumption"` // Max liters per 100km for any refill
+	AvgPricePerLiter float64            `json:"avg_price_per_liter"`
+	EventCount       int64              `json:"event_count"`
+	DistinctDrivers  int64              `json:"distinct_drivers"`
+	Events           []Models.FuelEvent `json:"events,omitempty"`
+}
+
+// FuelSummary represents overall fuel statistics
+type FuelSummary struct {
+	TotalLiters      float64 `json:"total_liters"`
+	TotalDistance    float64 `json:"total_distance"`
+	TotalCost        float64 `json:"total_cost"`
+	AvgConsumption   float64 `json:"avg_consumption"`     // Overall average liters per 100km
+	AvgPricePerLiter float64 `json:"avg_price_per_liter"` // Overall average price per liter
+	TotalEvents      int64   `json:"total_events"`        // Total number of fuel events
+	DistinctCars     int64   `json:"distinct_cars"`       // Number of distinct cars
+	DistinctDrivers  int64   `json:"distinct_drivers"`    // Number of distinct drivers
+	DistinctDates    int64   `json:"distinct_dates"`      // Number of distinct dates
+}
+
+// FuelHandler handles fuel-related requests
+type FuelHandler struct {
+	DB *gorm.DB
+}
+
+// GetFuelStatistics returns detailed fuel consumption statistics
+func (h *FuelHandler) GetFuelStatistics(c *fiber.Ctx) error {
+	// Get filters from query parameters
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	carFilter := c.Query("car_no_plate")
+	driverFilter := c.Query("driver_name")
+	transporterFilter := c.Query("transporter")
+
+	// Base query
+	query := h.DB.Model(&Models.FuelEvent{})
+
+	// Apply date filters if provided
+	if startDate != "" && endDate != "" {
+		// Parse dates to ensure proper format
+		startTime, errStart := time.Parse("2006-01-02", startDate)
+		endTime, errEnd := time.Parse("2006-01-02", endDate)
+
+		if errStart == nil && errEnd == nil {
+			// Format back to string to ensure consistent format
+			formattedStart := startTime.Format("2006-01-02")
+			formattedEnd := endTime.Format("2006-01-02")
+
+			query = query.Where("date >= ? AND date <= ?", formattedStart, formattedEnd)
+		}
+	}
+
+	// Apply other filters if provided
+	if carFilter != "" {
+		query = query.Where("car_no_plate = ?", carFilter)
+	}
+	if driverFilter != "" {
+		query = query.Where("driver_name LIKE ?", "%"+driverFilter+"%")
+	}
+	if transporterFilter != "" {
+		query = query.Where("transporter LIKE ?", "%"+transporterFilter+"%")
+	}
+
+	// First, get all distinct cars
+	var cars []string
+	if err := query.Distinct("car_no_plate").Pluck("car_no_plate", &cars).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch fuel statistics",
+			"error":   err.Error(),
+		})
+	}
+
+	// Create response array for car statistics
+	statistics := make([]FuelStatistics, 0, len(cars))
+
+	// Initialize summary statistics
+	summary := FuelSummary{}
+
+	// For each car, calculate statistics
+	for _, car := range cars {
+		// Create a new query specific to this car
+		carQuery := query.Where("car_no_plate = ?", car)
+
+		// Initialize the car statistics
+		carStats := FuelStatistics{
+			CarNoPlate:     car,
+			MinConsumption: -1, // Initialize to impossible value to detect if it's been set
+		}
+
+		// Count events
+		var eventCount int64
+		carQuery.Count(&eventCount)
+		carStats.EventCount = eventCount
+
+		// Get total liters
+		carQuery.Select("COALESCE(SUM(liters), 0)").Row().Scan(&carStats.TotalLiters)
+
+		// Get total cost
+		carQuery.Select("COALESCE(SUM(price), 0)").Row().Scan(&carStats.TotalCost)
+
+		// Get average price per liter
+		if carStats.TotalLiters > 0 {
+			carStats.AvgPricePerLiter = carStats.TotalCost / carStats.TotalLiters
+		}
+
+		// Count distinct drivers
+		carQuery.Distinct("driver_name").Count(&carStats.DistinctDrivers)
+
+		// Get all events for this car to calculate distances and consumption
+		var events []Models.FuelEvent
+		if err := carQuery.Order("date, id").Find(&events).Error; err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to fetch fuel events",
+				"error":   err.Error(),
+			})
+		}
+
+		// Calculate total distance and consumption statistics
+		carStats.TotalDistance = 0
+		var validConsumptionEvents int = 0
+
+		for i, event := range events {
+			// Calculate distance for this event
+			distance := 0.0
+			if event.OdometerAfter > 0 && event.OdometerBefore > 0 {
+				// Normal case: use odometer readings from this event
+				distance = float64(event.OdometerAfter - event.OdometerBefore)
+			} else if i > 0 && events[i-1].OdometerAfter > 0 && event.OdometerBefore > 0 {
+				// Alternative: use previous event's odometer_after as the before value
+				distance = float64(event.OdometerBefore - events[i-1].OdometerAfter)
+			}
+
+			// Only add positive distances
+			if distance > 0 {
+				carStats.TotalDistance += distance
+			}
+
+			// Calculate consumption for this event (liters per 100km)
+			if distance > 0 && event.Liters > 0 {
+				consumption := (event.Liters / distance) * 100
+
+				// Update min/max consumption
+				if carStats.MinConsumption < 0 || consumption < carStats.MinConsumption {
+					carStats.MinConsumption = consumption
+				}
+				if consumption > carStats.MaxConsumption {
+					carStats.MaxConsumption = consumption
+				}
+
+				validConsumptionEvents++
+			}
+		}
+
+		// If no valid consumption events were found, set min to 0
+		if carStats.MinConsumption < 0 {
+			carStats.MinConsumption = 0
+		}
+
+		// Calculate average consumption for car
+		if carStats.TotalDistance > 0 {
+			carStats.AvgConsumption = (carStats.TotalLiters / carStats.TotalDistance) * 100
+		}
+
+		// Add events to car statistics
+		carStats.Events = events
+
+		// Add to response array
+		statistics = append(statistics, carStats)
+
+		// Update summary statistics
+		summary.TotalLiters += carStats.TotalLiters
+		summary.TotalDistance += carStats.TotalDistance
+		summary.TotalCost += carStats.TotalCost
+		summary.TotalEvents += carStats.EventCount
+		summary.DistinctDrivers += carStats.DistinctDrivers // Note: This might count some drivers multiple times if they drive different cars
+	}
+
+	// Calculate overall summary statistics
+	if summary.TotalDistance > 0 {
+		summary.AvgConsumption = (summary.TotalLiters / summary.TotalDistance) * 100
+	}
+	if summary.TotalLiters > 0 {
+		summary.AvgPricePerLiter = summary.TotalCost / summary.TotalLiters
+	}
+
+	// Count distinct cars, drivers, and dates
+	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("car_no_plate").Count(&summary.DistinctCars)
+	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("driver_name").Count(&summary.DistinctDrivers)
+	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("date").Count(&summary.DistinctDates)
+
+	// Return response
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Fuel statistics retrieved successfully",
+		"data":    statistics,
+		"summary": summary,
+	})
 }
 
 func AddFuelEvent(c *fiber.Ctx) error {

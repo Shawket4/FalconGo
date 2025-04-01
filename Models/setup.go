@@ -44,10 +44,7 @@ func Connect() {
 	)
 
 	// 2. Then migrate models with simple foreign key relationships
-	connection.AutoMigrate(
-		&Vendor{},
-		&VendorExpense{},
-	)
+
 	connection.AutoMigrate(
 		&Truck{},        // Once tires are created
 		&TirePosition{}, // Depends on Truck and Tire
@@ -63,6 +60,8 @@ func Connect() {
 		&Service{},    // Depends on Car info
 		&OilChange{},  // Depends on Car info
 	)
+
+	connection.AutoMigrate(&Vendor{}, &VendorTransaction{})
 
 	// 4. After migrations, set up any special indexes
 	// var admin User

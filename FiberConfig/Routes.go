@@ -26,11 +26,39 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Initialize handlers
 	feeMappingHandler := Controllers.NewFeeMappingHandler(db)
 	tripHandler := Controllers.NewTripHandler(db)
-	vendorHandler := Controllers.NewVendorHandler(db)
-	expenseHandler := Controllers.NewExpenseHandler(db)
+	vendorController := Controllers.NewVendorController(db)
+	transactionController := Controllers.NewTransactionController(db)
+	vendorAnalyticsController := Controllers.NewAnalyticsController(db)
 
 	// API group
 	api := app.Group("/api")
+
+	// Vendor routes
+	vendors := api.Group("/vendors", middleware.Verify(3))
+	vendors.Get("/", vendorController.GetVendors)
+	vendors.Post("/", vendorController.CreateVendor)
+	vendors.Get("/:id", vendorController.GetVendor)
+	vendors.Put("/:id", vendorController.UpdateVendor)
+	vendors.Delete("/:id", vendorController.DeleteVendor)
+	vendors.Get("/:id/balance", vendorController.GetVendorBalance)
+
+	// Transaction routes under vendors
+	vendors.Get("/:vendor_id/transactions", transactionController.GetVendorTransactions)
+	vendors.Post("/:vendor_id/transactions", transactionController.CreateTransaction)
+
+	// Direct transaction routes
+	transactions := api.Group("/transactions", middleware.Verify(3))
+	transactions.Get("/:id", transactionController.GetTransaction)
+	transactions.Put("/:id", transactionController.UpdateTransaction)
+	transactions.Delete("/:id", transactionController.DeleteTransaction)
+
+	// Analytics routes
+	analytics := api.Group("/analytics", middleware.Verify(3))
+	analytics.Get("/summary", vendorAnalyticsController.Summary)
+	analytics.Get("/monthly", vendorAnalyticsController.MonthlyTransactions)
+	analytics.Get("/top-vendors", vendorAnalyticsController.TopVendors)
+	analytics.Get("/recent-activity", vendorAnalyticsController.RecentActivity)
+
 	// Fee Mapping routes
 	mappings := api.Group("/mappings", middleware.Verify(1))
 	mappings.Get("/", feeMappingHandler.GetAllFeeMappings)
@@ -62,19 +90,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	trips.Get("/stats", tripHandler.GetTripStats)
 
-	vendors := api.Group("/vendors")
-	vendors.Post("/", vendorHandler.CreateVendor)
-	vendors.Get("/", vendorHandler.GetVendors)
-	vendors.Get("/:id", vendorHandler.GetVendor)
-	vendors.Put("/:id", vendorHandler.UpdateVendor)
-	vendors.Delete("/:id", vendorHandler.DeleteVendor)
-
-	// Expense routes
-	vendors.Post("/:vendorId/expenses", expenseHandler.CreateExpense)
-	vendors.Get("/:vendorId/expenses", expenseHandler.GetExpenses)
-	vendors.Get("/:vendorId/expenses/:expenseId", expenseHandler.GetExpense)
-	vendors.Put("/:vendorId/expenses/:expenseId", expenseHandler.UpdateExpense)
-	vendors.Delete("/:vendorId/expenses/:expenseId", expenseHandler.DeleteExpense)
 }
 
 func FiberConfig() {
@@ -163,6 +178,11 @@ func FiberConfig() {
 	protectedApis.Post("/RegisterDriver", Controllers.RegisterDriver)
 	protectedApis.Post("/UpdateDriver", Controllers.UpdateDriver)
 	//protectedApis.Use(middleware.Verify)
+	handler := &Apis.FuelHandler{DB: Models.DB}
+
+	// Group fuel routes under /api/fuel
+	fuel := app.Group("/api/fuel", middleware.Verify(1))
+	fuel.Get("/statistics", handler.GetFuelStatistics)
 	protectedApis.Post("/AddFuelEvent", Apis.AddFuelEvent, middleware.Verify(3))
 	protectedApis.Post("/EditFuelEvent", Apis.EditFuelEvent, middleware.Verify(3))
 	protectedApis.Post("/DeleteFuelEvent", Apis.DeleteFuelEvent, middleware.Verify(3))
