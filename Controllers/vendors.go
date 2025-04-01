@@ -141,7 +141,7 @@ func (c *VendorController) GetVendorBalance(ctx *fiber.Ctx) error {
 
 	// Calculate balance from transactions
 	var balance float64
-	c.DB.Model(&Models.Transaction{}).Where("vendor_id = ?", id).Select("COALESCE(SUM(amount), 0)").Scan(&balance)
+	c.DB.Model(&Models.VendorTransaction{}).Where("vendor_id = ?", id).Select("COALESCE(SUM(amount), 0)").Scan(&balance)
 
 	return ctx.JSON(fiber.Map{
 		"vendor_id": id,
