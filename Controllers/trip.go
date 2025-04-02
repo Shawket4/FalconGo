@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
@@ -614,6 +619,239 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 			"search":  searchTerm,
 		},
 	})
+}
+
+// DateRangeRequest represents the request body for date range filtering
+type DateRangeRequest struct {
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+}
+
+// WatanyaReportSummary represents the summarized data for reporting
+type WatanyaReportSummary struct {
+	ID            int     // Sequential ID starting from 1
+	DropOffPoint  string  // Drop-off point
+	Terminal      string  // Terminal
+	TripCount     int     // Number of trips
+	TotalCapacity int     // Sum of tank capacities
+	Distance      float64 // Distance from fee mapping
+	Fee           int     // Fee index (1-5)
+	ActualFee     float64 // Actual fee amount based on index
+	Cost          float64 // Cost calculated as TotalCapacity * ActualFee / 1000
+}
+
+// GetWatanyaTripsReport generates an Excel report for Watanya trips within a date range
+func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
+	// Parse date range from request
+	var req DateRangeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Cannot parse request body",
+		})
+	}
+
+	// Validate date range
+	if req.StartDate == "" || req.EndDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Start date and end date are required",
+		})
+	}
+
+	// Query trips for Watanya company within the date range
+	var trips []Models.TripStruct
+	result := h.DB.Where("company = ? AND date BETWEEN ? AND ?",
+		"Watanya", req.StartDate, req.EndDate).Find(&trips)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Database error: " + result.Error.Error(),
+		})
+	}
+
+	// Define fee mapping (fee index to actual fee amount)
+	feeIndexToAmount := map[int]float64{
+		1: 75.0,
+		2: 95.0,
+		3: 115.0,
+		4: 135.0,
+		5: 155.0,
+	}
+
+	// Get the fee mappings from the database
+	var feeMappings []Models.FeeMapping
+	if err := h.DB.Where("company = ?", "Watanya").Find(&feeMappings).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve fee mappings: " + err.Error(),
+		})
+	}
+
+	// Create a map for quick lookup of fee mapping data
+	feeMappingMap := make(map[string]Models.FeeMapping)
+	for _, mapping := range feeMappings {
+		key := mapping.Terminal + "|" + mapping.DropOffPoint
+		feeMappingMap[key] = mapping
+	}
+
+	// Group trips by drop-off point and terminal
+	groupedTrips := make(map[string]*WatanyaReportSummary)
+
+	for _, trip := range trips {
+		// Create a unique key for each terminal + drop-off point combination
+		key := fmt.Sprintf("%s|%s", trip.Terminal, trip.DropOffPoint)
+
+		// Look up the fee mapping for this route
+		feeMapping, exists := feeMappingMap[key]
+		if !exists {
+			// If no mapping exists, log an error and skip this trip
+			// c.Status(http.StatusNotFound).JSON(fmt.Sprintf("No fee mapping found for %s|%s", trip.Terminal, trip.DropOffPoint))
+			continue
+		}
+
+		// Determine the fee index based on the fee amount
+		feeMapping.Fee = feeIndexToAmount[int(feeMapping.Fee)]
+
+		if _, exists := groupedTrips[key]; !exists {
+			// Initialize a new summary record if this combination doesn't exist
+			groupedTrips[key] = &WatanyaReportSummary{
+				DropOffPoint:  trip.DropOffPoint,
+				Terminal:      trip.Terminal,
+				TripCount:     0,
+				TotalCapacity: 0,
+				Distance:      feeMapping.Distance,
+				Fee:           int(feeMapping.Fee),
+				ActualFee:     feeMapping.Fee,
+			}
+		}
+
+		// Update the summary data
+		summary := groupedTrips[key]
+		summary.TripCount++
+		summary.TotalCapacity += trip.TankCapacity
+	}
+
+	// Convert grouped data to a slice and calculate costs
+	summaries := make([]WatanyaReportSummary, 0, len(groupedTrips))
+
+	for _, summary := range groupedTrips {
+		// Calculate cost - use the actual fee from the mapping
+		cost := float64(summary.TotalCapacity) * summary.ActualFee / 1000.0
+
+		// Add cost to the summary
+		summary.Cost = cost
+
+		// Create final summary object (ID will be assigned after sorting)
+		summaries = append(summaries, *summary)
+	}
+
+	// Sort summaries by drop-off point first, then by terminal
+	sort.Slice(summaries, func(i, j int) bool {
+		// Primary sort by drop-off point
+		if summaries[i].DropOffPoint != summaries[j].DropOffPoint {
+			return summaries[i].DropOffPoint < summaries[j].DropOffPoint
+		}
+		// Secondary sort by terminal
+		return summaries[i].Terminal < summaries[j].Terminal
+	})
+
+	// Assign sequential IDs after sorting
+	for i := range summaries {
+		summaries[i].ID = i + 1
+	}
+
+	// Create Excel file
+	f := excelize.NewFile()
+	sheetName := "Watanya Trips Report"
+
+	// Use the default sheet
+	f.SetSheetName("Sheet1", sheetName)
+
+	// Set headers
+	headers := []string{"ID", "Drop-off Point", "Terminal", "Trip Count",
+		"Total Capacity", "Distance (km)", "Fee Index", "Fee Amount", "Cost"}
+
+	for i, header := range headers {
+		cell := fmt.Sprintf("%c1", 'A'+i)
+		f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Set column width
+	f.SetColWidth(sheetName, "A", "A", 10)
+	f.SetColWidth(sheetName, "B", "C", 25)
+	f.SetColWidth(sheetName, "D", "I", 15)
+
+	// Add style to header row
+	style, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 12,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#DCE6F1"},
+			Pattern: 1,
+		},
+		Border: []excelize.Border{
+			{Type: "bottom", Color: "#000000", Style: 1},
+		},
+	})
+	f.SetCellStyle(sheetName, "A1", string(rune('A'+len(headers)-1))+"1", style)
+
+	// Add data rows
+	for i, summary := range summaries {
+		row := i + 2 // Row 1 is header
+
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), summary.ID)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), summary.DropOffPoint)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), summary.Terminal)
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), summary.TripCount)
+		f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), summary.TotalCapacity)
+		f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), summary.Distance)
+		f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), summary.Fee)
+		f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), summary.ActualFee)
+		f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), summary.Cost)
+	}
+
+	// Add totals row
+	totalRow := len(summaries) + 2
+	f.SetCellValue(sheetName, fmt.Sprintf("A%d", totalRow), "TOTAL")
+
+	// Set formulas for totals
+	f.SetCellFormula(sheetName, fmt.Sprintf("D%d", totalRow), fmt.Sprintf("SUM(D2:D%d)", totalRow-1))
+	f.SetCellFormula(sheetName, fmt.Sprintf("E%d", totalRow), fmt.Sprintf("SUM(E2:E%d)", totalRow-1))
+	f.SetCellFormula(sheetName, fmt.Sprintf("I%d", totalRow), fmt.Sprintf("SUM(I2:I%d)", totalRow-1))
+
+	// Style for totals row
+	totalStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 12,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#F2F2F2"},
+			Pattern: 1,
+		},
+		Border: []excelize.Border{
+			{Type: "top", Color: "#000000", Style: 1},
+			{Type: "bottom", Color: "#000000", Style: 1},
+		},
+	})
+	f.SetCellStyle(sheetName, fmt.Sprintf("A%d", totalRow), fmt.Sprintf("I%d", totalRow), totalStyle)
+
+	// Create a unique filename with timestamp
+	timestamp := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("watanya_report_%s.xlsx", timestamp)
+	filepath := filepath.Join(os.TempDir(), filename)
+
+	// Save the Excel file
+	if err := f.SaveAs(filepath); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to generate Excel report: " + err.Error(),
+		})
+	}
+
+	// Return the file for download
+	return c.SendFile(filepath, true)
 }
 
 // GetTrip returns a specific trip by ID
