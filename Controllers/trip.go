@@ -515,10 +515,11 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			Revenue float64 `json:"revenue"`
 		} `json:"activity_heatmap"`
 		RouteDistribution []struct {
-			Route    string  `json:"route"` // Terminal to Drop-off point
-			Count    int64   `json:"count"`
-			Distance float64 `json:"distance"`
-			Percent  float64 `json:"percent"` // Percentage of driver's total trips
+			Terminal     string
+			DropOffPoint string
+			Count        int64   `json:"count"`
+			Distance     float64 `json:"distance"`
+			Percent      float64 `json:"percent"` // Percentage of driver's total trips
 		} `json:"route_distribution"`
 	}
 
@@ -660,7 +661,9 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		var routeDistribution []struct {
 			Terminal     string
 			DropOffPoint string
-			Count        int64
+			Count        int64   `json:"count"`
+			Distance     float64 `json:"distance"`
+			Percent      float64 `json:"percent"` // Percentage of driver's total trips
 		}
 
 		err := h.DB.Raw(`
@@ -677,12 +680,8 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		if err != nil {
 			// Log error but continue with other calculations
 			log.Printf("Error fetching route distribution for driver %s: %v", driverName, err)
-			routeDistribution = []struct {
-				Terminal     string
-				DropOffPoint string
-				Count        int64
-			}{}
 		}
+		driverAnalytics.RouteDistribution = routeDistribution
 
 		// Prepare activity and revenue tracking
 		var activityHeatmap []struct {
