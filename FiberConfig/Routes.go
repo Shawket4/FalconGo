@@ -79,6 +79,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips := api.Group("/trips", middleware.Verify(1))
 	trips.Get("/", tripHandler.GetAllTrips)
 	trips.Get("/statistics", tripHandler.GetTripStatistics)
+	trips.Get("/watanya/driver-analytics", tripHandler.GetWatanyaDriverAnalytics)
 	trips.Get("/date", tripHandler.GetTripsByDate)
 	trips.Get("/:id", tripHandler.GetTrip)
 	trips.Post("/", tripHandler.CreateTrip)
