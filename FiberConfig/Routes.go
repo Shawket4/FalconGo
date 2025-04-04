@@ -89,8 +89,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
 	trips.Post("/watanya/export_report", tripHandler.GetWatanyaTripsReport, middleware.Verify(3))
 
-	trips.Get("/stats", tripHandler.GetTripStats)
-
 }
 
 func FiberConfig() {

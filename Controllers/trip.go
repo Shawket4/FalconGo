@@ -692,6 +692,9 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 		feeMappingMap[key] = mapping
 	}
 
+	// Map to store trips by terminal and drop-off point combination
+	tripsByRoute := make(map[string][]Models.TripStruct)
+
 	// Group trips by drop-off point and terminal
 	groupedTrips := make(map[string]*WatanyaReportSummary)
 
@@ -703,7 +706,6 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 		feeMapping, exists := feeMappingMap[key]
 		if !exists {
 			// If no mapping exists, log an error and skip this trip
-			// c.Status(http.StatusNotFound).JSON(fmt.Sprintf("No fee mapping found for %s|%s", trip.Terminal, trip.DropOffPoint))
 			continue
 		}
 
@@ -722,6 +724,9 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 				ActualFee:     feeMapping.Fee,
 			}
 		}
+
+		// Store trips for the detailed sheet
+		tripsByRoute[key] = append(tripsByRoute[key], trip)
 
 		// Update the summary data
 		summary := groupedTrips[key]
@@ -760,27 +765,28 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 
 	// Create Excel file
 	f := excelize.NewFile()
-	sheetName := "Watanya Trips Report"
+	summarySheetName := "Watanya Summary"
 
-	// Use the default sheet
-	f.SetSheetName("Sheet1", sheetName)
+	// Rename the default sheet
+	f.SetSheetName("Sheet1", summarySheetName)
 
+	// ----------- SUMMARY SHEET ------------
 	// Set headers
 	headers := []string{"ID", "Drop-off Point", "Terminal", "Trip Count",
 		"Total Capacity", "Distance (km)", "Fee Index", "Fee Amount", "Cost"}
 
 	for i, header := range headers {
 		cell := fmt.Sprintf("%c1", 'A'+i)
-		f.SetCellValue(sheetName, cell, header)
+		f.SetCellValue(summarySheetName, cell, header)
 	}
 
 	// Set column width
-	f.SetColWidth(sheetName, "A", "A", 10)
-	f.SetColWidth(sheetName, "B", "C", 25)
-	f.SetColWidth(sheetName, "D", "I", 15)
+	f.SetColWidth(summarySheetName, "A", "A", 10)
+	f.SetColWidth(summarySheetName, "B", "C", 25)
+	f.SetColWidth(summarySheetName, "D", "I", 15)
 
 	// Add style to header row
-	style, _ := f.NewStyle(&excelize.Style{
+	headerStyle, _ := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
 			Bold: true,
 			Size: 12,
@@ -794,31 +800,31 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			{Type: "bottom", Color: "#000000", Style: 1},
 		},
 	})
-	f.SetCellStyle(sheetName, "A1", string(rune('A'+len(headers)-1))+"1", style)
+	f.SetCellStyle(summarySheetName, "A1", string(rune('A'+len(headers)-1))+"1", headerStyle)
 
 	// Add data rows
 	for i, summary := range summaries {
 		row := i + 2 // Row 1 is header
 
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), summary.ID)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), summary.DropOffPoint)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), summary.Terminal)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), summary.TripCount)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), summary.TotalCapacity)
-		f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), summary.Distance)
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), summary.Fee)
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), summary.ActualFee)
-		f.SetCellValue(sheetName, fmt.Sprintf("I%d", row), summary.Cost)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("A%d", row), summary.ID)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("B%d", row), summary.DropOffPoint)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("C%d", row), summary.Terminal)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("D%d", row), summary.TripCount)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("E%d", row), summary.TotalCapacity)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("F%d", row), summary.Distance)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("G%d", row), summary.Fee)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("H%d", row), summary.ActualFee)
+		f.SetCellValue(summarySheetName, fmt.Sprintf("I%d", row), summary.Cost)
 	}
 
 	// Add totals row
 	totalRow := len(summaries) + 2
-	f.SetCellValue(sheetName, fmt.Sprintf("A%d", totalRow), "TOTAL")
+	f.SetCellValue(summarySheetName, fmt.Sprintf("A%d", totalRow), "TOTAL")
 
 	// Set formulas for totals
-	f.SetCellFormula(sheetName, fmt.Sprintf("D%d", totalRow), fmt.Sprintf("SUM(D2:D%d)", totalRow-1))
-	f.SetCellFormula(sheetName, fmt.Sprintf("E%d", totalRow), fmt.Sprintf("SUM(E2:E%d)", totalRow-1))
-	f.SetCellFormula(sheetName, fmt.Sprintf("I%d", totalRow), fmt.Sprintf("SUM(I2:I%d)", totalRow-1))
+	f.SetCellFormula(summarySheetName, fmt.Sprintf("D%d", totalRow), fmt.Sprintf("SUM(D2:D%d)", totalRow-1))
+	f.SetCellFormula(summarySheetName, fmt.Sprintf("E%d", totalRow), fmt.Sprintf("SUM(E2:E%d)", totalRow-1))
+	f.SetCellFormula(summarySheetName, fmt.Sprintf("I%d", totalRow), fmt.Sprintf("SUM(I2:I%d)", totalRow-1))
 
 	// Style for totals row
 	totalStyle, _ := f.NewStyle(&excelize.Style{
@@ -836,7 +842,143 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			{Type: "bottom", Color: "#000000", Style: 1},
 		},
 	})
-	f.SetCellStyle(sheetName, fmt.Sprintf("A%d", totalRow), fmt.Sprintf("I%d", totalRow), totalStyle)
+	f.SetCellStyle(summarySheetName, fmt.Sprintf("A%d", totalRow), fmt.Sprintf("I%d", totalRow), totalStyle)
+
+	// ----------- DETAILED SHEET ------------
+	// Create a second sheet for detailed trip data
+	detailedSheetName := "Detailed Trips"
+	f.NewSheet(detailedSheetName)
+
+	// Define table headers for detailed trips
+	tripHeaders := []string{"No", "Date", "Driver Name", "Car No Plate", "Transporter", "Tank Capacity",
+		"Gas Type", "Receipt No", "Revenue", "Mileage"}
+
+	// Set column widths for detailed sheet
+	f.SetColWidth(detailedSheetName, "A", "A", 10) // No
+	f.SetColWidth(detailedSheetName, "B", "B", 15) // Date
+	f.SetColWidth(detailedSheetName, "C", "C", 20) // Driver Name
+	f.SetColWidth(detailedSheetName, "D", "D", 15) // Car No Plate
+	f.SetColWidth(detailedSheetName, "E", "E", 20) // Transporter
+	f.SetColWidth(detailedSheetName, "F", "F", 15) // Tank Capacity
+	f.SetColWidth(detailedSheetName, "G", "G", 15) // Gas Type
+	f.SetColWidth(detailedSheetName, "H", "H", 15) // Receipt No
+	f.SetColWidth(detailedSheetName, "I", "I", 15) // Revenue
+	f.SetColWidth(detailedSheetName, "J", "J", 15) // Mileage
+
+	// Styles for detailed sheet
+	routeTitleStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold:  true,
+			Size:  14,
+			Color: "#000000",
+		},
+	})
+
+	tableHeaderStyle, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{
+			Bold: true,
+			Size: 11,
+		},
+		Fill: excelize.Fill{
+			Type:    "pattern",
+			Color:   []string{"#E0EBF5"},
+			Pattern: 1,
+		},
+		Border: []excelize.Border{
+			{Type: "bottom", Color: "#AAAAAA", Style: 1},
+			{Type: "top", Color: "#AAAAAA", Style: 1},
+		},
+		Alignment: &excelize.Alignment{
+			Horizontal: "center",
+			Vertical:   "center",
+		},
+	})
+
+	dataStyle, _ := f.NewStyle(&excelize.Style{
+		Border: []excelize.Border{
+			{Type: "bottom", Color: "#EEEEEE", Style: 1},
+		},
+	})
+
+	// Track current row for positioning tables
+	currentRow := 1
+
+	// Create a table for each unique drop-off point and terminal combination
+	// Use the same sort order as the summary sheet
+	for _, summary := range summaries {
+		key := fmt.Sprintf("%s|%s", summary.Terminal, summary.DropOffPoint)
+		routeTrips, exists := tripsByRoute[key]
+		if !exists {
+			continue
+		}
+
+		// Set table title - Terminal & Drop-off Point
+		tableTitle := fmt.Sprintf("Terminal: %s | Drop-off Point: %s", summary.Terminal, summary.DropOffPoint)
+		titleCell := fmt.Sprintf("A%d", currentRow)
+		f.SetCellValue(detailedSheetName, titleCell, tableTitle)
+		f.MergeCell(detailedSheetName, titleCell, fmt.Sprintf("J%d", currentRow))
+		f.SetCellStyle(detailedSheetName, titleCell, titleCell, routeTitleStyle)
+
+		currentRow++
+
+		// Set table headers
+		for i, header := range tripHeaders {
+			cell := fmt.Sprintf("%c%d", 'A'+i, currentRow)
+			f.SetCellValue(detailedSheetName, cell, header)
+		}
+
+		// Apply header style
+		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
+			fmt.Sprintf("%c%d", 'A'+len(tripHeaders)-1, currentRow), tableHeaderStyle)
+
+		currentRow++
+
+		// Add table data
+		tableStartRow := currentRow
+		for i, trip := range routeTrips {
+			// Set data rows
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("A%d", currentRow), i+1)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("B%d", currentRow), trip.Date)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("C%d", currentRow), trip.DriverName)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("D%d", currentRow), trip.CarNoPlate)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("E%d", currentRow), trip.Transporter)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("F%d", currentRow), trip.TankCapacity)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("G%d", currentRow), trip.GasType)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("H%d", currentRow), trip.ReceiptNo)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("I%d", currentRow), trip.Revenue)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("J%d", currentRow), trip.Mileage)
+
+			// Apply data style
+			f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
+				fmt.Sprintf("J%d", currentRow), dataStyle)
+
+			currentRow++
+		}
+
+		// Add table totals
+		f.SetCellValue(detailedSheetName, fmt.Sprintf("A%d", currentRow), "TOTAL")
+		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
+			fmt.Sprintf("A%d", currentRow), totalStyle)
+
+		// Set formulas for totals
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("F%d", currentRow),
+			fmt.Sprintf("SUM(F%d:F%d)", tableStartRow, currentRow-1))
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("I%d", currentRow),
+			fmt.Sprintf("SUM(I%d:I%d)", tableStartRow, currentRow-1))
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("J%d", currentRow),
+			fmt.Sprintf("SUM(J%d:J%d)", tableStartRow, currentRow-1))
+
+		// Apply total row style
+		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
+			fmt.Sprintf("J%d", currentRow), totalStyle)
+
+		// Add 3 empty rows before the next table
+		currentRow += 4
+	}
+
+	// Set the active sheet to the summary sheet
+	summarySheetIndex, _ := f.GetSheetIndex(summarySheetName)
+	f.SetActiveSheet(summarySheetIndex)
 
 	// Create a unique filename with timestamp
 	timestamp := time.Now().Format("20060102_150405")
@@ -1165,49 +1307,6 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trip deleted successfully",
-	})
-}
-
-// GetTripStats returns statistics about trips
-func (h *TripHandler) GetTripStats(c *fiber.Ctx) error {
-	// Optional company filter
-	company := c.Query("company")
-
-	type StatsResult struct {
-		TotalTrips     int64   `json:"total_trips"`
-		TotalRevenue   float64 `json:"total_revenue"`
-		TotalMileage   float64 `json:"total_mileage"`
-		AverageRevenue float64 `json:"average_revenue"`
-		AverageMileage float64 `json:"average_mileage"`
-	}
-
-	var stats StatsResult
-
-	// Base query
-	query := h.DB.Model(&Models.TripStruct{})
-
-	// Apply company filter if provided
-	if company != "" {
-		query = query.Where("company = ?", company)
-	}
-
-	// Get total trips
-	query.Count(&stats.TotalTrips)
-
-	// Get sum and average of revenue
-	query.Select("COALESCE(SUM(revenue), 0) as total_revenue, COALESCE(AVG(revenue), 0) as average_revenue").
-		Row().Scan(&stats.TotalRevenue, &stats.AverageRevenue)
-
-	// Get sum and average of mileage
-	query.Select("COALESCE(SUM(mileage), 0) as total_mileage, COALESCE(AVG(mileage), 0) as average_mileage").
-		Row().Scan(&stats.TotalMileage, &stats.AverageMileage)
-
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Trip statistics retrieved successfully",
-		"data":    stats,
-		"filter": fiber.Map{
-			"company": company,
-		},
 	})
 }
 
