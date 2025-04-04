@@ -3,6 +3,7 @@ package Controllers
 import (
 	"Falcon/Models"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -525,6 +526,7 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		Drivers     []DriverAnalytics `json:"drivers"`
 		GlobalStats struct {
 			AvgTripsPerDriver    float64  `json:"avg_trips_per_driver"`
+			AvgRevenuePerDay     float64  `json:"avg_revenue_per_day"`
 			AvgDistancePerDriver float64  `json:"avg_distance_per_driver"`
 			AvgTripsPerDay       float64  `json:"avg_trips_per_day"`
 			AvgKmPerDay          float64  `json:"avg_km_per_day"`
@@ -538,22 +540,72 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		} `json:"global_stats"`
 	}
 
+	// Check if fee mappings exist for Watanya
+	var feeMappingCount int64
+	h.DB.Model(&Models.FeeMapping{}).
+		Where("company = ?", "Watanya").
+		Count(&feeMappingCount)
+
+	if feeMappingCount == 0 {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "No fee mappings found for Watanya company",
+			"error":   "Fee mappings are required for proper analytics",
+		})
+	}
+
 	// Base query for Watanya trips
-	query := h.DB.Model(&Models.TripStruct{}).
-		Where("company = ?", "Watanya")
+	baseQuery := h.DB.Model(&Models.TripStruct{}).
+		Where("company = ? AND deleted_at IS NULL", "Watanya")
 
 	// Apply date filters if provided
 	if startDate != "" && endDate != "" {
-		query = query.Where("date BETWEEN ? AND ?", startDate, endDate)
+		baseQuery = baseQuery.Where("date BETWEEN ? AND ?", startDate, endDate)
 	}
 
 	// Get all distinct drivers
 	var driverNames []string
-	if err := query.Distinct("driver_name").
+	if err := baseQuery.Distinct("driver_name").
+		Where("driver_name IS NOT NULL AND driver_name != ''").
 		Pluck("driver_name", &driverNames).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch driver names",
 			"error":   err.Error(),
+		})
+	}
+
+	// Check if we found any drivers
+	if len(driverNames) == 0 {
+		// Return empty response with proper structure
+		return c.Status(http.StatusOK).JSON(fiber.Map{
+			"message": "No drivers found for the given filters",
+			"data": DriverAnalyticsResponse{
+				Drivers: []DriverAnalytics{},
+				GlobalStats: struct {
+					AvgTripsPerDriver    float64  `json:"avg_trips_per_driver"`
+					AvgRevenuePerDay     float64  `json:"avg_revenue_per_day"`
+					AvgDistancePerDriver float64  `json:"avg_distance_per_driver"`
+					AvgTripsPerDay       float64  `json:"avg_trips_per_day"`
+					AvgKmPerDay          float64  `json:"avg_km_per_day"`
+					AvgVolumePerKm       float64  `json:"avg_volume_per_km"`
+					TotalTrips           int64    `json:"total_trips"`
+					TotalDistance        float64  `json:"total_distance"`
+					TotalVolume          float64  `json:"total_volume"`
+					TotalFees            float64  `json:"total_fees,omitempty"`
+					TotalRevenue         float64  `json:"total_revenue,omitempty"`
+					TopDrivers           []string `json:"top_drivers"`
+				}{
+					AvgTripsPerDriver:    0,
+					AvgDistancePerDriver: 0,
+					AvgTripsPerDay:       0,
+					AvgKmPerDay:          0,
+					AvgVolumePerKm:       0,
+					TotalTrips:           0,
+					TotalDistance:        0,
+					TotalVolume:          0,
+					TopDrivers:           []string{},
+				},
+			},
+			"hasFinancialAccess": hasFinancialAccess,
 		})
 	}
 
@@ -580,16 +632,20 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		AND (date <= ? OR ? = '')
 	`, startDate, startDate, endDate, endDate).Row().Scan(&globalDistinctDays)
 
+	// Prevent division by zero later
+	if globalDistinctDays == 0 {
+		globalDistinctDays = 1
+	}
+
 	// Track driver performance for ranking
 	type DriverPerformance struct {
-		Name      string
-		TripCount int64
+		Name    string
+		Revenue float64 // Change from TripCount to Revenue
 	}
 	driverPerformance := make([]DriverPerformance, 0, len(driverNames))
-
 	// Process each driver's data
 	for _, driverName := range driverNames {
-		// Skip empty or invalid driver names
+		// Skip empty or invalid driver names (should be caught by the query, but just in case)
 		if driverName == "" {
 			continue
 		}
@@ -598,48 +654,195 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			DriverName: driverName,
 		}
 
-		// Get total trips
+		// Get activity heatmap data first, as we'll use it to verify trip counts
+		var activityHeatmap []struct {
+			Date  string `json:"date"`
+			Count int64  `json:"count"`
+		}
+
+		err := h.DB.Raw(`
+			SELECT date, COUNT(*) as count
+			FROM trips
+			WHERE company = 'Watanya' AND driver_name = ? AND deleted_at IS NULL
+			AND (date >= ? OR ? = '')
+			AND (date <= ? OR ? = '')
+			GROUP BY date
+			ORDER BY date
+		`, driverName, startDate, startDate, endDate, endDate).Scan(&activityHeatmap).Error
+
+		if err != nil {
+			// Log error but continue
+			log.Printf("Error fetching activity heatmap for driver %s: %v", driverName, err)
+			activityHeatmap = []struct {
+				Date  string `json:"date"`
+				Count int64  `json:"count"`
+			}{}
+		}
+
+		driverAnalytics.ActivityHeatmap = activityHeatmap
+
+		// Count total trips directly from the database
 		var totalTrips int64
-		query.Where("driver_name = ?", driverName).Count(&totalTrips)
+		err = h.DB.Raw(`
+			SELECT COUNT(*) 
+			FROM trips
+			WHERE company = 'Watanya' AND driver_name = ? AND deleted_at IS NULL
+			AND (date >= ? OR ? = '')
+			AND (date <= ? OR ? = '')
+		`, driverName, startDate, startDate, endDate, endDate).Row().Scan(&totalTrips)
+
+		if err != nil {
+			log.Printf("Error counting trips for driver %s: %v", driverName, err)
+			totalTrips = 0
+		}
+
+		// Double-check with activity heatmap
+		var heatmapSum int64 = 0
+		for _, activity := range activityHeatmap {
+			heatmapSum += activity.Count
+		}
+
+		// Use the higher value between DB count and heatmap sum
+		if heatmapSum > totalTrips {
+			log.Printf("Heatmap sum (%d) > DB trip count (%d) for driver %s", heatmapSum, totalTrips, driverName)
+			totalTrips = heatmapSum
+		}
+
 		driverAnalytics.TotalTrips = totalTrips
 		globalTotalTrips += totalTrips
 
-		// Get total volume
+		// Get total volume from the driver's trips
 		var totalVolume float64
-		query.Where("driver_name = ?", driverName).
-			Select("COALESCE(SUM(tank_capacity), 0)").
-			Row().Scan(&totalVolume)
+		err = h.DB.Raw(`
+			SELECT COALESCE(SUM(tank_capacity), 0)
+			FROM trips
+			WHERE company = 'Watanya' AND driver_name = ? AND deleted_at IS NULL
+			AND (date >= ? OR ? = '')
+			AND (date <= ? OR ? = '')
+		`, driverName, startDate, startDate, endDate, endDate).Row().Scan(&totalVolume)
+
+		if err != nil {
+			log.Printf("Error calculating total volume for driver %s: %v", driverName, err)
+			totalVolume = 0
+		}
+
 		driverAnalytics.TotalVolume = totalVolume
 		globalTotalVolume += totalVolume
 
-		// Get total distance and fees from fee mappings
-		var totalDistance, totalFees float64
-		h.DB.Raw(`
-			SELECT 
-				COALESCE(SUM(fm.distance), 0) as total_distance,
-				CASE 
-					WHEN fm.fee = 1 THEN SUM(t.tank_capacity) * 75 / 1000
-					WHEN fm.fee = 2 THEN SUM(t.tank_capacity) * 95 / 1000
-					WHEN fm.fee = 3 THEN SUM(t.tank_capacity) * 115 / 1000
-					WHEN fm.fee = 4 THEN SUM(t.tank_capacity) * 135 / 1000
-					WHEN fm.fee = 5 THEN SUM(t.tank_capacity) * 155 / 1000
-					ELSE 0
-				END as total_fees
-			FROM trips t
-			LEFT JOIN fee_mappings fm 
-				ON t.company = fm.company 
-				AND t.terminal = fm.terminal 
-				AND t.drop_off_point = fm.drop_off_point
-			WHERE t.company = 'Watanya' AND t.driver_name = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY fm.fee
-		`, driverName, startDate, startDate, endDate, endDate).
-			Scan(&struct {
-				TotalDistance float64
-				TotalFees     float64
-			}{}).Row().Scan(&totalDistance, &totalFees)
+		// Get route distribution
+		var routeDistribution []struct {
+			Terminal     string
+			DropOffPoint string
+			Count        int64
+		}
 
+		// Get the terminal and drop-off points combinations used by this driver
+		err = h.DB.Raw(`
+			SELECT terminal, drop_off_point, COUNT(*) as count
+			FROM trips
+			WHERE company = 'Watanya' AND driver_name = ? AND deleted_at IS NULL
+			AND (date >= ? OR ? = '')
+			AND (date <= ? OR ? = '')
+			GROUP BY terminal, drop_off_point
+			ORDER BY count DESC
+		`, driverName, startDate, startDate, endDate, endDate).
+			Find(&routeDistribution).Error
+
+		if err != nil {
+			// Log error but continue with other calculations
+			log.Printf("Error fetching route distribution for driver %s: %v", driverName, err)
+			routeDistribution = []struct {
+				Terminal     string
+				DropOffPoint string
+				Count        int64
+			}{}
+		}
+
+		// Now get distance and fee for each route from fee_mappings
+		var driverRoutes []struct {
+			Route    string  `json:"route"`
+			Count    int64   `json:"count"`
+			Distance float64 `json:"distance"`
+			Fee      float64 `json:"fee"`
+			Percent  float64 `json:"percent"`
+		}
+
+		var totalDistance float64 = 0
+		var totalFees float64 = 0
+
+		// Process each route used by the driver
+		for _, route := range routeDistribution {
+			// Get the fee mapping for this route
+			var feeMapping Models.FeeMapping
+			err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+				"Watanya", route.Terminal, route.DropOffPoint).
+				First(&feeMapping).Error
+
+			if err != nil {
+				// Fee mapping not found, use a default or skip
+				log.Printf("No fee mapping found for route %s → %s", route.Terminal, route.DropOffPoint)
+				continue
+			}
+
+			// Look up the actual fee amount based on the fee index
+			var feeAmount float64
+			switch int64(feeMapping.Fee) {
+			case 1:
+				feeAmount = 75.0
+			case 2:
+				feeAmount = 95.0
+			case 3:
+				feeAmount = 115.0
+			case 4:
+				feeAmount = 135.0
+			case 5:
+				feeAmount = 155.0
+			default:
+				feeAmount = 0.0
+			}
+
+			// Calculate fees for this route: fee * volume / 1000
+			var routeVolume float64
+			h.DB.Raw(`
+				SELECT COALESCE(SUM(tank_capacity), 0)
+				FROM trips
+				WHERE company = 'Watanya' AND driver_name = ? AND terminal = ? AND drop_off_point = ? AND deleted_at IS NULL
+				AND (date >= ? OR ? = '')
+				AND (date <= ? OR ? = '')
+			`, driverName, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate).
+				Row().Scan(&routeVolume)
+
+			routeFee := (feeAmount * routeVolume) / 1000.0
+			routeDistance := feeMapping.Distance * float64(route.Count)
+
+			// Add to driver totals
+			totalDistance += routeDistance
+			totalFees += routeFee
+
+			// Add route to driver's route distribution
+			driverRoutes = append(driverRoutes, struct {
+				Route    string  `json:"route"`
+				Count    int64   `json:"count"`
+				Distance float64 `json:"distance"`
+				Fee      float64 `json:"fee"`
+				Percent  float64 `json:"percent"`
+			}{
+				Route:    fmt.Sprintf("%s → %s", route.Terminal, route.DropOffPoint),
+				Count:    route.Count,
+				Distance: routeDistance,
+				Fee:      routeFee,
+				Percent:  0, // Will calculate percentages after all routes are processed
+			})
+		}
+
+		// Calculate proper percentages for route distribution
+		if len(driverRoutes) > 0 && totalTrips > 0 {
+			for i := range driverRoutes {
+				driverRoutes[i].Percent = (float64(driverRoutes[i].Count) / float64(totalTrips)) * 100
+			}
+		}
+
+		// Update driver and global totals
 		driverAnalytics.TotalDistance = totalDistance
 		driverAnalytics.TotalFees = totalFees
 		globalTotalDistance += totalDistance
@@ -653,7 +856,7 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		driverAnalytics.TotalAmount = totalRevenue + totalVAT
 		globalTotalRevenue += totalRevenue
 
-		// Get working days
+		// Get working days - days when the driver had at least one trip
 		var workingDays int64
 		h.DB.Raw(`
 			SELECT COUNT(DISTINCT date)
@@ -662,10 +865,16 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			AND (date >= ? OR ? = '')
 			AND (date <= ? OR ? = '')
 		`, driverName, startDate, startDate, endDate, endDate).Row().Scan(&workingDays)
+
+		// Ensure working days is at least 1 to avoid division by zero
+		if workingDays == 0 && totalTrips > 0 {
+			workingDays = 1
+		}
+
 		driverAnalytics.WorkingDays = workingDays
 		globalTotalWorkingDays += workingDays
 
-		// Calculate averages
+		// Calculate averages - with safety checks to prevent division by zero
 		if workingDays > 0 {
 			driverAnalytics.AvgTripsPerDay = float64(totalTrips) / float64(workingDays)
 			driverAnalytics.AvgKmPerDay = totalDistance / float64(workingDays)
@@ -677,63 +886,46 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			driverAnalytics.AvgVolumePerKm = totalVolume / totalDistance
 		}
 
-		// Get activity heatmap data
-		var activityHeatmap []struct {
-			Date  string `json:"date"`
-			Count int64  `json:"count"`
-		}
+		// Update route distribution in the driver analytics
+		// Initialize as empty array if no routes found, not null
+		if len(driverRoutes) > 0 {
+			// Convert to the expected struct type
+			routeDistributionData := make([]struct {
+				Route    string  `json:"route"`
+				Count    int64   `json:"count"`
+				Distance float64 `json:"distance"`
+				Percent  float64 `json:"percent"`
+			}, len(driverRoutes))
 
-		h.DB.Raw(`
-			SELECT date, COUNT(*) as count
-			FROM trips
-			WHERE company = 'Watanya' AND driver_name = ? AND deleted_at IS NULL
-			AND (date >= ? OR ? = '')
-			AND (date <= ? OR ? = '')
-			GROUP BY date
-			ORDER BY date
-		`, driverName, startDate, startDate, endDate, endDate).Scan(&activityHeatmap)
-
-		driverAnalytics.ActivityHeatmap = activityHeatmap
-
-		// Get route distribution
-		var routeDistribution []struct {
-			Route    string  `json:"route"`
-			Count    int64   `json:"count"`
-			Distance float64 `json:"distance"`
-			Percent  float64 `json:"percent"`
-		}
-
-		h.DB.Raw(`
-			SELECT 
-				CONCAT(t.terminal, ' → ', t.drop_off_point) as route,
-				COUNT(*) as count,
-				AVG(fm.distance) as distance,
-				0 as percent
-			FROM trips t
-			LEFT JOIN fee_mappings fm 
-				ON t.company = fm.company 
-				AND t.terminal = fm.terminal 
-				AND t.drop_off_point = fm.drop_off_point
-			WHERE t.company = 'Watanya' AND t.driver_name = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY t.terminal, t.drop_off_point
-			ORDER BY count DESC
-		`, driverName, startDate, startDate, endDate, endDate).Scan(&routeDistribution)
-
-		// Calculate percentages
-		for i := range routeDistribution {
-			if totalTrips > 0 {
-				routeDistribution[i].Percent = float64(routeDistribution[i].Count) / float64(totalTrips) * 100
+			for i, route := range driverRoutes {
+				routeDistributionData[i] = struct {
+					Route    string  `json:"route"`
+					Count    int64   `json:"count"`
+					Distance float64 `json:"distance"`
+					Percent  float64 `json:"percent"`
+				}{
+					Route:    route.Route,
+					Count:    route.Count,
+					Distance: route.Distance,
+					Percent:  route.Percent,
+				}
 			}
-		}
 
-		driverAnalytics.RouteDistribution = routeDistribution
+			driverAnalytics.RouteDistribution = routeDistributionData
+		} else {
+			// Initialize as empty array, not null
+			driverAnalytics.RouteDistribution = []struct {
+				Route    string  `json:"route"`
+				Count    int64   `json:"count"`
+				Distance float64 `json:"distance"`
+				Percent  float64 `json:"percent"`
+			}{}
+		}
 
 		// Add to performance tracking for ranking
 		driverPerformance = append(driverPerformance, DriverPerformance{
-			Name:      driverName,
-			TripCount: totalTrips,
+			Name:    driverName,
+			Revenue: totalRevenue, // Use totalRevenue instead of TripCount
 		})
 
 		// Clear financial data if user doesn't have access
@@ -756,9 +948,20 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		response.GlobalStats.AvgDistancePerDriver = globalTotalDistance / float64(driverCount)
 	}
 
+	// Calculate average trips per day based on total working days across all drivers
+	// This gives us the average trips per day per working driver
+	if globalTotalWorkingDays > 0 {
+		response.GlobalStats.AvgTripsPerDay = float64(globalTotalTrips) / float64(globalTotalWorkingDays)
+		response.GlobalStats.AvgRevenuePerDay = globalTotalRevenue / float64(globalTotalWorkingDays)
+	} else {
+		response.GlobalStats.AvgTripsPerDay = 0
+	}
+
+	// Calculate average km per day (still based on total days in the period for global coverage)
 	if globalDistinctDays > 0 {
-		response.GlobalStats.AvgTripsPerDay = float64(globalTotalTrips) / float64(globalDistinctDays)
 		response.GlobalStats.AvgKmPerDay = globalTotalDistance / float64(globalDistinctDays)
+	} else {
+		response.GlobalStats.AvgKmPerDay = 0
 	}
 
 	if globalTotalDistance > 0 {
@@ -775,19 +978,27 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 	}
 
 	// Calculate efficiency score for each driver (compared to average)
-	globalAvgTripsPerDay := response.GlobalStats.AvgTripsPerDay
-	if globalAvgTripsPerDay > 0 {
+	globalAvgRevenuePerDay := response.GlobalStats.TotalRevenue / float64(globalTotalWorkingDays)
+	if globalAvgRevenuePerDay > 0 {
 		for i := range response.Drivers {
-			response.Drivers[i].Efficiency = response.Drivers[i].AvgTripsPerDay / globalAvgTripsPerDay
+			// Only calculate efficiency for drivers with revenue
+			if response.Drivers[i].TotalRevenue > 0 {
+				// Calculate daily revenue and compare to global average
+				driverDailyRevenue := response.Drivers[i].TotalRevenue / float64(response.Drivers[i].WorkingDays)
+				response.Drivers[i].Efficiency = driverDailyRevenue / globalAvgRevenuePerDay
+			} else {
+				// For drivers with no revenue, set efficiency to 0
+				response.Drivers[i].Efficiency = 0
+			}
 		}
 	}
 
 	// Sort drivers by trip count for top performers
 	sort.Slice(driverPerformance, func(i, j int) bool {
-		return driverPerformance[i].TripCount > driverPerformance[j].TripCount
+		return driverPerformance[i].Revenue > driverPerformance[j].Revenue
 	})
 
-	// Get top 5 drivers
+	// Get top 5 drivers or all drivers if less than 5
 	topDriversCount := 5
 	if len(driverPerformance) < topDriversCount {
 		topDriversCount = len(driverPerformance)
