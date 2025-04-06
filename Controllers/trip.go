@@ -1066,6 +1066,103 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	})
 }
 
+type GlobalStats struct {
+	// Fuel statistics
+	TotalFuelEvents      int64   `json:"total_fuel_events"`
+	TotalLiters          float64 `json:"total_liters"`
+	AveragePricePerLiter float64 `json:"average_price_per_liter"`
+	TotalFuelCost        float64 `json:"total_fuel_cost"`
+
+	// Trip statistics
+	TotalTrips    int64   `json:"total_trips"`
+	TotalRevenue  float64 `json:"total_revenue"`
+	TotalMileage  float64 `json:"total_mileage"`
+	TotalDistance float64 `json:"total_distance"`
+
+	// Fleet statistics
+	UniqueCars     int64  `json:"unique_cars"`
+	UniqueDrivers  int64  `json:"unique_drivers"`
+	TopTransporter string `json:"top_transporter"`
+
+	// Time statistics
+	LastUpdate string `json:"last_update"`
+
+	// Combined efficiency metrics
+	RevenuePerLiter float64 `json:"revenue_per_liter"`
+	RevenuePerKm    float64 `json:"revenue_per_km"`
+	LitersPerKm     float64 `json:"liters_per_km"`
+}
+
+func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
+
+	var stats GlobalStats
+	stats.LastUpdate = time.Now().Format(time.RFC3339)
+
+	// Get fuel statistics
+	h.DB.Model(&Models.FuelEvent{}).Count(&stats.TotalFuelEvents)
+
+	if stats.TotalFuelEvents > 0 {
+		h.DB.Model(&Models.FuelEvent{}).Select("SUM(liters) as total_liters").Scan(&stats.TotalLiters)
+		h.DB.Model(&Models.FuelEvent{}).Select("SUM(price) as total_fuel_cost").Scan(&stats.TotalFuelCost)
+
+		// Calculate average price per liter
+		if stats.TotalLiters > 0 {
+			h.DB.Model(&Models.FuelEvent{}).Select("SUM(price) / SUM(liters) as average_price_per_liter").Scan(&stats.AveragePricePerLiter)
+		}
+	}
+
+	// Get trip statistics
+	h.DB.Model(&Models.TripStruct{}).Count(&stats.TotalTrips)
+
+	if stats.TotalTrips > 0 {
+		h.DB.Model(&Models.TripStruct{}).Select("SUM(revenue) as total_revenue").Scan(&stats.TotalRevenue)
+		h.DB.Model(&Models.TripStruct{}).Select("SUM(mileage) as total_mileage").Scan(&stats.TotalMileage)
+
+		// Since distance is a calculated field (not stored), we need to calculate it
+		// This assumes the distance field is populated before saving to DB or there's a way to calculate it
+		var trips []Models.TripStruct
+		h.DB.Find(&trips)
+
+		for _, trip := range trips {
+			stats.TotalDistance += trip.Distance
+		}
+	}
+
+	// Get fleet statistics
+	h.DB.Model(&Models.FuelEvent{}).Distinct("car_id").Count(&stats.UniqueCars)
+	h.DB.Model(&Models.TripStruct{}).Distinct("driver_id").Count(&stats.UniqueDrivers)
+
+	// Get top transporter
+	type TransporterCount struct {
+		Transporter string
+		Count       int
+	}
+	var topTransporter TransporterCount
+	h.DB.Model(&Models.FuelEvent{}).
+		Select("transporter, COUNT(*) as count").
+		Group("transporter").
+		Order("count DESC").
+		Limit(1).
+		Scan(&topTransporter)
+
+	stats.TopTransporter = topTransporter.Transporter
+
+	// Calculate efficiency metrics
+	if stats.TotalLiters > 0 {
+		stats.RevenuePerLiter = stats.TotalRevenue / stats.TotalLiters
+	}
+
+	if stats.TotalDistance > 0 {
+		stats.RevenuePerKm = stats.TotalRevenue / stats.TotalDistance
+		stats.LitersPerKm = stats.TotalLiters / stats.TotalDistance
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"stats":   stats,
+	})
+}
+
 // DateRangeRequest represents the request body for date range filtering
 type DateRangeRequest struct {
 	StartDate string `json:"start_date"`
@@ -1140,6 +1237,13 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	// Map to store trips by terminal and drop-off point combination
 	tripsByRoute := make(map[string][]Models.TripStruct)
 
+	// Map to store fee mapping info for each route
+	routeFeeInfo := make(map[string]struct {
+		Distance  float64
+		FeeIndex  int
+		ActualFee float64
+	})
+
 	// Group trips by drop-off point and terminal
 	groupedTrips := make(map[string]*WatanyaReportSummary)
 
@@ -1154,8 +1258,19 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Determine the fee index based on the fee amount
-		feeMapping.Fee = feeIndexToAmount[int(feeMapping.Fee)]
+		// Determine the fee amount based on the fee index
+		actualFee := feeIndexToAmount[int(feeMapping.Fee)]
+
+		// Store fee information for this route (for the detailed sheet)
+		routeFeeInfo[key] = struct {
+			Distance  float64
+			FeeIndex  int
+			ActualFee float64
+		}{
+			Distance:  feeMapping.Distance,
+			FeeIndex:  int(feeMapping.Fee),
+			ActualFee: actualFee,
+		}
 
 		if _, exists := groupedTrips[key]; !exists {
 			// Initialize a new summary record if this combination doesn't exist
@@ -1166,7 +1281,7 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 				TotalCapacity: 0,
 				Distance:      feeMapping.Distance,
 				Fee:           int(feeMapping.Fee),
-				ActualFee:     feeMapping.Fee,
+				ActualFee:     actualFee,
 			}
 		}
 
@@ -1296,7 +1411,7 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 
 	// Define table headers for detailed trips
 	tripHeaders := []string{"No", "Date", "Driver Name", "Car No Plate", "Transporter", "Tank Capacity",
-		"Gas Type", "Receipt No", "Revenue", "Mileage"}
+		"Gas Type", "Receipt No", "Revenue", "Mileage", "Distance (km)", "Fee Index", "Fee Amount", "Trip Cost"}
 
 	// Set column widths for detailed sheet
 	f.SetColWidth(detailedSheetName, "A", "A", 10) // No
@@ -1309,6 +1424,10 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	f.SetColWidth(detailedSheetName, "H", "H", 15) // Receipt No
 	f.SetColWidth(detailedSheetName, "I", "I", 15) // Revenue
 	f.SetColWidth(detailedSheetName, "J", "J", 15) // Mileage
+	f.SetColWidth(detailedSheetName, "K", "K", 15) // Distance (km)
+	f.SetColWidth(detailedSheetName, "L", "L", 15) // Fee Index
+	f.SetColWidth(detailedSheetName, "M", "M", 15) // Fee Amount
+	f.SetColWidth(detailedSheetName, "N", "N", 15) // Trip Cost
 
 	// Styles for detailed sheet
 	routeTitleStyle, _ := f.NewStyle(&excelize.Style{
@@ -1357,11 +1476,14 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			continue
 		}
 
+		// Get fee info for this route
+		feeInfo := routeFeeInfo[key]
+
 		// Set table title - Terminal & Drop-off Point
 		tableTitle := fmt.Sprintf("Terminal: %s | Drop-off Point: %s", summary.Terminal, summary.DropOffPoint)
 		titleCell := fmt.Sprintf("A%d", currentRow)
 		f.SetCellValue(detailedSheetName, titleCell, tableTitle)
-		f.MergeCell(detailedSheetName, titleCell, fmt.Sprintf("J%d", currentRow))
+		f.MergeCell(detailedSheetName, titleCell, fmt.Sprintf("N%d", currentRow))
 		f.SetCellStyle(detailedSheetName, titleCell, titleCell, routeTitleStyle)
 
 		currentRow++
@@ -1381,6 +1503,9 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 		// Add table data
 		tableStartRow := currentRow
 		for i, trip := range routeTrips {
+			// Calculate cost for this individual trip
+			tripCost := float64(trip.TankCapacity) * feeInfo.ActualFee / 1000.0
+
 			// Set data rows
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("A%d", currentRow), i+1)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("B%d", currentRow), trip.Date)
@@ -1392,10 +1517,14 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("H%d", currentRow), trip.ReceiptNo)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("I%d", currentRow), trip.Revenue)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("J%d", currentRow), trip.Mileage)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("K%d", currentRow), feeInfo.Distance)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("L%d", currentRow), feeInfo.FeeIndex)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("M%d", currentRow), feeInfo.ActualFee)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("N%d", currentRow), tripCost)
 
 			// Apply data style
 			f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
-				fmt.Sprintf("J%d", currentRow), dataStyle)
+				fmt.Sprintf("N%d", currentRow), dataStyle)
 
 			currentRow++
 		}
@@ -1412,10 +1541,12 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			fmt.Sprintf("SUM(I%d:I%d)", tableStartRow, currentRow-1))
 		f.SetCellFormula(detailedSheetName, fmt.Sprintf("J%d", currentRow),
 			fmt.Sprintf("SUM(J%d:J%d)", tableStartRow, currentRow-1))
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("N%d", currentRow),
+			fmt.Sprintf("SUM(N%d:N%d)", tableStartRow, currentRow-1))
 
 		// Apply total row style
 		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
-			fmt.Sprintf("J%d", currentRow), totalStyle)
+			fmt.Sprintf("N%d", currentRow), totalStyle)
 
 		// Add 3 empty rows before the next table
 		currentRow += 4

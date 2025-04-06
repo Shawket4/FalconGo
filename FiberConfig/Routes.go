@@ -76,8 +76,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	mappings.Delete("/:id", feeMappingHandler.DeleteFeeMapping, middleware.Verify(3))
 
 	// Trip routes
-	trips := api.Group("/trips", middleware.Verify(1))
+	trips := api.Group("/trips")
 	trips.Get("/", tripHandler.GetAllTrips)
+	trips.Get("/widget-data", tripHandler.GetGlobalStats)
 	trips.Get("/statistics", tripHandler.GetTripStatistics)
 	trips.Get("/watanya/driver-analytics", tripHandler.GetWatanyaDriverAnalytics)
 	trips.Get("/date", tripHandler.GetTripsByDate)
