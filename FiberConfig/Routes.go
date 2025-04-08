@@ -5,6 +5,7 @@ import (
 	"Falcon/Controllers"
 	"Falcon/ManipulateData"
 	"Falcon/Models"
+	"Falcon/MultiRouteOptimizer"
 	"Falcon/Notifications"
 	"Falcon/PreviewData"
 	"Falcon/Scrapper"
@@ -90,7 +91,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Additional trip routes for filtering and stats
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
 	trips.Post("/watanya/export_report", tripHandler.GetWatanyaTripsReport, middleware.Verify(3))
-
+	app.Post("/api/multi-route-optimizer", MultiRouteOptimizer.OptimalRouteHandler)
 }
 
 func FiberConfig() {
