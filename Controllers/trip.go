@@ -2198,7 +2198,7 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 			)
 			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
 				To:      []string{"shawket.4@icloud.com"},
-				Subject: fmt.Sprintf("%s: Receipt No: %v Has Been Deleted", trip.Company),
+				Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Deleted", trip.Company),
 				Body:    emailBody,
 				IsHTML:  false,
 			})
