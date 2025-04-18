@@ -1892,7 +1892,8 @@ func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 	trip.Fee = mapping.Fee
 
 	defer func() {
-		emailBody := fmt.Sprintf(`
+		go func() {
+			emailBody := fmt.Sprintf(`
 Trip details:
 
 Receipt No: %s
@@ -1908,23 +1909,24 @@ Fee: $%.2f
 
 This is an automated message.
 `,
-			trip.ReceiptNo,
-			trip.Date,
-			trip.Company,
-			trip.Terminal,
-			trip.DropOffPoint,
-			trip.TankCapacity,
-			trip.DriverName,
-			trip.CarNoPlate,
-			trip.Distance,
-			trip.Fee,
-		)
-		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-			To:      []string{"shawket.4@icloud.com"},
-			Subject: fmt.Sprintf("%s: A New Trip Has Been Registered", trip.Company),
-			Body:    emailBody,
-			IsHTML:  false,
-		})
+				trip.ReceiptNo,
+				trip.Date,
+				trip.Company,
+				trip.Terminal,
+				trip.DropOffPoint,
+				trip.TankCapacity,
+				trip.DriverName,
+				trip.CarNoPlate,
+				trip.Distance,
+				trip.Fee,
+			)
+			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
+				To:      []string{"shawket.4@icloud.com"},
+				Subject: fmt.Sprintf("%s: A New Trip Has Been Registered", trip.Company),
+				Body:    emailBody,
+				IsHTML:  false,
+			})
+		}()
 	}()
 
 	return c.Status(http.StatusCreated).JSON(fiber.Map{
@@ -2088,39 +2090,42 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Fee = mapping.Fee
 	}
 	defer func() {
-		emailBody := fmt.Sprintf(`
-Trip details:
+		go func() {
+			emailBody := fmt.Sprintf(`
+			Trip details:
+			
+			Receipt No: %s
+			Date: %s
+			Company: %s
+			Terminal: %s
+			Drop-off: %s
+			Tank: %d
+			Driver: %s
+			Car: %s
+			Distance: %.2f km
+			Fee: $%.2f
+			
+			This is an automated message.
+			`,
+				existingTrip.ReceiptNo,
+				existingTrip.Date,
+				existingTrip.Company,
+				existingTrip.Terminal,
+				existingTrip.DropOffPoint,
+				existingTrip.TankCapacity,
+				existingTrip.DriverName,
+				existingTrip.CarNoPlate,
+				existingTrip.Distance,
+				existingTrip.Fee,
+			)
+			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
+				To:      []string{"shawket.4@icloud.com"},
+				Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Updated", existingTrip.Company, existingTrip.ReceiptNo),
+				Body:    emailBody,
+				IsHTML:  false,
+			})
+		}()
 
-Receipt No: %s
-Date: %s
-Company: %s
-Terminal: %s
-Drop-off: %s
-Tank: %d
-Driver: %s
-Car: %s
-Distance: %.2f km
-Fee: $%.2f
-
-This is an automated message.
-`,
-			existingTrip.ReceiptNo,
-			existingTrip.Date,
-			existingTrip.Company,
-			existingTrip.Terminal,
-			existingTrip.DropOffPoint,
-			existingTrip.TankCapacity,
-			existingTrip.DriverName,
-			existingTrip.CarNoPlate,
-			existingTrip.Distance,
-			existingTrip.Fee,
-		)
-		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-			To:      []string{"shawket.4@icloud.com"},
-			Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Updated", existingTrip.Company, existingTrip.ReceiptNo),
-			Body:    emailBody,
-			IsHTML:  false,
-		})
 	}()
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trip updated successfully",
@@ -2163,39 +2168,42 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 	}
 
 	defer func() {
-		emailBody := fmt.Sprintf(`
-Trip details:
+		go func() {
+			emailBody := fmt.Sprintf(`
+			Trip details:
+			
+			Receipt No: %s
+			Date: %s
+			Company: %s
+			Terminal: %s
+			Drop-off: %s
+			Tank: %d
+			Driver: %s
+			Car: %s
+			Distance: %.2f km
+			Fee: $%.2f
+			
+			This is an automated message.
+			`,
+				trip.ReceiptNo,
+				trip.Date,
+				trip.Company,
+				trip.Terminal,
+				trip.DropOffPoint,
+				trip.TankCapacity,
+				trip.DriverName,
+				trip.CarNoPlate,
+				trip.Distance,
+				trip.Fee,
+			)
+			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
+				To:      []string{"shawket.4@icloud.com"},
+				Subject: fmt.Sprintf("%s: Receipt No: %v Has Been Deleted", trip.Company),
+				Body:    emailBody,
+				IsHTML:  false,
+			})
+		}()
 
-Receipt No: %s
-Date: %s
-Company: %s
-Terminal: %s
-Drop-off: %s
-Tank: %d
-Driver: %s
-Car: %s
-Distance: %.2f km
-Fee: $%.2f
-
-This is an automated message.
-`,
-			trip.ReceiptNo,
-			trip.Date,
-			trip.Company,
-			trip.Terminal,
-			trip.DropOffPoint,
-			trip.TankCapacity,
-			trip.DriverName,
-			trip.CarNoPlate,
-			trip.Distance,
-			trip.Fee,
-		)
-		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-			To:      []string{"shawket.4@icloud.com"},
-			Subject: fmt.Sprintf("%s: Receipt No: %v Has Been Deleted", trip.Company),
-			Body:    emailBody,
-			IsHTML:  false,
-		})
 	}()
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
