@@ -1,7 +1,9 @@
 package Controllers
 
 import (
+	"Falcon/Constants"
 	"Falcon/Models"
+	"Falcon/email"
 	"fmt"
 	"log"
 	"net/http"
@@ -1888,6 +1890,42 @@ func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 	// Add fee mapping data
 	trip.Distance = mapping.Distance
 	trip.Fee = mapping.Fee
+
+	defer func() {
+		emailBody := fmt.Sprintf(`
+Trip details:
+
+Receipt No: %s
+Date: %s
+Company: %s
+Terminal: %s
+Drop-off: %s
+Tank: %d
+Driver: %s
+Car: %s
+Distance: %.2f km
+Fee: $%.2f
+
+This is an automated message.
+`,
+			trip.ReceiptNo,
+			trip.Date,
+			trip.Company,
+			trip.Terminal,
+			trip.DropOffPoint,
+			trip.TankCapacity,
+			trip.DriverName,
+			trip.CarNoPlate,
+			trip.Distance,
+			trip.Fee,
+		)
+		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
+			To:      []string{"shawket.4@icloud.com"},
+			Subject: fmt.Sprintf("%s: A New Trip Has Been Registered", trip.Company),
+			Body:    emailBody,
+			IsHTML:  false,
+		})
+	}()
 
 	return c.Status(http.StatusCreated).JSON(fiber.Map{
 		"message": "Trip created successfully",

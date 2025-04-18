@@ -1,7 +1,6 @@
 package Models
 
 import (
-	"Falcon/Constants"
 	"fmt"
 	"log"
 	"strconv"
@@ -167,7 +166,7 @@ func (input *FuelEvent) Edit() (*FuelEvent, error) {
 	CurrentFuelEvent.OdometerBefore = input.OdometerBefore
 	CurrentFuelEvent.OdometerAfter = input.OdometerAfter
 
-	f, err := excelize.OpenFile(Constants.SMBPath + "تفويلات.xlsx")
+	f, err := excelize.OpenFile("تفويلات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &FuelEvent{}, err
@@ -218,7 +217,7 @@ func (input *FuelEvent) Edit() (*FuelEvent, error) {
 		return &FuelEvent{}, err
 	}
 
-	fExpenses, err := excelize.OpenFile(Constants.SMBPath + "تكاليف السيارات.xlsx")
+	fExpenses, err := excelize.OpenFile("تكاليف السيارات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &FuelEvent{}, err
@@ -261,7 +260,7 @@ func (input *FuelEvent) Edit() (*FuelEvent, error) {
 }
 
 func (input *FuelEvent) Delete() (*FuelEvent, error) {
-	f, err := excelize.OpenFile(Constants.SMBPath + "تفويلات.xlsx")
+	f, err := excelize.OpenFile("تفويلات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &FuelEvent{}, err
@@ -287,7 +286,7 @@ func (input *FuelEvent) Delete() (*FuelEvent, error) {
 		return &FuelEvent{}, err
 	}
 
-	fExpenses, err := excelize.OpenFile(Constants.SMBPath + "تكاليف السيارات.xlsx")
+	fExpenses, err := excelize.OpenFile("تكاليف السيارات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &FuelEvent{}, err

@@ -1,7 +1,6 @@
 package Models
 
 import (
-	"Falcon/Constants"
 	"fmt"
 	"log"
 	"strconv"
@@ -27,7 +26,7 @@ type Service struct {
 }
 
 func (input *Service) Add() (*Service, error) {
-	f, err := excelize.OpenFile(Constants.SMBPath + "صيانة.xlsx")
+	f, err := excelize.OpenFile("صيانة.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
@@ -59,7 +58,7 @@ func (input *Service) Add() (*Service, error) {
 		return &Service{}, err
 	}
 
-	fExpenses, err := excelize.OpenFile(Constants.SMBPath + "تكاليف السيارات.xlsx")
+	fExpenses, err := excelize.OpenFile("تكاليف السيارات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
@@ -79,7 +78,7 @@ func (input *Service) Add() (*Service, error) {
 }
 
 func (input *Service) Edit() (*Service, error) {
-	f, err := excelize.OpenFile(Constants.SMBPath + "صيانة.xlsx")
+	f, err := excelize.OpenFile("صيانة.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
@@ -102,7 +101,7 @@ func (input *Service) Edit() (*Service, error) {
 		return &Service{}, err
 	}
 
-	fExpenses, err := excelize.OpenFile(Constants.SMBPath + "تكاليف السيارات.xlsx")
+	fExpenses, err := excelize.OpenFile("تكاليف السيارات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
@@ -122,7 +121,7 @@ func (input *Service) Edit() (*Service, error) {
 }
 
 func (input *Service) Delete() (*Service, error) {
-	f, err := excelize.OpenFile(Constants.SMBPath + "صيانة.xlsx")
+	f, err := excelize.OpenFile("صيانة.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
@@ -144,7 +143,7 @@ func (input *Service) Delete() (*Service, error) {
 		return &Service{}, err
 	}
 
-	fExpenses, err := excelize.OpenFile(Constants.SMBPath + "تكاليف السيارات.xlsx")
+	fExpenses, err := excelize.OpenFile("تكاليف السيارات.xlsx")
 	if err != nil {
 		log.Println(err)
 		return &Service{}, err
