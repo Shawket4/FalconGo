@@ -4,7 +4,6 @@ import (
 	"Falcon/Models"
 	"fmt"
 	"log"
-	"net/http"
 	"sort"
 	"time"
 
@@ -153,175 +152,162 @@ type FuelHandler struct {
 
 // GetFuelStatistics returns detailed fuel consumption statistics
 func (h *FuelHandler) GetFuelStatistics(c *fiber.Ctx) error {
-	// Get filters from query parameters
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-	carFilter := c.Query("car_no_plate")
-	driverFilter := c.Query("driver_name")
-	transporterFilter := c.Query("transporter")
-
-	// Base query
-	query := h.DB.Model(&Models.FuelEvent{})
-
-	// Apply date filters if provided
-	if startDate != "" && endDate != "" {
-		// Parse dates to ensure proper format
-		startTime, errStart := time.Parse("2006-01-02", startDate)
-		endTime, errEnd := time.Parse("2006-01-02", endDate)
-
-		if errStart == nil && errEnd == nil {
-			// Format back to string to ensure consistent format
-			formattedStart := startTime.Format("2006-01-02")
-			formattedEnd := endTime.Format("2006-01-02")
-
-			query = query.Where("date >= ? AND date <= ?", formattedStart, formattedEnd)
+	// Parse query parameters for date range
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	now := time.Now()
+	// Parse dates or default to last 30 days
+	var startDate, endDate time.Time
+	var err error
+	if startDateStr != "" {
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid start date format. Use YYYY-MM-DD",
+			})
 		}
+	} else {
+		// First day of current month at start of day
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	}
 
-	// Apply other filters if provided
-	if carFilter != "" {
-		query = query.Where("car_no_plate = ?", carFilter)
-	}
-	if driverFilter != "" {
-		query = query.Where("driver_name LIKE ?", "%"+driverFilter+"%")
-	}
-	if transporterFilter != "" {
-		query = query.Where("transporter LIKE ?", "%"+transporterFilter+"%")
+	if endDateStr != "" {
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid end date format. Use YYYY-MM-DD",
+			})
+		}
+	} else {
+		// Last day of current month at end of day
+		endDate = time.Date(now.Year(), now.Month()+1, 0, 23, 59, 59, 999999999, now.Location())
 	}
 
-	// First, get all distinct cars
-	var cars []string
-	if err := query.Distinct("car_no_plate").Pluck("car_no_plate", &cars).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to fetch fuel statistics",
-			"error":   err.Error(),
+	// Prepare query to fetch fuel events within date range
+	var fuelEvents []Models.FuelEvent
+	query := h.DB.Where("date BETWEEN ? AND ?", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+
+	// Optional filtering by car or other parameters
+	carID := c.Query("car_id")
+	if carID != "" {
+		query = query.Where("car_id = ?", carID)
+	}
+
+	err = query.Find(&fuelEvents).Error
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve fuel events",
 		})
 	}
 
-	// Create response array for car statistics
-	statistics := make([]FuelStatistics, 0, len(cars))
-
-	// Initialize summary statistics
-	summary := FuelSummary{}
-
-	// For each car, calculate statistics
-	for _, car := range cars {
-		// Create a new query specific to this car
-		carQuery := query.Where("car_no_plate = ?", car)
-
-		// Initialize the car statistics
-		carStats := FuelStatistics{
-			CarNoPlate:     car,
-			MinConsumption: -1, // Initialize to impossible value to detect if it's been set
-		}
-
-		// Count events
-		var eventCount int64
-		carQuery.Count(&eventCount)
-		carStats.EventCount = eventCount
-
-		// Get total liters
-		carQuery.Select("COALESCE(SUM(liters), 0)").Row().Scan(&carStats.TotalLiters)
-
-		// Get total cost
-		carQuery.Select("COALESCE(SUM(price), 0)").Row().Scan(&carStats.TotalCost)
-
-		// Get average price per liter
-		if carStats.TotalLiters > 0 {
-			carStats.AvgPricePerLiter = carStats.TotalCost / carStats.TotalLiters
-		}
-
-		// Count distinct drivers
-		carQuery.Distinct("driver_name").Count(&carStats.DistinctDrivers)
-
-		// Get all events for this car to calculate distances and consumption
-		var events []Models.FuelEvent
-		if err := carQuery.Order("date, id").Find(&events).Error; err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to fetch fuel events",
-				"error":   err.Error(),
-			})
-		}
-
-		// Calculate total distance and consumption statistics
-		carStats.TotalDistance = 0
-		var validConsumptionEvents int = 0
-
-		for i, event := range events {
-			// Calculate distance for this event
-			distance := 0.0
-			if event.OdometerAfter > 0 && event.OdometerBefore > 0 {
-				// Normal case: use odometer readings from this event
-				distance = float64(event.OdometerAfter - event.OdometerBefore)
-			} else if i > 0 && events[i-1].OdometerAfter > 0 && event.OdometerBefore > 0 {
-				// Alternative: use previous event's odometer_after as the before value
-				distance = float64(event.OdometerBefore - events[i-1].OdometerAfter)
-			}
-
-			// Only add positive distances
-			if distance > 0 {
-				carStats.TotalDistance += distance
-			}
-
-			// Calculate consumption for this event (liters per 100km)
-			if distance > 0 && event.Liters > 0 {
-				consumption := (event.Liters / distance) * 100
-
-				// Update min/max consumption
-				if carStats.MinConsumption < 0 || consumption < carStats.MinConsumption {
-					carStats.MinConsumption = consumption
-				}
-				if consumption > carStats.MaxConsumption {
-					carStats.MaxConsumption = consumption
-				}
-
-				validConsumptionEvents++
-			}
-		}
-
-		// If no valid consumption events were found, set min to 0
-		if carStats.MinConsumption < 0 {
-			carStats.MinConsumption = 0
-		}
-
-		// Calculate average consumption for car
-		if carStats.TotalDistance > 0 {
-			carStats.AvgConsumption = (carStats.TotalLiters / carStats.TotalDistance) * 100
-		}
-
-		// Add events to car statistics
-		carStats.Events = events
-
-		// Add to response array
-		statistics = append(statistics, carStats)
-
-		// Update summary statistics
-		summary.TotalLiters += carStats.TotalLiters
-		summary.TotalDistance += carStats.TotalDistance
-		summary.TotalCost += carStats.TotalCost
-		summary.TotalEvents += carStats.EventCount
-		summary.DistinctDrivers += carStats.DistinctDrivers // Note: This might count some drivers multiple times if they drive different cars
-	}
-
-	// Calculate overall summary statistics
-	if summary.TotalDistance > 0 {
-		summary.AvgConsumption = (summary.TotalLiters / summary.TotalDistance) * 100
-	}
-	if summary.TotalLiters > 0 {
-		summary.AvgPricePerLiter = summary.TotalCost / summary.TotalLiters
-	}
-
-	// Count distinct cars, drivers, and dates
-	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("car_no_plate").Count(&summary.DistinctCars)
-	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("driver_name").Count(&summary.DistinctDrivers)
-	h.DB.Model(&Models.FuelEvent{}).Where(query.Statement.Clauses).Distinct("date").Count(&summary.DistinctDates)
-
-	// Return response
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Fuel statistics retrieved successfully",
-		"data":    statistics,
-		"summary": summary,
+	// Group events by date and calculate daily statistics
+	dailyStats := make(map[string]struct {
+		Date             string  `json:"date"`
+		TotalLiters      float64 `json:"total_liters"`
+		TotalPrice       float64 `json:"total_price"`
+		LoanCount        int     `json:"loan_count"`
+		AvgPricePerLiter float64 `json:"avg_price_per_liter"`
+		AvgLiters        float64 `json:"avg_liters"`
 	})
+
+	// Compute summary statistics
+	var totalLiters, totalPrice float64
+	var minLiters, maxLiters float64
+	var minPrice, maxPrice float64
+	var averageLiters, averagePrice float64
+
+	for _, event := range fuelEvents {
+		// Parse date
+		eventDate, err := time.Parse("2006-01-02", event.Date)
+		if err != nil {
+			continue // Skip invalid dates
+		}
+		dateKey := eventDate.Format("2006-01-02")
+
+		// Initialize or update daily stats
+		daily, exists := dailyStats[dateKey]
+		if !exists {
+			daily = struct {
+				Date             string  `json:"date"`
+				TotalLiters      float64 `json:"total_liters"`
+				TotalPrice       float64 `json:"total_price"`
+				LoanCount        int     `json:"loan_count"`
+				AvgPricePerLiter float64 `json:"avg_price_per_liter"`
+				AvgLiters        float64 `json:"avg_liters"`
+			}{
+				Date: dateKey,
+			}
+		}
+
+		// Update daily statistics
+		daily.TotalLiters += event.Liters
+		daily.TotalPrice += event.Price
+		daily.LoanCount++
+		daily.AvgPricePerLiter = daily.TotalPrice / daily.TotalLiters
+		daily.AvgLiters = daily.TotalLiters / float64(daily.LoanCount)
+
+		dailyStats[dateKey] = daily
+
+		// Compute overall statistics
+		totalLiters += event.Liters
+		totalPrice += event.Price
+
+		// Track min/max
+		if minLiters == 0 || event.Liters < minLiters {
+			minLiters = event.Liters
+		}
+		if event.Liters > maxLiters {
+			maxLiters = event.Liters
+		}
+
+		if minPrice == 0 || event.Price < minPrice {
+			minPrice = event.Price
+		}
+		if event.Price > maxPrice {
+			maxPrice = event.Price
+		}
+	}
+
+	// Compute averages
+	if len(fuelEvents) > 0 {
+		averageLiters = totalLiters / float64(len(fuelEvents))
+		averagePrice = totalPrice / float64(len(fuelEvents))
+	}
+
+	// Convert daily stats to slice for easier frontend consumption
+	dailyStatsList := make([]struct {
+		Date             string  `json:"date"`
+		TotalLiters      float64 `json:"total_liters"`
+		TotalPrice       float64 `json:"total_price"`
+		LoanCount        int     `json:"loan_count"`
+		AvgPricePerLiter float64 `json:"avg_price_per_liter"`
+		AvgLiters        float64 `json:"avg_liters"`
+	}, 0, len(dailyStats))
+	for _, stat := range dailyStats {
+		dailyStatsList = append(dailyStatsList, stat)
+	}
+
+	// Sort daily stats by date
+	sort.Slice(dailyStatsList, func(i, j int) bool {
+		return dailyStatsList[i].Date < dailyStatsList[j].Date
+	})
+
+	// Prepare response
+	response := fiber.Map{
+		"daily_stats":    dailyStatsList,
+		"total_liters":   totalLiters,
+		"total_price":    totalPrice,
+		"average_liters": averageLiters,
+		"average_price":  averagePrice,
+		"min_liters":     minLiters,
+		"max_liters":     maxLiters,
+		"min_price":      minPrice,
+		"max_price":      maxPrice,
+		"period_days":    len(dailyStatsList),
+		"period_weeks":   float64(len(dailyStatsList)) / 7,
+	}
+
+	return c.JSON(response)
 }
 
 func AddFuelEvent(c *fiber.Ctx) error {
