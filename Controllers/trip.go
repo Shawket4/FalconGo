@@ -1921,7 +1921,7 @@ This is an automated message.
 				trip.Fee,
 			)
 			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-				To:      []string{"shawket.4@icloud.com"},
+				To:      []string{"shawket.4@icloud.com", "mohamedeltaef44@gmail.com"},
 				Subject: fmt.Sprintf("%s: A New Trip Has Been Registered", trip.Company),
 				Body:    emailBody,
 				IsHTML:  false,
@@ -2119,7 +2119,7 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 				existingTrip.Fee,
 			)
 			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-				To:      []string{"shawket.4@icloud.com"},
+				To:      []string{"shawket.4@icloud.com", "mohamedeltaef44@gmail.com"},
 				Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Updated", existingTrip.Company, existingTrip.ReceiptNo),
 				Body:    emailBody,
 				IsHTML:  false,
@@ -2197,7 +2197,7 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 				trip.Fee,
 			)
 			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-				To:      []string{"shawket.4@icloud.com"},
+				To:      []string{"shawket.4@icloud.com", "mohamedeltaef44@gmail.com"},
 				Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Deleted", trip.Company, trip.ReceiptNo),
 				Body:    emailBody,
 				IsHTML:  false,
