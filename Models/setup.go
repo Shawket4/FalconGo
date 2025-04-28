@@ -50,6 +50,7 @@ func Connect() {
 		&TirePosition{}, // Depends on Truck and Tire
 		&Expense{},      // Depends on Driver
 		&Loan{},         // Depends on Driver
+		&Salary{},
 	)
 
 	// 3. Finally, migrate models with complex relationships or that depend on multiple other models

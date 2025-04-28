@@ -59,6 +59,7 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/gofiber/template v1.6.28
 	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.38.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect

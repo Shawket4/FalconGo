@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	// "time"
 
@@ -23,44 +22,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const (
-	baseURL = "https://etit-fms.etit-eg.com"
-)
-
-var (
-	username = "magda.adly"
-	password = "etit135"
-)
-
-type VehicleStatusStruct struct {
-	PlateNo      string
-	Speed        int
-	Longitude    string
-	Latitude     string
-	EngineStatus string
-	ID           string
-}
-
-var VehicleStatusList []VehicleStatusStruct
-var VehicleStatusListTemp []VehicleStatusStruct
-var AllCoordinates map[string][]Structs.Coordinate
-
-var Data struct {
-	Data struct {
-		Rows []struct {
-			PlateNo string `json:"plateNo"`
-			CodeNo  string `json:"CodePlateNumber"`
-			ID      string `json:"ID"`
-		} `json:"rows"`
-	} `json:"d"`
-}
-
 type App struct {
 	Client *http.Client
-}
-
-type AuthenticityToken struct {
-	Token string
 }
 
 type Project struct {
@@ -273,31 +236,6 @@ var jar, _ = cookiejar.New(nil)
 
 var app = App{
 	Client: &http.Client{Jar: jar},
-}
-
-var isLoaded bool = false
-var GlobalClient *colly.Collector
-
-func GetVehicleData() {
-	GlobalClient, err := app.Login()
-
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-	VehicleStatusListTemp = []VehicleStatusStruct{}
-	app.GetCurrentLocationData(GlobalClient)
-
-	if VehicleStatusList != nil {
-		fmt.Println(isLoaded)
-		isLoaded = true
-	}
-	time.Sleep(time.Second * 20)
-	fmt.Println(VehicleStatusList)
-	// CheckMileageSinceOilChangeWorker(GlobalClient)
-	// UpdateVehiclePlace(VehicleStatusList)
-	//AllCoordinates := app.GetVehicleHistoryData(VehicleStatusList[0].ID, client)
-	//fmt.Println(AllCoordinates[0:6])
 }
 
 // func GetVehicleHistoryData() {

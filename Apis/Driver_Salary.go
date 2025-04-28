@@ -316,15 +316,12 @@ func NormalizeLoanData(stats *LoanStatResponse) {
 
 func RegisterDriverExpense(c *fiber.Ctx) error {
 	var input struct {
-		DriverID uint           `json:"driver_id"`
-		Expense  Models.Expense `json:"expenses"`
+		Expense Models.Expense `json:"expense"`
 	}
 	if err := c.BodyParser(&input); err != nil {
 		log.Println(err)
 		return err
 	}
-
-	input.Expense.DriverID = input.DriverID
 
 	if err := Models.DB.Create(&input.Expense).Error; err != nil {
 		log.Println(err.Error())
@@ -332,6 +329,262 @@ func RegisterDriverExpense(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{
 		"message": "Expense Registered Successfully",
+	})
+}
+
+// RegisterDriverSalary handles creating a new salary record
+func RegisterDriverSalary(c *fiber.Ctx) error {
+	var input struct {
+		DriverID   uint    `json:"driver_id"`
+		DriverCost float64 `json:"driver_cost"`
+		StartDate  string  `json:"start_date"`
+		CloseDate  string  `json:"close_date"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	// Validate dates
+	if input.StartDate == "" || input.CloseDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Start date and close date are required",
+		})
+	}
+
+	// Fetch all unpaid expenses for this driver within the date range
+	var expenses []Models.Expense
+	if err := Models.DB.Model(&Models.Expense{}).Where(
+		"driver_id = ? AND is_paid = ? AND date >= ? AND date <= ?",
+		input.DriverID, false, input.StartDate, input.CloseDate,
+	).Find(&expenses).Error; err != nil {
+		log.Println("Error fetching expenses:", err.Error())
+		return err
+	}
+
+	// Calculate total expenses
+	totalExpenses := 0.0
+	for _, expense := range expenses {
+		totalExpenses += expense.Cost
+	}
+
+	// Fetch all loans for this driver within the date range
+	var loans []Models.Loan
+	if err := Models.DB.Model(&Models.Loan{}).Where(
+		"driver_id = ? AND is_paid = ? AND date >= ? AND date <= ?",
+		input.DriverID, false, input.StartDate, input.CloseDate,
+	).Find(&loans).Error; err != nil {
+		log.Println("Error fetching loans:", err.Error())
+		return err
+	}
+
+	// Calculate total loans
+	totalLoans := 0.0
+	for _, loan := range loans {
+		totalLoans += loan.Amount
+	}
+
+	// Create the salary object
+	salary := Models.Salary{
+		DriverID:      input.DriverID,
+		DriverCost:    input.DriverCost,
+		TotalExpenses: totalExpenses,
+		TotalLoans:    totalLoans,
+		StartDate:     input.StartDate,
+		CloseDate:     input.CloseDate,
+	}
+
+	// Begin transaction
+	tx := Models.DB.Begin()
+
+	// Save salary record
+	if err := tx.Create(&salary).Error; err != nil {
+		tx.Rollback()
+		log.Println("Error creating salary:", err.Error())
+		return err
+	}
+
+	// Mark all fetched expenses as paid
+	for i := range expenses {
+		expenses[i].IsPaid = true
+		if err := tx.Save(&expenses[i]).Error; err != nil {
+			tx.Rollback()
+			log.Println("Error updating expense:", err.Error())
+			return err
+		}
+	}
+
+	for i := range loans {
+		loans[i].IsPaid = true
+		if err := tx.Save(&loans[i]).Error; err != nil {
+			tx.Rollback()
+			log.Println("Error updating loan:", err.Error())
+			return err
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		log.Println("Error committing transaction:", err.Error())
+		return err
+	}
+
+	return c.JSON(fiber.Map{
+		"message":             "Salary Registered Successfully",
+		"salary":              salary,
+		"paid_expenses_count": len(expenses),
+		"loans_count":         len(loans),
+	})
+}
+
+// GetDriverSalaryPreview returns expenses and loans for a given date range
+func GetDriverSalaryPreview(c *fiber.Ctx) error {
+	var input struct {
+		DriverID  uint   `json:"driver_id"`
+		StartDate string `json:"start_date"`
+		CloseDate string `json:"close_date"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	// Validate input
+	if input.DriverID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Driver ID is required",
+		})
+	}
+
+	if input.StartDate == "" || input.CloseDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Start date and end date are required",
+		})
+	}
+
+	// Fetch unpaid expenses for this driver within the date range
+	var expenses []Models.Expense
+	if err := Models.DB.Model(&Models.Expense{}).Where(
+		"driver_id = ? AND is_paid <> ? AND date >= ? AND date <= ?",
+		input.DriverID, true, input.StartDate, input.CloseDate,
+	).Find(&expenses).Error; err != nil {
+		log.Println("Error fetching expenses:", err.Error())
+		return err
+	}
+
+	// Calculate total expenses
+	totalExpenses := 0.0
+	for _, expense := range expenses {
+		totalExpenses += expense.Cost // Using lowercase field name to match the struct
+	}
+
+	// Fetch loans for this driver within the date range
+	var loans []Models.Loan
+	if err := Models.DB.Model(&Models.Loan{}).Where(
+		"driver_id = ? AND is_paid <> ? AND date >= ? AND date <= ?",
+		input.DriverID, true, input.StartDate, input.CloseDate,
+	).Find(&loans).Error; err != nil {
+		log.Println("Error fetching loans:", err.Error())
+		return err
+	}
+
+	// Calculate total loans
+	totalLoans := 0.0
+	for _, loan := range loans {
+		totalLoans += loan.Amount
+	}
+
+	// Fetch driver information for display purposes
+	var driver Models.Driver
+	driverName := "Driver"
+	if err := Models.DB.First(&driver, input.DriverID).Error; err == nil {
+		driverName = driver.Name
+	}
+
+	return c.JSON(fiber.Map{
+		"expenses":       expenses,
+		"loans":          loans,
+		"total_expenses": totalExpenses,
+		"total_loans":    totalLoans,
+		"expenses_count": len(expenses),
+		"loans_count":    len(loans),
+		"driver_name":    driverName,
+		"date_range": map[string]string{
+			"start": input.StartDate,
+			"end":   input.CloseDate,
+		},
+	})
+}
+
+// GetDriverSalaries fetches salary records with optional filtering
+func GetDriverSalaries(c *fiber.Ctx) error {
+	var input struct {
+		DriverID  uint   `json:"driver_id"`  // Optional: filter by driver
+		StartDate string `json:"start_date"` // Optional: filter by end date range
+		CloseDate string `json:"close_date"` // Optional: filter by start date range
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err)
+		return err
+	}
+
+	// Start building the query
+	query := Models.DB.Model(&Models.Salary{})
+
+	// Apply filters if provided
+	if input.DriverID != 0 {
+		query = query.Where("driver_id = ?", input.DriverID)
+	}
+
+	if input.CloseDate != "" {
+		query = query.Where("start_date >= ?", input.CloseDate)
+	}
+
+	if input.StartDate != "" {
+		query = query.Where("close_date <= ?", input.StartDate)
+	}
+
+	// Get the results
+	var salaries []Models.Salary
+	if err := query.Order("created_at DESC").Find(&salaries).Error; err != nil {
+		log.Println("Error fetching salaries:", err.Error())
+		return err
+	}
+
+	// If specifically looking for one driver's salaries, also get the driver name
+	driverName := ""
+	if input.DriverID != 0 {
+		var driver Models.Driver
+		if err := Models.DB.First(&driver, input.DriverID).Error; err == nil {
+			driverName = driver.Name
+		}
+	}
+
+	// Calculate some summary statistics
+	totalSalaries := len(salaries)
+	totalCost := 0.0
+	totalExpenses := 0.0
+	totalLoans := 0.0
+
+	for _, salary := range salaries {
+		totalCost += salary.DriverCost
+		totalExpenses += salary.TotalExpenses
+		totalLoans += salary.TotalLoans
+	}
+
+	return c.JSON(fiber.Map{
+		"salaries":    salaries,
+		"total_count": totalSalaries,
+		"driver_name": driverName,
+		"summary": fiber.Map{
+			"total_cost":     totalCost,
+			"total_expenses": totalExpenses,
+			"total_loans":    totalLoans,
+			"net_paid":       totalCost - totalExpenses + totalLoans,
+		},
 	})
 }
 

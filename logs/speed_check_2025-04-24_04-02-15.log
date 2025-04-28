@@ -1,0 +1,7 @@
+2025/04/24 04:02:16 HTTP client successfully authenticated
+2025/04/24 04:02:17 Collector successfully authenticated
+2025/04/24 04:02:17 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:02:18 HTTP client successfully authenticated
+2025/04/24 04:02:19 Collector successfully authenticated
+2025/04/24 04:02:19 Error checking vehicle ف د ى 6738: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:02:19 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts

@@ -30,10 +30,23 @@ type Driver struct {
 
 type Expense struct {
 	gorm.Model
-	DriverID    uint    `json:"driver_id"`
-	Cost        float64 `json:"cost"`
-	Description string  `json:"description"`
-	Date        string  `json:"date"`
+	DriverID      uint    `json:"driver_id"`
+	Cost          float64 `json:"cost"`
+	Category      string  `json:"category"`
+	Description   string  `json:"description"`
+	Date          string  `json:"date"`
+	PaymentMethod string  `json:"payment_method"`
+	IsPaid        bool    `json:"is_paid" gorm:"not null;default:false"`
+}
+
+type Salary struct {
+	gorm.Model
+	DriverID      uint    `json:"driver_id"`
+	DriverCost    float64 `json:"driver_cost"`
+	TotalExpenses float64 `json:"total_expenses"`
+	TotalLoans    float64 `json:"total_loans"`
+	StartDate     string  `json:"start_date"`
+	CloseDate     string  `json:"close_date"`
 }
 
 type Loan struct {
@@ -42,4 +55,5 @@ type Loan struct {
 	Amount   float64 `json:"amount"`
 	Method   string  `json:"method"`
 	Date     string  `json:"date"`
+	IsPaid   bool    `json:"is_paid" gorm:"not null;default:false"`
 }

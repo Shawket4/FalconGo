@@ -1,0 +1,72 @@
+2025/04/24 03:55:07 HTTP client successfully authenticated
+2025/04/24 03:55:07 Collector successfully authenticated
+2025/04/24 03:55:07 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:55:08 HTTP client successfully authenticated
+2025/04/24 03:55:09 Collector successfully authenticated
+2025/04/24 03:55:09 Error checking vehicle ف د ى 6738: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:09 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/04/24 03:55:10 HTTP client successfully authenticated
+2025/04/24 03:55:11 Collector successfully authenticated
+2025/04/24 03:55:11 Error checking vehicle ف م س 9247: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:11 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:55:12 HTTP client successfully authenticated
+2025/04/24 03:55:13 Collector successfully authenticated
+2025/04/24 03:55:13 Error checking vehicle ف د ى 6584: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:13 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:55:14 HTTP client successfully authenticated
+2025/04/24 03:55:15 Collector successfully authenticated
+2025/04/24 03:55:15 Error checking vehicle ف ع ص 4381: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:15 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/04/24 03:55:16 HTTP client successfully authenticated
+2025/04/24 03:55:17 Collector successfully authenticated
+2025/04/24 03:55:17 Error checking vehicle ف أ ن 5139: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:17 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/04/24 03:55:18 HTTP client successfully authenticated
+2025/04/24 03:55:19 Collector successfully authenticated
+2025/04/24 03:55:19 Error checking vehicle ف ر ص 6359: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:19 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/04/24 03:55:20 HTTP client successfully authenticated
+2025/04/24 03:55:21 Collector successfully authenticated
+2025/04/24 03:55:21 Error checking vehicle ف ر ص 8461: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:21 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/04/24 03:55:22 HTTP client successfully authenticated
+2025/04/24 03:55:22 Collector successfully authenticated
+2025/04/24 03:55:23 Error checking vehicle ف د ى 6834: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:23 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/04/24 03:55:24 HTTP client successfully authenticated
+2025/04/24 03:55:24 Collector successfully authenticated
+2025/04/24 03:55:25 Error checking vehicle ف ج م 5918: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:25 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/04/24 03:55:26 HTTP client successfully authenticated
+2025/04/24 03:55:27 Collector successfully authenticated
+2025/04/24 03:55:27 Error checking vehicle ف ى ر 8427: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:27 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/04/24 03:55:29 HTTP client successfully authenticated
+2025/04/24 03:55:29 Collector successfully authenticated
+2025/04/24 03:55:29 Error checking vehicle ف ق ص 5138: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:29 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/04/24 03:55:31 HTTP client successfully authenticated
+2025/04/24 03:55:32 Collector successfully authenticated
+2025/04/24 03:55:32 Error checking vehicle ف ق ص 4253: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:32 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:55:33 HTTP client successfully authenticated
+2025/04/24 03:55:33 Collector successfully authenticated
+2025/04/24 03:55:35 Error checking vehicle ف ر س 4593: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:35 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/04/24 03:55:36 HTTP client successfully authenticated
+2025/04/24 03:55:36 Collector successfully authenticated
+2025/04/24 03:55:36 Error checking vehicle ف ر ص 5783: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:36 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/04/24 03:55:37 HTTP client successfully authenticated
+2025/04/24 03:55:38 Collector successfully authenticated
+2025/04/24 03:55:38 Error checking vehicle ف ا ن 7421: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:38 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:55:39 HTTP client successfully authenticated
+2025/04/24 03:55:40 Collector successfully authenticated
+2025/04/24 03:55:40 Error checking vehicle ف ى ر 9156: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:40 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/04/24 03:55:41 HTTP client successfully authenticated
+2025/04/24 03:55:41 Collector successfully authenticated
+2025/04/24 03:55:42 Error checking vehicle ف ج م 5917: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:55:42 Successfully completed speed check
+2025/04/24 03:55:42 Speed violations found! Check the generated report file.

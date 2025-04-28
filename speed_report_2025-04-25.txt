@@ -1,0 +1,6 @@
+Speed Alert Report for 2025-04-25 (Threshold: 10 km/h)
+================================================
+
+
+Total vehicles with alerts: 0
+Total alerts: 0

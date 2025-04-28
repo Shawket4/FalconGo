@@ -1,0 +1,16 @@
+2025/04/24 03:42:00 Received shutdown signal
+2025/04/24 03:42:00 Speed check scheduler stopped
+2025/04/24 03:42:00 Application stopped gracefully
+2025/04/24 03:42:01 HTTP client successfully authenticated
+2025/04/24 03:42:02 Collector successfully authenticated
+2025/04/24 03:42:02 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 03:42:03 HTTP client successfully authenticated
+2025/04/24 03:42:03 Collector successfully authenticated
+2025/04/24 03:42:03 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Wed, 23 Apr 2025 00:00:00 GMT&to=Wed, 23 Apr 2025 23:59:00 GMT
+2025/04/24 03:42:03 Error checking vehicle ف د ى 6738: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:42:03 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/04/24 03:42:05 HTTP client successfully authenticated
+2025/04/24 03:42:05 Collector successfully authenticated
+2025/04/24 03:42:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Wed, 23 Apr 2025 00:00:00 GMT&to=Wed, 23 Apr 2025 23:59:00 GMT
+2025/04/24 03:42:05 Error checking vehicle ف م س 9247: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 03:42:05 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts

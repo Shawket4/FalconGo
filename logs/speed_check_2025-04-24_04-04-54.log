@@ -1,0 +1,89 @@
+2025/04/24 04:04:56 HTTP client successfully authenticated
+2025/04/24 04:04:56 Collector successfully authenticated
+2025/04/24 04:04:56 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:04:57 HTTP client successfully authenticated
+2025/04/24 04:04:58 Collector successfully authenticated
+2025/04/24 04:04:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:00 Error checking vehicle ف د ى 6738: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:00 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/04/24 04:05:01 HTTP client successfully authenticated
+2025/04/24 04:05:01 Collector successfully authenticated
+2025/04/24 04:05:01 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:03 Error checking vehicle ف م س 9247: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:03 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:05:04 HTTP client successfully authenticated
+2025/04/24 04:05:04 Collector successfully authenticated
+2025/04/24 04:05:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:06 Error checking vehicle ف د ى 6584: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:06 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:05:07 HTTP client successfully authenticated
+2025/04/24 04:05:08 Collector successfully authenticated
+2025/04/24 04:05:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:12 Error checking vehicle ف ع ص 4381: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:12 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/04/24 04:05:16 HTTP client successfully authenticated
+2025/04/24 04:05:18 Collector successfully authenticated
+2025/04/24 04:05:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:20 Error checking vehicle ف أ ن 5139: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:20 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/04/24 04:05:22 HTTP client successfully authenticated
+2025/04/24 04:05:22 Collector successfully authenticated
+2025/04/24 04:05:22 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:25 Error checking vehicle ف ر ص 6359: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:25 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/04/24 04:05:26 HTTP client successfully authenticated
+2025/04/24 04:05:31 Collector successfully authenticated
+2025/04/24 04:05:31 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:34 Error checking vehicle ف ر ص 8461: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:34 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/04/24 04:05:35 HTTP client successfully authenticated
+2025/04/24 04:05:37 Collector successfully authenticated
+2025/04/24 04:05:37 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:39 Error checking vehicle ف د ى 6834: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:39 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/04/24 04:05:40 HTTP client successfully authenticated
+2025/04/24 04:05:40 Collector successfully authenticated
+2025/04/24 04:05:40 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:42 Error checking vehicle ف ج م 5918: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:42 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/04/24 04:05:43 HTTP client successfully authenticated
+2025/04/24 04:05:44 Collector successfully authenticated
+2025/04/24 04:05:44 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:45 Error checking vehicle ف ى ر 8427: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:45 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/04/24 04:05:46 HTTP client successfully authenticated
+2025/04/24 04:05:47 Collector successfully authenticated
+2025/04/24 04:05:47 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:51 Error checking vehicle ف ق ص 5138: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:51 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/04/24 04:05:52 HTTP client successfully authenticated
+2025/04/24 04:05:53 Collector successfully authenticated
+2025/04/24 04:05:53 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:56 Error checking vehicle ف ق ص 4253: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:56 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:05:57 HTTP client successfully authenticated
+2025/04/24 04:05:58 Collector successfully authenticated
+2025/04/24 04:05:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:05:59 Error checking vehicle ف ر س 4593: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:05:59 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/04/24 04:06:00 HTTP client successfully authenticated
+2025/04/24 04:06:01 Collector successfully authenticated
+2025/04/24 04:06:01 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:06:03 Error checking vehicle ف ر ص 5783: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:06:03 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/04/24 04:06:04 HTTP client successfully authenticated
+2025/04/24 04:06:05 Collector successfully authenticated
+2025/04/24 04:06:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:06:06 Error checking vehicle ف ا ن 7421: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:06:06 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/04/24 04:06:07 HTTP client successfully authenticated
+2025/04/24 04:06:08 Collector successfully authenticated
+2025/04/24 04:06:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:06:09 Error checking vehicle ف ى ر 9156: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:06:09 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/04/24 04:06:11 HTTP client successfully authenticated
+2025/04/24 04:06:11 Collector successfully authenticated
+2025/04/24 04:06:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Wed%252C%2B23%2BApr%2B2025%2B00%253A00%253A00%2BGMT&to=Wed%252C%2B23%2BApr%2B2025%2B23%253A59%253A00%2BGMT
+2025/04/24 04:06:13 Error checking vehicle ف ج م 5917: error parsing speed data: invalid character '<' looking for beginning of value
+2025/04/24 04:06:13 Successfully completed speed check
+2025/04/24 04:06:13 Speed violations found! Check the generated report file.
