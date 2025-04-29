@@ -121,6 +121,15 @@ type TripStatistics struct {
 	RouteDetails  []RouteRevenueStats     `json:"route_details,omitempty"` // New field for route-based stats
 }
 
+type CarTotal struct {
+	CarNoPlate  string  `json:"car_no_plate"`
+	Liters      float64 `json:"liters"`
+	Distance    float64 `json:"distance"`
+	BaseRevenue float64 `json:"base_revenue"`
+	VAT         float64 `json:"vat"`
+	Rent        float64 `json:"rent"`
+}
+
 // Add a new function to calculate revenue statistics by route
 func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, hasFinancialAccess bool) []RouteRevenueStats {
 	var routeStats []RouteRevenueStats
@@ -1143,13 +1152,63 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 		statistics = append(statistics, companyStats)
 	}
 	statsByDate := h.GetTripStatsByTime(startDate, endDate, companyFilter, hasFinancialAccess)
+	carTotals := GetCarTotals(statistics)
 	// Add a flag to inform frontend whether financial data is visible
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message":            "Trip statistics retrieved successfully",
 		"data":               statistics,
 		"statsByDate":        statsByDate,
 		"hasFinancialAccess": hasFinancialAccess,
+		"carTotals":          carTotals,
 	})
+}
+
+func GetCarTotals(statistics []TripStatistics) []CarTotal {
+	// Create a map to aggregate data by car number plate
+	carTotalsMap := make(map[string]*CarTotal)
+
+	// Iterate through all statistics
+	for _, statistic := range statistics {
+		// Access the route details which contain car information
+		for _, routeDetail := range statistic.RouteDetails {
+			// Process each car in the route
+			for _, car := range routeDetail.Cars {
+				// Check if we already have an entry for this car
+				carTotal, exists := carTotalsMap[car.CarNoPlate]
+
+				if !exists {
+					// If not, create a new CarTotal
+					carTotal = &CarTotal{
+						CarNoPlate: car.CarNoPlate,
+					}
+					carTotalsMap[car.CarNoPlate] = carTotal
+				}
+
+				// Aggregate the data
+				carTotal.Liters += car.TotalVolume // Assuming Liters corresponds to TotalVolume
+				carTotal.Distance += car.TotalDistance
+				carTotal.BaseRevenue += car.TotalRevenue
+
+				// Add VAT if available
+				if car.VAT > 0 {
+					carTotal.VAT += car.VAT
+				}
+
+				// Add Rent if available (assuming car rental corresponds to rent)
+				if car.CarRental > 0 {
+					carTotal.Rent += car.CarRental
+				}
+			}
+		}
+	}
+
+	// Convert the map to a slice
+	result := make([]CarTotal, 0, len(carTotalsMap))
+	for _, carTotal := range carTotalsMap {
+		result = append(result, *carTotal)
+	}
+
+	return result
 }
 
 func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
