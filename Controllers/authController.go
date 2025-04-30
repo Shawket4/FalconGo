@@ -24,9 +24,7 @@ func RegisterDriver(c *fiber.Ctx) error {
 		log.Println(err)
 		return err
 	}
-	if CurrentUser.Permission == 2 {
-		data.Transporter = CurrentUser.Name
-	}
+
 	//data.Password, _ = bcrypt.GenerateFromPassword([]byte(data.PasswordInput), 14)
 	//data.PasswordInput = ""
 	//if data.Transporter == "" {
@@ -152,9 +150,7 @@ func RegisterDriver(c *fiber.Ctx) error {
 	// data.CriminalRecordImageName = CriminalRecord.Filename
 	// data.SafetyLicenseImageName = safetyLicense.Filename
 	// data.DrugTestImageName = drugTest.Filename
-	if CurrentUser.Permission >= 1 {
-		data.IsApproved = true
-	}
+	data.IsApproved = true
 	if err := Models.DB.Create(&data).Error; err != nil {
 		log.Println(err.Error())
 		return c.JSON(fiber.Map{
