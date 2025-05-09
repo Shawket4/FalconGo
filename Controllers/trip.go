@@ -286,7 +286,7 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 
 			// Calculate base revenue and car rental
 			baseRevenue := route.TotalDistance * ratePerKm
-			carRentalFee := float64(len(terminalWorkingDays)) * 1433.0 * 1.14
+			carRentalFee := float64(len(terminalWorkingDays)) * 1433.0
 			vat := (baseRevenue + carRentalFee) * 0.14
 			totalRevenue := baseRevenue + carRentalFee + vat
 
@@ -335,7 +335,7 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 					carBaseRevenue := carStats[i].TotalDistance * ratePerKm
 
 					// Car rental fee for this specific car based on working days
-					carRental := float64(carStats[i].WorkingDays) * 1433.0 * 1.14
+					carRental := float64(carStats[i].WorkingDays) * 1433.0
 
 					// VAT calculation
 					carVAT := (carBaseRevenue + carRental) * 0.14
@@ -694,7 +694,7 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						Distinct("car_id").
 						Count(&carCount)
 
-					carRentalFee := float64(carCount) * 1433.0 * 1.14
+					carRentalFee := float64(carCount) * 1433.0
 
 					// Calculate VAT
 					vat := (baseRevenue + carRentalFee) * 0.14
@@ -713,7 +713,7 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 							WHEN fm.fee = 4 THEN t.tank_capacity * 135 / 1000
 							WHEN fm.fee = 5 THEN t.tank_capacity * 155 / 1000
 							ELSE 0
-						END * 1.14  -- Adding 14% VAT
+						END
 					), 0) as total_revenue
 					FROM trips t
 					LEFT JOIN fee_mappings fm 
@@ -890,7 +890,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			`, company, startDate, startDate, endDate, endDate).Scan(&carWorkingDays)
 
 			// Calculate total rental fee: 1433 per car per working day
-			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0 * 1.14
+			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0
 
 			// Group by terminal
 			var terminalStats []struct {
@@ -965,7 +965,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				// Proportionally based on the number of car-days
 				carRentalFee := 0.0
 				if terminalCarDays[stat.Terminal] > 0 {
-					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0 * 1.14
+					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0
 				}
 
 				// Calculate 14% VAT on the base revenue and car rental
