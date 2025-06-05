@@ -261,9 +261,9 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 			// Calculate rate per km based on terminal
 			var ratePerKm float64
 			if route.Terminal == "Alex" {
-				ratePerKm = 33.9
+				ratePerKm = 38.0
 			} else if route.Terminal == "Suez" {
-				ratePerKm = 30.9
+				ratePerKm = 35.5
 			} else {
 				ratePerKm = 0 // Default if unknown terminal
 			}
@@ -386,15 +386,15 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 
 			switch int(route.Fee) {
 			case 1:
-				ratePerVolume = 75
+				ratePerVolume = 82.5
 			case 2:
-				ratePerVolume = 95
+				ratePerVolume = 104.5
 			case 3:
-				ratePerVolume = 115
+				ratePerVolume = 126.5
 			case 4:
-				ratePerVolume = 135
+				ratePerVolume = 148.5
 			case 5:
-				ratePerVolume = 155
+				ratePerVolume = 170.5
 			default:
 				ratePerVolume = 0 // Default if unknown fee
 			}
@@ -674,8 +674,8 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 					SELECT 
 						COALESCE(SUM(
 							CASE 
-								WHEN t.terminal = 'Alex' THEN fm.distance * 33.9
-								WHEN t.terminal = 'Suez' THEN fm.distance * 30.9
+								WHEN t.terminal = 'Alex' THEN fm.distance * 38.0
+								WHEN t.terminal = 'Suez' THEN fm.distance * 35.5
 								ELSE 0
 							END
 						), 0) as base_revenue
@@ -707,11 +707,11 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 					h.DB.Raw(`
 					SELECT COALESCE(SUM(
 						CASE 
-							WHEN fm.fee = 1 THEN t.tank_capacity * 75 / 1000
-							WHEN fm.fee = 2 THEN t.tank_capacity * 95 / 1000
-							WHEN fm.fee = 3 THEN t.tank_capacity * 115 / 1000
-							WHEN fm.fee = 4 THEN t.tank_capacity * 135 / 1000
-							WHEN fm.fee = 5 THEN t.tank_capacity * 155 / 1000
+							WHEN fm.fee = 1 THEN t.tank_capacity * 82.5 / 1000
+							WHEN fm.fee = 2 THEN t.tank_capacity * 104.5 / 1000
+							WHEN fm.fee = 3 THEN t.tank_capacity * 126.5 / 1000
+							WHEN fm.fee = 4 THEN t.tank_capacity * 148.5 / 1000
+							WHEN fm.fee = 5 THEN t.tank_capacity * 170.5 / 1000
 							ELSE 0
 						END
 					), 0) as total_revenue
@@ -722,7 +722,7 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						AND t.drop_off_point = fm.drop_off_point
 					WHERE t.company = ? AND t.date = ? AND t.deleted_at IS NULL
 				`, company, date).Row().Scan(&revenue)
-
+					revenue *= 1.14
 				}
 
 				companyDetail.TotalRevenue = revenue
@@ -951,9 +951,9 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			for _, stat := range terminalStats {
 				var ratePerKm float64
 				if stat.Terminal == "Alex" {
-					ratePerKm = 33.9
+					ratePerKm = 38.0
 				} else if stat.Terminal == "Suez" {
-					ratePerKm = 30.9
+					ratePerKm = 35.5
 				} else {
 					ratePerKm = 0 // Default if unknown terminal
 				}
@@ -1061,15 +1061,15 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 
 				switch int(stat.Fee) {
 				case 1:
-					ratePerVolume = 75
+					ratePerVolume = 82.5
 				case 2:
-					ratePerVolume = 95
+					ratePerVolume = 104.5
 				case 3:
-					ratePerVolume = 115
+					ratePerVolume = 126.5
 				case 4:
-					ratePerVolume = 135
+					ratePerVolume = 148.5
 				case 5:
-					ratePerVolume = 155
+					ratePerVolume = 170.5
 				default:
 					ratePerVolume = 0 // Default if unknown fee
 				}
@@ -1447,15 +1447,15 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			var feeAmount float64
 			switch int64(feeMapping.Fee) {
 			case 1:
-				feeAmount = 75.0
+				feeAmount = 82.5
 			case 2:
-				feeAmount = 95.0
+				feeAmount = 104.5
 			case 3:
-				feeAmount = 115.0
+				feeAmount = 126.5
 			case 4:
-				feeAmount = 135.0
+				feeAmount = 148.5
 			case 5:
-				feeAmount = 155.0
+				feeAmount = 170.5
 			default:
 				feeAmount = 0.0
 			}
@@ -1941,11 +1941,11 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 
 	// Define fee mapping (fee index to actual fee amount)
 	feeIndexToAmount := map[int]float64{
-		1: 75.0,
-		2: 95.0,
-		3: 115.0,
-		4: 135.0,
-		5: 155.0,
+		1: 82.5,
+		2: 104.5,
+		3: 126.5,
+		4: 148.5,
+		5: 170.5,
 	}
 
 	// Get the fee mappings from the database
