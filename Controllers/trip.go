@@ -353,7 +353,124 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 			routeStat.Cars = carStats
 			routeStats = append(routeStats, routeStat)
 		}
+	case "Petromin":
+		// Similar to TAQA but with different rates
+		var routeData []struct {
+			Terminal      string
+			TotalTrips    int64
+			TotalVolume   float64
+			TotalDistance float64
+			DistinctCars  int64
+		}
 
+		h.DB.Raw(`
+        SELECT 
+            t.terminal, 
+            COUNT(*) as total_trips, 
+            COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+            COALESCE(SUM(fm.distance), 0) as total_distance,
+            COUNT(DISTINCT t.car_no_plate) as distinct_cars
+        FROM trips t
+        LEFT JOIN fee_mappings fm 
+            ON t.company = fm.company 
+            AND t.terminal = fm.terminal 
+            AND t.drop_off_point = fm.drop_off_point
+        WHERE t.company = ? AND t.deleted_at IS NULL
+        AND (t.date >= ? OR ? = '')
+        AND (t.date <= ? OR ? = '')
+        GROUP BY t.terminal
+    `, company, startDate, startDate, endDate, endDate).Scan(&routeData)
+
+		// Process each terminal route
+		for _, route := range routeData {
+			// Fixed rate per km for all terminals (37.0)
+			ratePerKm := 37.0
+
+			// Calculate working days for this terminal
+			var terminalWorkingDays []struct {
+				CarNoPlate string
+				Date       string
+			}
+
+			h.DB.Raw(`
+            SELECT DISTINCT car_no_plate, date
+            FROM trips
+            WHERE company = ? AND deleted_at IS NULL
+            AND terminal = ?
+            AND (date >= ? OR ? = '')
+            AND (date <= ? OR ? = '')
+            ORDER BY car_no_plate, date
+        `, company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
+
+			// Calculate base revenue and car rental
+			baseRevenue := route.TotalDistance * ratePerKm
+			carRentalFee := float64(len(terminalWorkingDays)) * 2000.0
+			vat := (baseRevenue + carRentalFee) * 0.14
+			totalRevenue := baseRevenue + carRentalFee + vat
+
+			routeStat := RouteRevenueStats{
+				RouteName:     route.Terminal,
+				Terminal:      route.Terminal,
+				RouteType:     "terminal",
+				TotalTrips:    route.TotalTrips,
+				TotalVolume:   route.TotalVolume,
+				TotalDistance: route.TotalDistance,
+				Fee:           ratePerKm,
+			}
+
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = baseRevenue
+				routeStat.CarRental = carRentalFee
+				routeStat.VAT = vat
+				routeStat.TotalWithVAT = totalRevenue
+			}
+
+			// Get car-specific stats for this terminal
+			var carStats []CarStats
+			h.DB.Raw(`
+            SELECT 
+                t.car_no_plate,
+                COUNT(*) as total_trips, 
+                COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+                COALESCE(SUM(fm.distance), 0) as total_distance,
+                COUNT(DISTINCT t.date) as working_days
+            FROM trips t
+            LEFT JOIN fee_mappings fm 
+                ON t.company = fm.company 
+                AND t.terminal = fm.terminal 
+                AND t.drop_off_point = fm.drop_off_point
+            WHERE t.company = ? AND t.deleted_at IS NULL
+            AND t.terminal = ?
+            AND (date >= ? OR ? = '')
+            AND (date <= ? OR ? = '')
+            GROUP BY t.car_no_plate
+        `, company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&carStats)
+
+			// Calculate revenue for each car
+			for i := range carStats {
+				if hasFinancialAccess {
+					// Base revenue from distance
+					carBaseRevenue := carStats[i].TotalDistance * ratePerKm
+
+					// Car rental fee for this specific car based on working days
+					carRental := float64(carStats[i].WorkingDays) * 2000.0
+
+					// VAT calculation
+					carVAT := (carBaseRevenue + carRental) * 0.14
+
+					// Total revenue
+					carTotal := carBaseRevenue + carRental + carVAT
+
+					carStats[i].TotalRevenue = carBaseRevenue
+					carStats[i].CarRental = carRental
+					carStats[i].VAT = carVAT
+					carStats[i].TotalWithVAT = carTotal
+				}
+			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
+		}
 	case "Watanya":
 		// For Watanya, we group by fee category
 		var routeData []struct {
@@ -701,7 +818,35 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 
 					// Total revenue includes base revenue, car rental, and VAT
 					revenue = baseRevenue + carRentalFee + vat
+				case "Petromin":
+					// Similar to TAQA but with different rates
+					// Calculate distance revenue with fixed rate
+					var baseRevenue float64 = 0
+					h.DB.Raw(`
+        SELECT 
+            COALESCE(SUM(fm.distance * 37.0), 0) as base_revenue
+        FROM trips t
+        LEFT JOIN fee_mappings fm 
+            ON t.company = fm.company 
+            AND t.terminal = fm.terminal 
+            AND t.drop_off_point = fm.drop_off_point
+        WHERE t.company = ? AND t.date = ? AND t.deleted_at IS NULL
+    `, company, date).Row().Scan(&baseRevenue)
 
+					// Calculate car rental fee
+					var carCount int64
+					h.DB.Model(&Models.TripStruct{}).
+						Where("company = ? AND date = ?", company, date).
+						Distinct("car_id").
+						Count(&carCount)
+
+					carRentalFee := float64(carCount) * 2000.0
+
+					// Calculate VAT
+					vat := (baseRevenue + carRentalFee) * 0.14
+
+					// Total revenue includes base revenue, car rental, and VAT
+					revenue = baseRevenue + carRentalFee + vat
 				case "Watanya":
 					// For Watanya, revenue is based on volume and fee category
 					h.DB.Raw(`
@@ -1024,7 +1169,141 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			//     ...existing fields...
 			//     CarDays        int64   `json:"car_days,omitempty"`  // Number of car-days for this terminal
 			// }
+		case "Petromin":
+			// Similar to TAQA but with different rates
+			var carWorkingDays []struct {
+				CarID string
+				Date  string
+			}
 
+			// Get distinct car_id and date combinations
+			h.DB.Raw(`
+        SELECT DISTINCT car_id, date
+        FROM trips
+        WHERE company = ? AND deleted_at IS NULL
+        AND (date >= ? OR ? = '')
+        AND (date <= ? OR ? = '')
+        ORDER BY car_id, date
+    `, company, startDate, startDate, endDate, endDate).Scan(&carWorkingDays)
+
+			// Calculate total rental fee: 2000 per car per working day
+			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 2000.0
+
+			// Group by terminal (same as TAQA)
+			var terminalStats []struct {
+				Terminal      string
+				TotalTrips    int64
+				TotalVolume   float64
+				TotalDistance float64
+				DistinctCars  int64
+			}
+
+			h.DB.Raw(`
+        SELECT t.terminal, 
+            COUNT(*) as total_trips, 
+            COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+            COALESCE(SUM(fm.distance), 0) as total_distance,
+            COUNT(DISTINCT t.car_id) as distinct_cars
+        FROM trips t
+        LEFT JOIN fee_mappings fm 
+            ON t.company = fm.company 
+            AND t.terminal = fm.terminal 
+            AND t.drop_off_point = fm.drop_off_point
+        WHERE t.company = ? AND t.deleted_at IS NULL
+        AND (t.date >= ? OR ? = '')
+        AND (t.date <= ? OR ? = '')
+        GROUP BY t.terminal
+    `, company, startDate, startDate, endDate, endDate).Scan(&terminalStats)
+
+			// Calculate car working days per terminal
+			terminalCarDays := make(map[string]int)
+			for _, terminal := range terminalStats {
+				var terminalWorkingDays []struct {
+					CarID string
+					Date  string
+				}
+
+				h.DB.Raw(`
+            SELECT DISTINCT car_id, date
+            FROM trips
+            WHERE company = ? AND deleted_at IS NULL
+            AND terminal = ?
+            AND (date >= ? OR ? = '')
+            AND (date <= ? OR ? = '')
+            ORDER BY car_id, date
+        `, company, terminal.Terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
+
+				terminalCarDays[terminal.Terminal] = len(terminalWorkingDays)
+			}
+
+			// Calculate details and total revenue
+			companyStats.Details = make([]TripStatisticsDetails, 0, len(terminalStats))
+			companyStats.TotalRevenue = 0
+			companyStats.TotalVAT = 0
+			companyStats.TotalCarRent = totalCarRentalFee
+			companyStats.TotalAmount = 0
+
+			for _, stat := range terminalStats {
+				// Fixed rate per km for all terminals (37.0)
+				ratePerKm := 37.0
+
+				// Base revenue from distance
+				baseRevenue := stat.TotalDistance * ratePerKm
+
+				// Car rental fee for this terminal
+				carRentalFee := 0.0
+				if terminalCarDays[stat.Terminal] > 0 {
+					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 2000.0
+				}
+
+				// Calculate 14% VAT on the base revenue and car rental
+				vat := (baseRevenue + carRentalFee) * 0.14
+
+				// Total revenue including VAT
+				totalRevenue := baseRevenue + carRentalFee + vat
+
+				// Get distinct days for this terminal
+				var distinctDays int64
+				h.DB.Raw(`
+            SELECT COUNT(DISTINCT date)
+            FROM trips
+            WHERE company = ? AND deleted_at IS NULL
+            AND terminal = ?
+            AND (date >= ? OR ? = '')
+            AND (date <= ? OR ? = '')
+        `, company, stat.Terminal, startDate, startDate, endDate, endDate).Row().Scan(&distinctDays)
+
+				detail := TripStatisticsDetails{
+					GroupName:     stat.Terminal,
+					TotalTrips:    stat.TotalTrips,
+					TotalVolume:   stat.TotalVolume,
+					TotalDistance: stat.TotalDistance,
+					TotalRevenue:  baseRevenue,
+					CarRental:     carRentalFee,
+					VAT:           vat,
+					TotalWithVAT:  totalRevenue,
+					Fee:           ratePerKm,
+					DistinctCars:  stat.DistinctCars,
+					DistinctDays:  distinctDays,
+					CarDays:       int64(terminalCarDays[stat.Terminal]),
+				}
+
+				// Clear financial data if user doesn't have access
+				if !hasFinancialAccess {
+					detail.TotalRevenue = 0
+					detail.CarRental = 0
+					detail.VAT = 0
+					detail.TotalWithVAT = 0
+					detail.Fee = 0
+				}
+
+				companyStats.Details = append(companyStats.Details, detail)
+				if hasFinancialAccess {
+					companyStats.TotalRevenue += baseRevenue
+					companyStats.TotalVAT += vat
+					companyStats.TotalAmount += totalRevenue
+				}
+			}
 		case "Watanya":
 			// Need to determine which fee category from fee mappings
 			var feeStats []struct {
