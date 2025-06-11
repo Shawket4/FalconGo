@@ -405,8 +405,8 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 			ORDER BY car_no_plate, date
 		`, company, terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
 
-			// Fixed rate per km for all terminals (37.0)
-			ratePerKm := 37.0
+			// Fixed rate per km for all terminals (42.5)
+			ratePerKm := 42.5
 
 			// Calculate base revenue using revenue distance
 			baseRevenue := revenueTotalDistance * ratePerKm
@@ -844,7 +844,7 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 					var baseRevenue float64 = 0
 					for _, tripGroup := range dayGroupedTrips {
 						maxDistance := h.getMaxDistanceFromTripGroup(tripGroup)
-						baseRevenue += maxDistance * 37.0 // Only count the furthest distance per group
+						baseRevenue += maxDistance * 42.5 // Only count the furthest distance per group
 					}
 
 					// Calculate car rental fee - count distinct cars for this date
@@ -1513,8 +1513,8 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			companyStats.TotalDistance = revenueDistance
 
 			for _, stat := range terminalStats {
-				// Fixed rate per km for all terminals (37.0)
-				ratePerKm := 37.0
+				// Fixed rate per km for all terminals (42.5)
+				ratePerKm := 42.5
 
 				// Base revenue from revenue distance
 				baseRevenue := stat.RevenueDistance * ratePerKm
