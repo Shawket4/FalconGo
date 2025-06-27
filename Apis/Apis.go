@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -72,11 +73,30 @@ type User struct {
 func GetCars(c *fiber.Ctx) error {
 
 	var cars []Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Find(&cars).Error; err != nil {
+	if err := Models.DB.Model(&Models.Car{}).Preload("Driver").Find(&cars).Error; err != nil {
 		log.Println(err.Error())
 		return err
 	}
 	return c.JSON(cars)
+}
+
+func SetCarDriverPair(c *fiber.Ctx) error {
+	var input struct {
+		CarID    uint `json:"car_id"`
+		DriverID uint `json:"driver_id"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.CarID).Update("driver_id", input.DriverID).Error; err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	c.Status(http.StatusOK)
+	return c.JSON(fiber.Map{
+		"message": "Updated Successfully",
+	})
 }
 
 func GetDrivers(c *fiber.Ctx) error {

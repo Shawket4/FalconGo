@@ -106,7 +106,7 @@ func FiberConfig() {
 	}))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*", // Allow all origins
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With",
 		AllowCredentials: true, // Important for cookies
 		MaxAge:           300,  // Max age for preflight requests caching (5 minutes)
@@ -178,7 +178,7 @@ func FiberConfig() {
 	protectedApis.Post("/CreateLocation/", Apis.CreateLocation)
 	// protectedApis.Post("/GetCarExpenses", Apis.GetCarExpenses)
 	protectedApis.Post("/CreateTerminal/", Apis.CreateTerminal)
-
+	protectedApis.Patch("/SetCarDriverPair", Apis.SetCarDriverPair)
 	protectedApis.Post("/GetPhotoAlbum", Apis.GetPhotoAlbum)
 	protectedApis.Post("/RegisterDriver", Controllers.RegisterDriver)
 	protectedApis.Post("/UpdateDriver", Controllers.UpdateDriver)
@@ -214,7 +214,7 @@ func FiberConfig() {
 
 	app.Post("/UpdateTireList", Apis.UpdateTireList)
 
-	api := app.Group("/")
+	api := app.Group("/api")
 
 	// Truck routes
 	api.Get("/trucks", Controllers.GetAllTrucks)

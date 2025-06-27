@@ -29,4 +29,6 @@ type Car struct {
 	Longitude                       string         `json:"long"`
 	LastFuelOdometer                int            `json:"last_fuel_odometer"`
 	LastOilChangeID                 int            `json:"last_oil_change_id"`
+	DriverID                        uint           `json:"driver_id"`
+	Driver                          Driver         `json:"driver" gorm:"foreignKey:DriverID"`
 }
