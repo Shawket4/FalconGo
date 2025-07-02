@@ -322,8 +322,18 @@ func UpdateDriver(c *fiber.Ctx) error {
 	})
 }
 
+func FetchUsers(c *fiber.Ctx) error {
+	var users []Models.User
+	if err := Models.DB.Find(&users).Error; err != nil {
+		log.Println(err.Error())
+		return c.JSON(fiber.Map{
+			"error": fmt.Sprintf("Error On Fetching Users From DB: %v", err.Error()),
+		})
+	}
+	return c.JSON(users)
+}
+
 func RegisterUser(c *fiber.Ctx) error {
-	// User(c)
 	var data map[string]string
 
 	if err := c.BodyParser(&data); err != nil {
@@ -483,6 +493,59 @@ func RegisterUser(c *fiber.Ctx) error {
 	Models.DB.Create(&user)
 
 	return c.JSON(user)
+}
+
+func UpdateUser(c *fiber.Ctx) error {
+	var input Models.User
+
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	var user Models.User
+	Models.DB.Where("id = ?", input.Id).First(&user)
+
+	if user.Id == 0 {
+		return c.JSON(fiber.Map{
+			"message": "User not found",
+		})
+	}
+
+	user.Name = input.Name
+	user.Email = input.Email
+	user.Permission = input.Permission
+	user.IsApproved = input.IsApproved
+
+	if err := Models.DB.Save(&user).Error; err != nil {
+		log.Println(err.Error())
+		return c.JSON(fiber.Map{
+			"error": fmt.Sprintf("Error On Saving User To DB: %v", err.Error()),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "User updated successfully",
+	})
+}
+
+func DeleteUser(c *fiber.Ctx) error {
+	var input Models.User
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	if err := Models.DB.Where("id = ?", input.Id).Delete(&Models.User{}).Error; err != nil {
+		log.Println(err.Error())
+		return c.JSON(fiber.Map{
+			"error": fmt.Sprintf("Error On Deleting User From DB: %v", err.Error()),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "User deleted successfully",
+	})
 }
 
 // } else {

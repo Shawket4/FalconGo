@@ -1996,7 +1996,7 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 			default:
 				feeAmount = 0.0
 			}
-
+			feeAmount *= 1.14
 			// Get daily route details
 			var dailyRouteDetails []struct {
 				Date     string
