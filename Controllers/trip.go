@@ -261,9 +261,9 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 			// Calculate rate per km based on terminal
 			var ratePerKm float64
 			if route.Terminal == "Alex" {
-				ratePerKm = 38.0
+				ratePerKm = 40.7
 			} else if route.Terminal == "Suez" {
-				ratePerKm = 35.5
+				ratePerKm = 38.2
 			} else {
 				ratePerKm = 0 // Default if unknown terminal
 			}
@@ -1329,9 +1329,9 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			for _, stat := range terminalStats {
 				var ratePerKm float64
 				if stat.Terminal == "Alex" {
-					ratePerKm = 38.0
+					ratePerKm = 40.7
 				} else if stat.Terminal == "Suez" {
-					ratePerKm = 35.5
+					ratePerKm = 38.2
 				} else {
 					ratePerKm = 0 // Default if unknown terminal
 				}
@@ -2675,25 +2675,26 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	detailedSheetName := "Detailed Trips"
 	f.NewSheet(detailedSheetName)
 
-	// Define table headers for detailed trips
-	tripHeaders := []string{"No", "Date", "Driver Name", "Car No Plate", "Transporter", "Tank Capacity",
-		"Gas Type", "Receipt No", "Revenue", "Mileage", "Distance (km)", "Fee Index", "Fee Amount", "Trip Cost"}
+	// Define table headers for detailed trips (removed Transporter, Gas Type, Revenue, Distance)
+	tripHeaders := []string{"No", "Date", "Driver Name", "Car No Plate", "Tank Capacity", "Receipt No", "Mileage", "Fee Index", "Fee Amount", "Trip Cost"}
 
-	// Set column widths for detailed sheet
-	f.SetColWidth(detailedSheetName, "A", "A", 10) // No
-	f.SetColWidth(detailedSheetName, "B", "B", 15) // Date
-	f.SetColWidth(detailedSheetName, "C", "C", 20) // Driver Name
-	f.SetColWidth(detailedSheetName, "D", "D", 15) // Car No Plate
-	f.SetColWidth(detailedSheetName, "E", "E", 20) // Transporter
-	f.SetColWidth(detailedSheetName, "F", "F", 15) // Tank Capacity
-	f.SetColWidth(detailedSheetName, "G", "G", 15) // Gas Type
-	f.SetColWidth(detailedSheetName, "H", "H", 15) // Receipt No
-	f.SetColWidth(detailedSheetName, "I", "I", 15) // Revenue
-	f.SetColWidth(detailedSheetName, "J", "J", 15) // Mileage
-	f.SetColWidth(detailedSheetName, "K", "K", 15) // Distance (km)
-	f.SetColWidth(detailedSheetName, "L", "L", 15) // Fee Index
-	f.SetColWidth(detailedSheetName, "M", "M", 15) // Fee Amount
-	f.SetColWidth(detailedSheetName, "N", "N", 15) // Trip Cost
+	// Set column widths for detailed sheet to fit all columns in 1 page width
+	f.SetColWidth(detailedSheetName, "A", "A", 7)  // No
+	f.SetColWidth(detailedSheetName, "B", "B", 13) // Date
+	f.SetColWidth(detailedSheetName, "C", "C", 18) // Driver Name
+	f.SetColWidth(detailedSheetName, "D", "D", 13) // Car No Plate
+	f.SetColWidth(detailedSheetName, "E", "E", 12) // Tank Capacity
+	f.SetColWidth(detailedSheetName, "F", "F", 13) // Receipt No
+	f.SetColWidth(detailedSheetName, "G", "G", 12) // Mileage
+	f.SetColWidth(detailedSheetName, "H", "H", 10) // Fee Index
+	f.SetColWidth(detailedSheetName, "I", "I", 12) // Fee Amount
+	f.SetColWidth(detailedSheetName, "J", "J", 13) // Trip Cost
+
+	// Add a note for users about print settings
+	note := "Note: To print, use 'Fit All Columns on One Page' in Excel's print settings. Each table is about 100 rows long."
+	f.SetCellValue(detailedSheetName, "A1", note)
+	f.MergeCell(detailedSheetName, "A1", "J1")
+	currentRow := 2 // Start tables after the note
 
 	// Styles for detailed sheet
 	routeTitleStyle, _ := f.NewStyle(&excelize.Style{
@@ -2731,10 +2732,10 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	})
 
 	// Track current row for positioning tables
-	currentRow := 1
+	currentRow = 2
+	pageLimit := 100 // Target rows per page
+	rowsOnPage := 0
 
-	// Create a table for each unique drop-off point and terminal combination
-	// Use the same sort order as the summary sheet
 	for _, summary := range summaries {
 		key := fmt.Sprintf("%s|%s", summary.Terminal, summary.DropOffPoint)
 		routeTrips, exists := tripsByRoute[key]
@@ -2742,80 +2743,77 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Get fee info for this route
 		feeInfo := routeFeeInfo[key]
+
+		// Calculate how many rows this group will take:
+		// 1 (title) + 1 (header) + len(routeTrips) (data) + 1 (total) + 3 (empty rows)
+		groupRows := 1 + 1 + len(routeTrips) + 1 + 3
+
+		// If adding this group would exceed the page limit, insert a page break before the group
+		if rowsOnPage > 0 && (rowsOnPage+groupRows > pageLimit) {
+			f.InsertPageBreak(detailedSheetName, fmt.Sprintf("A%d", currentRow))
+			rowsOnPage = 0
+		}
 
 		// Set table title - Terminal & Drop-off Point
 		tableTitle := fmt.Sprintf("Terminal: %s | Drop-off Point: %s", summary.Terminal, summary.DropOffPoint)
 		titleCell := fmt.Sprintf("A%d", currentRow)
 		f.SetCellValue(detailedSheetName, titleCell, tableTitle)
-		f.MergeCell(detailedSheetName, titleCell, fmt.Sprintf("N%d", currentRow))
+		f.MergeCell(detailedSheetName, titleCell, fmt.Sprintf("J%d", currentRow))
 		f.SetCellStyle(detailedSheetName, titleCell, titleCell, routeTitleStyle)
 
 		currentRow++
+		rowsOnPage++
 
 		// Set table headers
 		for i, header := range tripHeaders {
 			cell := fmt.Sprintf("%c%d", 'A'+i, currentRow)
 			f.SetCellValue(detailedSheetName, cell, header)
 		}
-
-		// Apply header style
 		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
 			fmt.Sprintf("%c%d", 'A'+len(tripHeaders)-1, currentRow), tableHeaderStyle)
 
 		currentRow++
+		rowsOnPage++
 
 		// Add table data
 		tableStartRow := currentRow
 		for i, trip := range routeTrips {
-			// Calculate cost for this individual trip
 			tripCost := float64(trip.TankCapacity) * feeInfo.ActualFee / 1000.0
-
-			// Set data rows
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("A%d", currentRow), i+1)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("B%d", currentRow), trip.Date)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("C%d", currentRow), trip.DriverName)
 			f.SetCellValue(detailedSheetName, fmt.Sprintf("D%d", currentRow), trip.CarNoPlate)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("E%d", currentRow), trip.Transporter)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("F%d", currentRow), trip.TankCapacity)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("G%d", currentRow), trip.GasType)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("H%d", currentRow), trip.ReceiptNo)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("I%d", currentRow), trip.Revenue)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("J%d", currentRow), trip.Mileage)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("K%d", currentRow), feeInfo.Distance)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("L%d", currentRow), feeInfo.FeeIndex)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("M%d", currentRow), feeInfo.ActualFee)
-			f.SetCellValue(detailedSheetName, fmt.Sprintf("N%d", currentRow), tripCost)
-
-			// Apply data style
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("E%d", currentRow), trip.TankCapacity)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("F%d", currentRow), trip.ReceiptNo)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("G%d", currentRow), trip.Mileage)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("H%d", currentRow), feeInfo.FeeIndex)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("I%d", currentRow), feeInfo.ActualFee)
+			f.SetCellValue(detailedSheetName, fmt.Sprintf("J%d", currentRow), tripCost)
 			f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
-				fmt.Sprintf("N%d", currentRow), dataStyle)
-
+				fmt.Sprintf("J%d", currentRow), dataStyle)
 			currentRow++
+			rowsOnPage++
 		}
 
 		// Add table totals
 		f.SetCellValue(detailedSheetName, fmt.Sprintf("A%d", currentRow), "TOTAL")
 		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
 			fmt.Sprintf("A%d", currentRow), totalStyle)
-
-		// Set formulas for totals
-		f.SetCellFormula(detailedSheetName, fmt.Sprintf("F%d", currentRow),
-			fmt.Sprintf("SUM(F%d:F%d)", tableStartRow, currentRow-1))
-		f.SetCellFormula(detailedSheetName, fmt.Sprintf("I%d", currentRow),
-			fmt.Sprintf("SUM(I%d:I%d)", tableStartRow, currentRow-1))
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("E%d", currentRow),
+			fmt.Sprintf("SUM(E%d:E%d)", tableStartRow, currentRow-1))
+		f.SetCellFormula(detailedSheetName, fmt.Sprintf("G%d", currentRow),
+			fmt.Sprintf("SUM(G%d:G%d)", tableStartRow, currentRow-1))
 		f.SetCellFormula(detailedSheetName, fmt.Sprintf("J%d", currentRow),
 			fmt.Sprintf("SUM(J%d:J%d)", tableStartRow, currentRow-1))
-		f.SetCellFormula(detailedSheetName, fmt.Sprintf("N%d", currentRow),
-			fmt.Sprintf("SUM(N%d:N%d)", tableStartRow, currentRow-1))
-
-		// Apply total row style
 		f.SetCellStyle(detailedSheetName, fmt.Sprintf("A%d", currentRow),
-			fmt.Sprintf("N%d", currentRow), totalStyle)
+			fmt.Sprintf("J%d", currentRow), totalStyle)
+		currentRow++
+		rowsOnPage++
 
 		// Add 3 empty rows before the next table
-		currentRow += 4
+		currentRow += 3
+		rowsOnPage += 3
 	}
 
 	// Set the active sheet to the summary sheet
