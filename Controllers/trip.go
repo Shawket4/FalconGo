@@ -804,8 +804,8 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 					SELECT 
 						COALESCE(SUM(
 							CASE 
-								WHEN t.terminal = 'Alex' THEN fm.distance * 38.0
-								WHEN t.terminal = 'Suez' THEN fm.distance * 35.5
+								WHEN t.terminal = 'Alex' THEN fm.distance * 40.7
+								WHEN t.terminal = 'Suez' THEN fm.distance * 38.2
 								ELSE 0
 							END
 						), 0) as base_revenue
