@@ -101,6 +101,7 @@ func FiberConfig() {
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
+	app.Use(middleware.Logger())
 	app.Use(compress.New(compress.Config{
 		Level: compress.LevelBestCompression, // 2
 	}))
@@ -111,6 +112,7 @@ func FiberConfig() {
 		AllowCredentials: true, // Important for cookies
 		MaxAge:           300,  // Max age for preflight requests caching (5 minutes)
 	}))
+
 	SetupRoutes(app, Models.DB)
 	app.Post("/RegisterInstapay", Controllers.RegisterInstapayNew)
 	app.Post("/RegisterFinancialNote", Controllers.RegisterFinancialNote)

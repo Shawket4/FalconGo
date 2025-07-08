@@ -2,12 +2,20 @@ package middleware
 
 import (
 	"Falcon/Models"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 )
 
 const SecretKey = "secret"
+
+func Logger() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		log.Println(c.Method(), c.Path())
+		return c.Next()
+	}
+}
 
 func Verify(requiredPermission int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
