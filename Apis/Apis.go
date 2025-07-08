@@ -1299,45 +1299,7 @@ func UpdateDriverStatusByID(DriverID uint) (*Models.Driver, error) {
 // Updated EditCarTrip function
 
 func GetVehicleMapPoints(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else if Controllers.CurrentUser.Permission == 4 {
-			return c.JSON(Scrapper.VehicleStatusList)
-		} else if Controllers.CurrentUser.Permission >= 1 {
-			db := Database.ConnectToDB()
-			defer db.Close()
-			Cars, err := db.Query("SELECT `CarNoPlate` FROM `Cars` WHERE `Transporter` = ?", Controllers.CurrentUser.Name)
-
-			if err != nil {
-				log.Println(err.Error())
-			}
-			var CarPlates []string
-			var CarsList []Scrapper.VehicleStatusStruct
-			for Cars.Next() {
-				var carPlate string
-				Cars.Scan(&carPlate)
-				CarPlates = append(CarPlates, carPlate)
-			}
-			for _, scrapperPlate := range Scrapper.VehicleStatusList {
-				for _, transporterPlate := range CarPlates {
-					if scrapperPlate.PlateNo == transporterPlate {
-						CarsList = append(CarsList, scrapperPlate)
-					}
-				}
-			}
-			return c.JSON(CarsList)
-		} else {
-			return c.JSON(fiber.Map{
-				"message": "An Error Occurred",
-			})
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
-	}
+	return c.JSON(Scrapper.VehicleStatusList)
 }
 
 func GetLocations(c *fiber.Ctx) error {
