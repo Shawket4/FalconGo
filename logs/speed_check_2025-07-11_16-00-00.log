@@ -1,0 +1,20 @@
+2025/07/11 16:00:01 HTTP client successfully authenticated
+2025/07/11 16:00:01 HTTP client successfully authenticated
+2025/07/11 16:00:02 Collector successfully authenticated
+2025/07/11 16:00:02 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:02 Collector successfully authenticated
+2025/07/11 16:00:02 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/07/11 16:00:04 HTTP client successfully authenticated
+2025/07/11 16:00:04 Found 27 speed alerts for vehicle ف ى ر 9156
+2025/07/11 16:00:05 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/07/11 16:00:05 Collector successfully authenticated
+2025/07/11 16:00:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:06 HTTP client successfully authenticated
+2025/07/11 16:00:07 Collector successfully authenticated
+2025/07/11 16:00:07 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:08 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 16:00:09 HTTP client successfully authenticated
+2025/07/11 16:00:10 Found 52 speed alerts for vehicle ف ج م 5917
+2025/07/11 16:00:10 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:00:11 Collector successfully authenticated
+2025/07/11 16:00:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT

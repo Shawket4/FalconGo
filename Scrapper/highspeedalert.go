@@ -1,16 +1,18 @@
 package Scrapper
 
 import (
-	"encoding/json"
+	"Falcon/Models"
+	"Falcon/Scrapper/Alerts"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
 
 // SpeedPoint represents a point in the speed data
@@ -26,45 +28,40 @@ type SpeedData struct {
 	Points []SpeedPoint `json:"points"`
 }
 
-// SpeedAlert represents a high-speed alert
-type SpeedAlert struct {
-	VehicleID  string
-	PlateNo    string
-	Speed      int
-	Timestamp  string
-	ParsedTime time.Time
-	Latitude   string
-	Longitude  string
-	ExceedsBy  int // How much the speed exceeds the threshold
-}
-
 // Formats a date for the API URL with proper encoding
 func formatDateForURL(date time.Time) string {
-	// Format the date first
+	// Format the date and URL encode it
 	formatted := date.Format("Mon, 02 Jan 2006 15:04:05 GMT")
-	// URL encode the formatted date (ensure spaces are encoded as %20)
 	return url.QueryEscape(formatted)
 }
 
 // GetSpeedData retrieves speed data for a specific vehicle on a specific date
 // GetSpeedData retrieves speed data for a specific vehicle on a specific date
-func GetSpeedData(vehicleID string, date time.Time) (*SpeedData, error) {
-	// Create start and end dates (start of day to end of day)
-	startDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	endDate := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 0, 0, date.Location())
+func GetSpeedData(vehicleID string) (*SpeedData, error) {
+	// Use GMT (UTC) time zone
+	gmtLoc, err := time.LoadLocation("GMT")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GMT timezone: %w", err)
+	}
+
+	// Get current time in Cairo
+	nowCairo := time.Now().In(gmtLoc)
+	// Start date is 15 minutes before now in Cairo
+	startDate := nowCairo.Add(-15 * time.Minute)
+	endDate := nowCairo
 
 	// Format the dates for the URL
-	startStr := url.QueryEscape(formatDateForURL(startDate))
-	endStr := url.QueryEscape(formatDateForURL(endDate))
+	startStr := formatDateForURL(startDate)
+	endStr := formatDateForURL(endDate)
 
 	// Create the URL
 	url := fmt.Sprintf(
-		"https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=%s&time=6&from=%s&to=%s",
+		"https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=%s&time=6&from=%s&to=%s",
 		vehicleID,
 		startStr,
 		endStr,
 	)
-
+	fmt.Println(url)
 	// Get authenticated clients
 	clients, err := GetClients(username, password)
 	if err != nil {
@@ -112,8 +109,6 @@ func GetSpeedData(vehicleID string, date time.Time) (*SpeedData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
-	fmt.Println(string(body))
-
 	// Check if response is HTML instead of JSON (error case)
 	if strings.Contains(string(body), "<!DOCTYPE HTML") {
 		return nil, fmt.Errorf("received HTML instead of JSON: %s", string(body))
@@ -121,22 +116,130 @@ func GetSpeedData(vehicleID string, date time.Time) (*SpeedData, error) {
 
 	// Parse the JSON response
 	var speedData SpeedData
-	if err := json.Unmarshal(body, &speedData); err != nil {
+	if err := json5.Unmarshal(body, &speedData); err != nil {
 		return nil, fmt.Errorf("error parsing speed data: %w", err)
 	}
 	return &speedData, nil
 }
 
+func parseTimestampManual(timestamp string) (time.Time, error) {
+	// Split by space
+	parts := strings.Split(timestamp, " ")
+	if len(parts) != 2 {
+		return time.Time{}, fmt.Errorf("invalid timestamp format: %s", timestamp)
+	}
+
+	// Parse date: "10/7/2025"
+	dateParts := strings.Split(parts[0], "/")
+	if len(dateParts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid date format: %s", parts[0])
+	}
+
+	month, err := strconv.Atoi(dateParts[0])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid month: %s", dateParts[0])
+	}
+
+	day, err := strconv.Atoi(dateParts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid day: %s", dateParts[1])
+	}
+
+	year, err := strconv.Atoi(dateParts[2])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid year: %s", dateParts[2])
+	}
+
+	// Parse time: "10:49:7"
+	timeParts := strings.Split(parts[1], ":")
+	if len(timeParts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid time format: %s", parts[1])
+	}
+
+	hour, err := strconv.Atoi(timeParts[0])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid hour: %s", timeParts[0])
+	}
+
+	minute, err := strconv.Atoi(timeParts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid minute: %s", timeParts[1])
+	}
+
+	second, err := strconv.Atoi(timeParts[2])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid second: %s", timeParts[2])
+	}
+
+	// Create time using time.Date
+	return time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC), nil
+}
+
+func padToTwoDigits(s string) string {
+	if len(s) == 1 {
+		return "0" + s
+	}
+	return s
+}
+
+func parseTimestampWithFullPadding(timestamp string) (time.Time, error) {
+	// Split by space to separate date and time
+	parts := strings.Split(timestamp, " ")
+	if len(parts) != 2 {
+		return time.Time{}, fmt.Errorf("invalid timestamp format: %s", timestamp)
+	}
+
+	datePart := parts[0] // e.g., "10/7/2025" or "1/2/2025"
+	timePart := parts[1] // e.g., "10:49:7" or "11:3:46"
+
+	// Parse and pad date part
+	dateParts := strings.Split(datePart, "/")
+	if len(dateParts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid date format: %s", datePart)
+	}
+
+	month := padToTwoDigits(dateParts[0])
+	day := padToTwoDigits(dateParts[1])
+	year := dateParts[2] // Year should always be 4 digits
+
+	// Parse and pad time part
+	timeParts := strings.Split(timePart, ":")
+	if len(timeParts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid time format: %s", timePart)
+	}
+
+	hour := padToTwoDigits(timeParts[0])
+	minute := padToTwoDigits(timeParts[1])
+	second := padToTwoDigits(timeParts[2])
+
+	// Reconstruct with proper padding
+	normalizedTimestamp := fmt.Sprintf("%s/%s/%s %s:%s:%s",
+		month, day, year, hour, minute, second)
+
+	// Parse with consistent format
+	return time.Parse("01/02/2006 15:04:05", normalizedTimestamp)
+}
+
+func ParseGPSTimestamp(timestamp string) (time.Time, error) {
+	// Try the padding solution first (fastest and most reliable)
+	if parsed, err := parseTimestampWithFullPadding(timestamp); err == nil {
+		return parsed, nil
+	}
+
+	// Fallback to manual parsing
+	return parseTimestampManual(timestamp)
+}
+
 // CheckHighSpeedAlerts checks for high-speed alerts for a vehicle
-func CheckHighSpeedAlerts(vehicleID, plateNo string, date time.Time, speedThreshold int) ([]SpeedAlert, error) {
+func CheckHighSpeedAlerts(vehicleID, plateNo string, speedThreshold int) ([]Models.SpeedAlert, error) {
 	// Get the speed data
-	speedData, err := GetSpeedData(vehicleID, date)
+	speedData, err := GetSpeedData(vehicleID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Find high-speed points
-	var alerts []SpeedAlert
+	var alerts []Models.SpeedAlert
 	for _, point := range speedData.Points {
 		speed, err := strconv.Atoi(point.Speed)
 		if err != nil {
@@ -147,10 +250,10 @@ func CheckHighSpeedAlerts(vehicleID, plateNo string, date time.Time, speedThresh
 		// Check if speed exceeds threshold
 		if speed > speedThreshold {
 			// Parse timestamp
-			parsedTime, _ := time.Parse("2/1/2006 15:04:05", point.Timestamp)
+			parsedTime, _ := ParseGPSTimestamp(point.Timestamp)
 
 			// Create alert
-			alert := SpeedAlert{
+			alert := Models.SpeedAlert{
 				VehicleID:  vehicleID,
 				PlateNo:    plateNo,
 				Speed:      speed,
@@ -169,7 +272,7 @@ func CheckHighSpeedAlerts(vehicleID, plateNo string, date time.Time, speedThresh
 }
 
 // CheckAllVehiclesForSpeedAlerts checks all vehicles for high-speed alerts
-func CheckAllVehiclesForSpeedAlerts(date time.Time, speedThreshold int) (map[string][]SpeedAlert, error) {
+func CheckAllVehiclesForSpeedAlerts(speedThreshold int) (map[string][]Models.SpeedAlert, error) {
 	// Get the list of vehicles
 	vehicles := GetAllVehicleData()
 	if len(vehicles) == 0 {
@@ -177,7 +280,7 @@ func CheckAllVehiclesForSpeedAlerts(date time.Time, speedThreshold int) (map[str
 	}
 
 	// Check each vehicle for speed alerts
-	allAlerts := make(map[string][]SpeedAlert)
+	allAlerts := make(map[string][]Models.SpeedAlert)
 	for _, vehicle := range vehicles {
 		if vehicle.ID == "" {
 			log.Printf("Skipping vehicle with empty ID: %s", vehicle.PlateNo)
@@ -186,7 +289,7 @@ func CheckAllVehiclesForSpeedAlerts(date time.Time, speedThreshold int) (map[str
 
 		log.Printf("Checking vehicle %s (ID: %s) for speed alerts", vehicle.PlateNo, vehicle.ID)
 
-		alerts, err := CheckHighSpeedAlerts(vehicle.ID, vehicle.PlateNo, date, speedThreshold)
+		alerts, err := CheckHighSpeedAlerts(vehicle.ID, vehicle.PlateNo, speedThreshold)
 		if err != nil {
 			log.Printf("Error checking vehicle %s: %v", vehicle.PlateNo, err)
 			continue
@@ -205,12 +308,12 @@ func CheckAllVehiclesForSpeedAlerts(date time.Time, speedThreshold int) (map[str
 }
 
 // CheckVehicleSpeedByDateRange checks a specific vehicle for speed alerts over a date range
-func CheckVehicleSpeedByDateRange(vehicleID, plateNo string, startDate, endDate time.Time, speedThreshold int) ([]SpeedAlert, error) {
-	var allAlerts []SpeedAlert
+func CheckVehicleSpeedByDateRange(vehicleID, plateNo string, startDate, endDate time.Time, speedThreshold int) ([]Models.SpeedAlert, error) {
+	var allAlerts []Models.SpeedAlert
 
 	// Iterate through each day in the range
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		alerts, err := CheckHighSpeedAlerts(vehicleID, plateNo, d, speedThreshold)
+		alerts, err := CheckHighSpeedAlerts(vehicleID, plateNo, speedThreshold)
 		if err != nil {
 			log.Printf("Error checking date %s: %v", d.Format("2006-01-02"), err)
 			continue
@@ -229,60 +332,23 @@ func CheckVehicleSpeedByDateRange(vehicleID, plateNo string, startDate, endDate 
 // speedThreshold: The speed threshold in km/h (default 80)
 // saveToFile: Whether to save the report to a file
 // Returns the report as a string and any error that occurred
-func RunDailySpeedAlertCheck(speedThreshold int, saveToFile bool) (string, error) {
+func RunSpeedCheckJob(speedThreshold int, saveToFile bool) error {
 	// Get yesterday's date
-	yesterday := time.Now().AddDate(0, 0, -1)
 
 	// Step 1: Initialize authentication
 	_, err := GetClients(username, password)
 	if err != nil {
-		return "", fmt.Errorf("failed to authenticate: %w", err)
+		return fmt.Errorf("failed to authenticate: %w", err)
 	}
-	fmt.Println("reached 2")
-	// Step 3: Generate a report for all vehicles for yesterday
-	report, err := GenerateSpeedAlertReport(yesterday, speedThreshold)
+
+	alerts, err := CheckAllVehiclesForSpeedAlerts(speedThreshold)
+	var allAlerts []Models.SpeedAlert
+	for _, vehicleAlerts := range alerts {
+		allAlerts = append(allAlerts, vehicleAlerts...)
+	}
+	Alerts.StoreUniqueAlerts(allAlerts)
 	if err != nil {
-		return "", fmt.Errorf("error generating report: %w", err)
+		return err
 	}
-
-	// Step 4: Save the report to a file if requested
-	if saveToFile {
-		reportFileName := fmt.Sprintf("speed_report_%s.txt", yesterday.Format("2006-01-02"))
-		err = os.WriteFile(reportFileName, []byte(report), 0644)
-		// Handle file writing errors...
-	}
-
-	return report, nil
-}
-
-// GenerateSpeedAlertReport generates a report of high-speed alerts for a specific date
-func GenerateSpeedAlertReport(date time.Time, speedThreshold int) (string, error) {
-	alerts, err := CheckAllVehiclesForSpeedAlerts(date, speedThreshold)
-	if err != nil {
-		return "", err
-	}
-
-	// Format the report
-	report := fmt.Sprintf("Speed Alert Report for %s (Threshold: %d km/h)\n",
-		date.Format("2006-01-02"), speedThreshold)
-	report += "================================================\n\n"
-
-	totalAlerts := 0
-	for plateNo, vehicleAlerts := range alerts {
-		totalAlerts += len(vehicleAlerts)
-		report += fmt.Sprintf("Vehicle: %s\n", plateNo)
-		report += fmt.Sprintf("Total Alerts: %d\n", len(vehicleAlerts))
-		report += "-----------------------------\n"
-
-		for i, alert := range vehicleAlerts {
-			report += fmt.Sprintf("  %d. Time: %s, Speed: %d km/h (exceeds by %d km/h)\n",
-				i+1, alert.Timestamp, alert.Speed, alert.ExceedsBy)
-		}
-		report += "\n"
-	}
-
-	report += fmt.Sprintf("\nTotal vehicles with alerts: %d\n", len(alerts))
-	report += fmt.Sprintf("Total alerts: %d\n", totalAlerts)
-
-	return report, nil
+	return nil
 }

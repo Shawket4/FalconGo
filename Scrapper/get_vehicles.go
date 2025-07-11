@@ -24,6 +24,7 @@ type VehicleStatusStruct struct {
 	Latitude     string
 	EngineStatus string
 	ID           string
+	Timestamp    string
 }
 
 var VehicleStatusList []VehicleStatusStruct
@@ -53,6 +54,16 @@ func GetCurrentLocationData(client *colly.Collector) error {
 					CurrentVehicleStatus.Latitude = td.Text
 				} else if i == 8 {
 					CurrentVehicleStatus.Longitude = td.Text
+				} else if i == 11 {
+					// Convert to 2006-01-02 15:04:05
+					// Example input: "\n                                        10-07-2025 06:59:16 PM\n"
+					raw := strings.TrimSpace(td.Text)
+					parsedTime, err := time.Parse("02-01-2006 03:04:05 PM", raw)
+					if err == nil {
+						CurrentVehicleStatus.Timestamp = parsedTime.Format("2006-01-02 15:04:05")
+					} else {
+						CurrentVehicleStatus.Timestamp = raw // fallback to raw if parsing fails
+					}
 				} else if i == 12 {
 					CurrentVehicleStatus.EngineStatus = td.Text
 				} else if i == 13 {
@@ -71,6 +82,16 @@ func GetCurrentLocationData(client *colly.Collector) error {
 					CurrentVehicleStatus.Latitude = td.Text
 				} else if i == 8 {
 					CurrentVehicleStatus.Longitude = td.Text
+				} else if i == 11 {
+					// Convert to 2006-01-02 15:04:05
+					// Example input: "\n                                        10-07-2025 06:59:16 PM\n"
+					raw := strings.TrimSpace(td.Text)
+					parsedTime, err := time.Parse("02-01-2006 03:04:05 PM", raw)
+					if err == nil {
+						CurrentVehicleStatus.Timestamp = parsedTime.Format("2006-01-02 15:04:05")
+					} else {
+						CurrentVehicleStatus.Timestamp = raw // fallback to raw if parsing fails
+					}
 				} else if i == 12 {
 					CurrentVehicleStatus.EngineStatus = td.Text
 				} else if i == 13 {
@@ -148,7 +169,7 @@ func GetVehicleData() {
 
 	// Wait for data to be fully processed
 	time.Sleep(time.Second * 20)
-
+	RunSpeedCheckJob(80, true)
 	// Print the vehicle status list
 }
 

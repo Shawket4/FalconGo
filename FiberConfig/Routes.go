@@ -80,6 +80,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips := api.Group("/trips", middleware.Verify(1))
 	trips.Get("/", tripHandler.GetAllTrips)
 	app.Get("/api/stats/widget-data", tripHandler.GetGlobalStats)
+	app.Post("/api/UpdateToken", Models.UpdateToken)
 	trips.Get("/statistics", tripHandler.GetTripStatistics)
 	trips.Get("/watanya/driver-analytics", tripHandler.GetWatanyaDriverAnalytics)
 	trips.Get("/date", tripHandler.GetTripsByDate)
@@ -162,6 +163,7 @@ func FiberConfig() {
 	app.Get("/api/GetOilChange/:oilChangeId", Apis.GetOilChange, middleware.Verify(1))
 	app.Use("/api/GetVehicleStatus", Apis.GetVehicleStatus)
 	app.Use("/api/GetVehicleMapPoints", Apis.GetVehicleMapPoints)
+
 	app.Use("/api/GetVehicleMilage", Scrapper.GetVehicleMileageHistory)
 	app.Get("/api/GetLocations", Apis.GetLocations)
 	app.Post("/api/RegisterDriverLoan", Apis.RegisterDriverLoan, middleware.Verify(3))

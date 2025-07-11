@@ -33,6 +33,8 @@ func Connect() {
 	// connection, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	connection, err := gorm.Open(sqlite.Open("database.db"))
 	DB = connection
+	DB.AutoMigrate(&SpeedAlert{})
+	DB.AutoMigrate(&FCMToken{})
 	connection.AutoMigrate(
 		&User{},     // Users typically have no dependencies
 		&Location{}, // Base location data
@@ -40,6 +42,7 @@ func Connect() {
 		&Driver{},   // Base driver information
 		&Car{},      // Base car information
 		&Tire{},     // Base tire data
+		&SpeedAlert{},
 		&LandMark{}, // No obvious dependencies shown
 	)
 

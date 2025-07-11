@@ -1,0 +1,125 @@
+2025/07/11 16:00:37 HTTP client successfully authenticated
+2025/07/11 16:00:38 Collector successfully authenticated
+2025/07/11 16:00:38 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/07/11 16:00:40 HTTP client successfully authenticated
+2025/07/11 16:00:41 Collector successfully authenticated
+2025/07/11 16:00:41 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:44 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 16:00:46 HTTP client successfully authenticated
+2025/07/11 16:00:47 Collector successfully authenticated
+2025/07/11 16:00:47 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:50 Found 1 speed alerts for vehicle ف ى ر 8427
+2025/07/11 16:00:50 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 16:00:52 HTTP client successfully authenticated
+2025/07/11 16:00:53 Collector successfully authenticated
+2025/07/11 16:00:53 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:00:55 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/07/11 16:00:55 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 16:00:57 HTTP client successfully authenticated
+2025/07/11 16:00:58 Collector successfully authenticated
+2025/07/11 16:00:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:01 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:01:03 HTTP client successfully authenticated
+2025/07/11 16:01:04 Collector successfully authenticated
+2025/07/11 16:01:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:07 Found 10 speed alerts for vehicle ف ر س 4593
+2025/07/11 16:01:08 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/07/11 16:01:09 HTTP client successfully authenticated
+2025/07/11 16:01:11 Collector successfully authenticated
+2025/07/11 16:01:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:13 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/07/11 16:01:13 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/07/11 16:01:15 HTTP client successfully authenticated
+2025/07/11 16:01:16 Collector successfully authenticated
+2025/07/11 16:01:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:19 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:01:21 HTTP client successfully authenticated
+2025/07/11 16:01:22 Collector successfully authenticated
+2025/07/11 16:01:22 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:24 Found 1 speed alerts for vehicle ف ى ر 9156
+2025/07/11 16:01:25 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/07/11 16:01:26 HTTP client successfully authenticated
+2025/07/11 16:01:27 Collector successfully authenticated
+2025/07/11 16:01:27 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:30 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:01:32 HTTP client successfully authenticated
+2025/07/11 16:01:33 Collector successfully authenticated
+2025/07/11 16:01:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:35 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/07/11 16:01:35 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 16:01:37 HTTP client successfully authenticated
+2025/07/11 16:01:38 Collector successfully authenticated
+2025/07/11 16:01:38 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:42 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:01:44 HTTP client successfully authenticated
+2025/07/11 16:01:45 Collector successfully authenticated
+2025/07/11 16:01:45 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:48 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 16:01:49 HTTP client successfully authenticated
+2025/07/11 16:01:50 Collector successfully authenticated
+2025/07/11 16:01:51 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:53 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/07/11 16:01:55 HTTP client successfully authenticated
+2025/07/11 16:01:56 Collector successfully authenticated
+2025/07/11 16:01:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:01:58 Found 2 speed alerts for vehicle ف أ ن 5139
+2025/07/11 16:01:59 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/07/11 16:02:00 HTTP client successfully authenticated
+2025/07/11 16:02:02 Collector successfully authenticated
+2025/07/11 16:02:02 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:02:04 Found 16 speed alerts for vehicle ف ر ص 6359
+2025/07/11 16:02:04 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/07/11 16:02:06 HTTP client successfully authenticated
+2025/07/11 16:02:07 Collector successfully authenticated
+2025/07/11 16:02:07 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:02:09 Found 2 speed alerts for vehicle ف ر ص 8461
+2025/07/11 16:02:10 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/07/11 16:02:11 HTTP client successfully authenticated
+2025/07/11 16:02:13 Collector successfully authenticated
+2025/07/11 16:02:13 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:02:15 Found 1 speed alerts for vehicle ف د ى 6834
+2025/07/11 16:02:16 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/07/11 16:02:17 HTTP client successfully authenticated
+2025/07/11 16:02:19 Collector successfully authenticated
+2025/07/11 16:02:19 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle edddb58e-aaba-ea11-80f4-0025b500010d (ف د ى 6834) exceeding speed by 6 km/h
+2025/07/11 16:02:22 Notification sent for vehicle edddb58e-aaba-ea11-80f4-0025b500010d (exceeds by 6 km/h)
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle 46ab06c4-5fb4-e911-80ed-0025b500010d (ف ى ر 8427) exceeding speed by 2 km/h
+2025/07/11 16:02:22 Notification sent for vehicle 46ab06c4-5fb4-e911-80ed-0025b500010d (exceeds by 2 km/h)
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d (ف ر س 4593) exceeding speed by 3 km/h
+2025/07/11 16:02:22 Notification sent for vehicle 5b22173f-6ba0-e811-80de-0025b500010d (exceeds by 3 km/h)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle 5b22173f-6ba0-e811-80de-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle 19419bf3-6aa0-e811-80de-0025b500010d (ف ى ر 9156) exceeding speed by 7 km/h
+2025/07/11 16:02:22 Notification sent for vehicle 19419bf3-6aa0-e811-80de-0025b500010d (exceeds by 7 km/h)
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle 2782a30d-0143-ed11-8100-0025b500010d (ف أ ن 5139) exceeding speed by 1 km/h
+2025/07/11 16:02:22 Notification sent for vehicle 2782a30d-0143-ed11-8100-0025b500010d (exceeds by 1 km/h)
+2025/07/11 16:02:22 Notification skipped: Vehicle 2782a30d-0143-ed11-8100-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Notification skipped: Vehicle ca53d5de-cf14-ea11-80ee-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Sending notification: 🚨 Speed Alert: Vehicle 19cdd2ad-aaba-ea11-80f4-0025b500010d (ف ر ص 8461) exceeding speed by 1 km/h
+2025/07/11 16:02:22 Notification sent for vehicle 19cdd2ad-aaba-ea11-80f4-0025b500010d (exceeds by 1 km/h)
+2025/07/11 16:02:22 Notification skipped: Vehicle 19cdd2ad-aaba-ea11-80f4-0025b500010d in cooldown period (30 minutes)
+2025/07/11 16:02:22 Successfully completed speed check
+2025/07/11 16:02:22 Speed violations found! Check the generated report file.

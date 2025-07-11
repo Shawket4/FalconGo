@@ -1,0 +1,22 @@
+2025/07/11 15:46:31 HTTP client successfully authenticated
+2025/07/11 15:46:34 Collector successfully authenticated
+2025/07/11 15:46:34 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/07/11 15:46:35 HTTP client successfully authenticated
+2025/07/11 15:46:37 Collector successfully authenticated
+2025/07/11 15:46:37 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 15:46:41 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 15:46:44 HTTP client successfully authenticated
+2025/07/11 15:46:46 Collector successfully authenticated
+2025/07/11 15:46:46 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 15:46:51 Found 24 speed alerts for vehicle ف ى ر 8427
+2025/07/11 15:46:51 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 15:46:55 HTTP client successfully authenticated
+2025/07/11 15:46:57 Collector successfully authenticated
+2025/07/11 15:46:57 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 15:47:01 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/07/11 15:47:01 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 15:47:03 HTTP client successfully authenticated
+2025/07/11 15:47:06 Collector successfully authenticated
+2025/07/11 15:47:06 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 15:47:11 Found 8 speed alerts for vehicle ف ق ص 4253
+2025/07/11 15:47:11 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts

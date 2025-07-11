@@ -350,6 +350,8 @@ func trimLeftChars(s string, n int) string {
 	return s[:0]
 }
 
+
+
 func GetFeeRate(data MileageStruct) (float64, float64, error) {
 	GlobalClient, _ = app.Login()
 	app.GetCurrentLocationData(GlobalClient)

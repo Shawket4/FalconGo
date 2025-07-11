@@ -1,0 +1,67 @@
+Speed Alert Report for 2025-07-10 (Threshold: 80 km/h)
+================================================
+
+Vehicle: ف ى ر 9156
+Total Alerts: 1
+-----------------------------
+  1. Time: 10/7/2025 6:1:44, Speed: 87 km/h (exceeds by 7 km/h)
+
+Vehicle: ف أ ن 5139
+Total Alerts: 2
+-----------------------------
+  1. Time: 10/7/2025 17:46:10, Speed: 81 km/h (exceeds by 1 km/h)
+  2. Time: 10/7/2025 18:3:30, Speed: 86 km/h (exceeds by 6 km/h)
+
+Vehicle: ف ر ص 6359
+Total Alerts: 16
+-----------------------------
+  1. Time: 10/7/2025 10:39:10, Speed: 90 km/h (exceeds by 10 km/h)
+  2. Time: 10/7/2025 10:41:10, Speed: 90 km/h (exceeds by 10 km/h)
+  3. Time: 10/7/2025 10:47:40, Speed: 83 km/h (exceeds by 3 km/h)
+  4. Time: 10/7/2025 10:57:7, Speed: 84 km/h (exceeds by 4 km/h)
+  5. Time: 10/7/2025 11:5:4, Speed: 83 km/h (exceeds by 3 km/h)
+  6. Time: 10/7/2025 11:6:4, Speed: 90 km/h (exceeds by 10 km/h)
+  7. Time: 10/7/2025 11:16:4, Speed: 83 km/h (exceeds by 3 km/h)
+  8. Time: 10/7/2025 11:19:1, Speed: 89 km/h (exceeds by 9 km/h)
+  9. Time: 10/7/2025 11:34:1, Speed: 81 km/h (exceeds by 1 km/h)
+  10. Time: 10/7/2025 11:34:58, Speed: 94 km/h (exceeds by 14 km/h)
+  11. Time: 10/7/2025 11:40:58, Speed: 83 km/h (exceeds by 3 km/h)
+  12. Time: 10/7/2025 11:41:58, Speed: 91 km/h (exceeds by 11 km/h)
+  13. Time: 10/7/2025 11:43:58, Speed: 83 km/h (exceeds by 3 km/h)
+  14. Time: 10/7/2025 11:46:57, Speed: 84 km/h (exceeds by 4 km/h)
+  15. Time: 10/7/2025 11:47:57, Speed: 90 km/h (exceeds by 10 km/h)
+  16. Time: 11/7/2025 0:29:18, Speed: 84 km/h (exceeds by 4 km/h)
+
+Vehicle: ف ر ص 8461
+Total Alerts: 2
+-----------------------------
+  1. Time: 10/7/2025 11:50:25, Speed: 81 km/h (exceeds by 1 km/h)
+  2. Time: 10/7/2025 13:1:43, Speed: 84 km/h (exceeds by 4 km/h)
+
+Vehicle: ف د ى 6834
+Total Alerts: 1
+-----------------------------
+  1. Time: 10/7/2025 19:42:14, Speed: 86 km/h (exceeds by 6 km/h)
+
+Vehicle: ف ى ر 8427
+Total Alerts: 1
+-----------------------------
+  1. Time: 10/7/2025 12:47:36, Speed: 82 km/h (exceeds by 2 km/h)
+
+Vehicle: ف ر س 4593
+Total Alerts: 10
+-----------------------------
+  1. Time: 10/7/2025 18:9:50, Speed: 83 km/h (exceeds by 3 km/h)
+  2. Time: 10/7/2025 18:11:50, Speed: 85 km/h (exceeds by 5 km/h)
+  3. Time: 10/7/2025 18:13:20, Speed: 88 km/h (exceeds by 8 km/h)
+  4. Time: 10/7/2025 18:14:50, Speed: 87 km/h (exceeds by 7 km/h)
+  5. Time: 10/7/2025 18:22:56, Speed: 87 km/h (exceeds by 7 km/h)
+  6. Time: 10/7/2025 18:31:32, Speed: 85 km/h (exceeds by 5 km/h)
+  7. Time: 10/7/2025 18:33:7, Speed: 84 km/h (exceeds by 4 km/h)
+  8. Time: 10/7/2025 18:51:4, Speed: 87 km/h (exceeds by 7 km/h)
+  9. Time: 10/7/2025 19:23:32, Speed: 83 km/h (exceeds by 3 km/h)
+  10. Time: 10/7/2025 19:42:29, Speed: 84 km/h (exceeds by 4 km/h)
+
+
+Total vehicles with alerts: 7
+Total alerts: 33

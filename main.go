@@ -4,6 +4,7 @@ import (
 	"Falcon/FiberConfig"
 	"Falcon/Models"
 	"Falcon/Scrapper"
+	"Falcon/Scrapper/Alerts"
 	"log"
 	"os"
 	"time"
@@ -35,7 +36,11 @@ func main() {
 	// 		time.Sleep(time.Hour)
 	// 	}
 	// }()
+
 	go func() {
+		if err := Alerts.InitFirebase(); err != nil {
+			log.Fatal("Failed to initialize Firebase:", err)
+		}
 		for {
 			Scrapper.GetVehicleData()
 			// time.Sleep(time.Second * 10)

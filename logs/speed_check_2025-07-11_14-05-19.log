@@ -1,0 +1,94 @@
+2025/07/11 14:05:23 HTTP client successfully authenticated
+2025/07/11 14:05:24 Collector successfully authenticated
+2025/07/11 14:05:24 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/07/11 14:05:26 HTTP client successfully authenticated
+2025/07/11 14:05:27 Collector successfully authenticated
+2025/07/11 14:05:27 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:29 Error checking vehicle ف ج م 8567: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:05:29 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 14:05:31 HTTP client successfully authenticated
+2025/07/11 14:05:33 Collector successfully authenticated
+2025/07/11 14:05:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:35 Error checking vehicle ف ى ر 8427: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:05:35 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 14:05:37 HTTP client successfully authenticated
+2025/07/11 14:05:38 Collector successfully authenticated
+2025/07/11 14:05:38 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:41 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/07/11 14:05:41 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/07/11 14:05:43 HTTP client successfully authenticated
+2025/07/11 14:05:44 Collector successfully authenticated
+2025/07/11 14:05:44 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:46 Error checking vehicle ف ق ص 4253: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:05:46 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 14:05:48 HTTP client successfully authenticated
+2025/07/11 14:05:49 Collector successfully authenticated
+2025/07/11 14:05:49 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:52 Error checking vehicle ف ر س 4593: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:05:52 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/07/11 14:05:54 HTTP client successfully authenticated
+2025/07/11 14:05:55 Collector successfully authenticated
+2025/07/11 14:05:55 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:05:57 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/07/11 14:05:57 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/07/11 14:05:59 HTTP client successfully authenticated
+2025/07/11 14:06:00 Collector successfully authenticated
+2025/07/11 14:06:00 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:03 Error checking vehicle ف ا ن 7421: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:03 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 14:06:04 HTTP client successfully authenticated
+2025/07/11 14:06:06 Collector successfully authenticated
+2025/07/11 14:06:06 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:08 Error checking vehicle ف ى ر 9156: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:08 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/07/11 14:06:10 HTTP client successfully authenticated
+2025/07/11 14:06:12 Collector successfully authenticated
+2025/07/11 14:06:12 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:14 Error checking vehicle ف ج م 5917: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:14 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 14:06:17 HTTP client successfully authenticated
+2025/07/11 14:06:18 Collector successfully authenticated
+2025/07/11 14:06:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:20 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/07/11 14:06:20 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/07/11 14:06:23 HTTP client successfully authenticated
+2025/07/11 14:06:24 Collector successfully authenticated
+2025/07/11 14:06:24 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:26 Error checking vehicle ف م س 9247: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:26 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 14:06:28 HTTP client successfully authenticated
+2025/07/11 14:06:29 Collector successfully authenticated
+2025/07/11 14:06:29 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:32 Error checking vehicle ف د ى 6584: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:32 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/07/11 14:06:34 HTTP client successfully authenticated
+2025/07/11 14:06:35 Collector successfully authenticated
+2025/07/11 14:06:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:38 Error checking vehicle ف ع ص 4381: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:38 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/07/11 14:06:40 HTTP client successfully authenticated
+2025/07/11 14:06:41 Collector successfully authenticated
+2025/07/11 14:06:41 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:44 Error checking vehicle ف أ ن 5139: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:44 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/07/11 14:06:46 HTTP client successfully authenticated
+2025/07/11 14:06:48 Collector successfully authenticated
+2025/07/11 14:06:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:50 Error checking vehicle ف ر ص 6359: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:50 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/07/11 14:06:52 HTTP client successfully authenticated
+2025/07/11 14:06:53 Collector successfully authenticated
+2025/07/11 14:06:53 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:06:56 Error checking vehicle ف ر ص 8461: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:06:56 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/07/11 14:06:58 HTTP client successfully authenticated
+2025/07/11 14:06:59 Collector successfully authenticated
+2025/07/11 14:06:59 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:07:02 Error checking vehicle ف د ى 6834: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:07:02 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/07/11 14:07:04 HTTP client successfully authenticated
+2025/07/11 14:07:05 Collector successfully authenticated
+2025/07/11 14:07:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Thu%2C+10+Jul+2025+00%3A00%3A00+GMT&to=Thu%2C+10+Jul+2025+23%3A59%3A00+GMT
+2025/07/11 14:07:08 Error checking vehicle ف ج م 5918: error parsing speed data: invalid character 'p' looking for beginning of object key string
+2025/07/11 14:07:08 Successfully completed speed check
+2025/07/11 14:07:08 Speed violations found! Check the generated report file.
