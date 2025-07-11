@@ -88,11 +88,14 @@ func sendFirebaseNotification(alert *Models.SpeedAlert) error {
 	}
 
 	// Hard-coded FCM token for now (replace with your device's token)
-	fcmToken := "cSYz2TO0TK6I-OeFMGkroY:APA91bE0dlEyJvo1CnlFDPhOAhEWAbxrFv1yphjmrsEJ3qwYRXyGjldkyNvRLgnl0w8DFUSFbWA6sOiBarIkBsUuoSIlH-G2gn7qkufg2yrRwDzt2_GtYws"
+	var FCMToken Models.FCMToken
+	if err := Models.DB.Model(&Models.FCMToken{}).First(&FCMToken).Error; err != nil {
+		return err
+	}
 
 	// Create the Firebase message
 	message := &messaging.Message{
-		Token: fcmToken,
+		Token: FCMToken.Value,
 		Data: map[string]string{
 			"vehicle_id": alert.VehicleID,
 			"plate_no":   alert.PlateNo,

@@ -43,6 +43,7 @@ func Connect() {
 		&Car{},      // Base car information
 		&Tire{},     // Base tire data
 		&SpeedAlert{},
+		&FCMToken{},
 		&LandMark{}, // No obvious dependencies shown
 	)
 
