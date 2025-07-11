@@ -20,7 +20,7 @@ var ctx = context.Background()
 // Initialize Firebase (call this once at startup)
 func InitFirebase() error {
 	// Use service account key file - update path to your actual file
-	opt := option.WithCredentialsFile("./apex-56555-firebase-adminsdk-fbsvc-ebdbce2bd9.json")
+	opt := option.WithCredentialsFile("/var/www/apex-56555-firebase-adminsdk-fbsvc-e2b72d02e3.json")
 
 	// Alternative: Use environment variable
 	// Set GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
