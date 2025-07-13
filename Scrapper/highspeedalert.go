@@ -46,8 +46,8 @@ func GetSpeedData(vehicleID string) (*SpeedData, error) {
 
 	// Get current time in Cairo
 	nowCairo := time.Now().In(gmtLoc)
-	// Start date is 15 minutes before now in Cairo
-	startDate := nowCairo.Add(-15 * time.Minute)
+	// Start date is the start of the current day in GMT
+	startDate := time.Date(nowCairo.Year(), nowCairo.Month(), nowCairo.Day(), 0, 0, 0, 0, gmtLoc)
 	endDate := nowCairo
 
 	// Format the dates for the URL
