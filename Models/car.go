@@ -31,4 +31,5 @@ type Car struct {
 	LastOilChangeID                 int            `json:"last_oil_change_id"`
 	DriverID                        uint           `json:"driver_id"`
 	Driver                          Driver         `json:"driver" gorm:"foreignKey:DriverID"`
+	EtitCarID                       string         `json:"etit_car_id"`
 }

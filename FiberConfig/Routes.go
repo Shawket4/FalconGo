@@ -128,6 +128,7 @@ func FiberConfig() {
 	app.Get("/api/validate-token", Controllers.ValidateToken)
 	app.Use("/api/User", Controllers.User)
 	app.Use("/api/Logout", Controllers.Logout)
+	app.Get("/api/GetVehicleSpeedViolations", Controllers.GetVehicleSpeedViolations, middleware.Verify(1))
 
 	// app.Get("/ShowAllServiceEvents", adaptor.HTTPHandlerFunc(PreviewData.ShowAllServiceEvents))
 	app.Post("/api/removedata", ManipulateData.DeleteData)

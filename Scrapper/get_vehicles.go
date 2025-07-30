@@ -3,6 +3,7 @@ package Scrapper
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -137,6 +138,7 @@ func GetCurrentLocationData(client *colly.Collector) error {
 		return errors.New("Empty")
 	}
 	VehicleStatusList = VehicleStatusListTemp
+	fmt.Println(VehicleStatusList)
 	return nil
 }
 
