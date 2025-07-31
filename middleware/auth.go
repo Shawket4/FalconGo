@@ -10,6 +10,7 @@ import (
 
 const SecretKey = "secret"
 
+// SimpleLogger provides basic request logging
 func Logger() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		log.Println(c.Method(), c.Path())

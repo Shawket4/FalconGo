@@ -72,9 +72,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	// ID-based routes
 	mappings.Get("/:id", feeMappingHandler.GetFeeMapping)
-	mappings.Post("/", feeMappingHandler.CreateFeeMapping, middleware.Verify(3))
-	mappings.Put("/:id", feeMappingHandler.UpdateFeeMapping, middleware.Verify(3))
-	mappings.Delete("/:id", feeMappingHandler.DeleteFeeMapping, middleware.Verify(3))
+	mappings.Post("/", middleware.Verify(3), feeMappingHandler.CreateFeeMapping)
+	mappings.Put("/:id", middleware.Verify(3), feeMappingHandler.UpdateFeeMapping)
+	mappings.Delete("/:id", middleware.Verify(3), feeMappingHandler.DeleteFeeMapping)
 
 	// Trip routes
 	trips := api.Group("/trips", middleware.Verify(1))
@@ -91,7 +91,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Additional trip routes for filtering and stats
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
-	trips.Post("/watanya/export_report", tripHandler.GetWatanyaTripsReport, middleware.Verify(3))
+	trips.Post("/watanya/export_report", middleware.Verify(3), tripHandler.GetWatanyaTripsReport)
 	app.Post("/api/multi-route-optimizer", MultiRouteOptimizer.OptimalRouteHandler)
 }
 
@@ -102,7 +102,7 @@ func FiberConfig() {
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
-	app.Use(middleware.Logger())
+	app.Use(middleware.RequestLogger())
 	app.Use(compress.New(compress.Config{
 		Level: compress.LevelBestCompression, // 2
 	}))
@@ -118,17 +118,22 @@ func FiberConfig() {
 	app.Post("/RegisterInstapay", Controllers.RegisterInstapayNew)
 	app.Post("/RegisterFinancialNote", Controllers.RegisterFinancialNote)
 	app.Static("/static", "static/")
-	app.Post("/api/RegisterUser", Controllers.RegisterUser, middleware.Verify(4))
-	app.Patch("/api/UpdateUser", Controllers.UpdateUser, middleware.Verify(4))
-	app.Get("/api/FetchUsers", Controllers.FetchUsers, middleware.Verify(4))
-	app.Delete("/api/DeleteUser", Controllers.DeleteUser, middleware.Verify(4))
+	app.Post("/api/RegisterUser", middleware.Verify(4), Controllers.RegisterUser)
+	app.Patch("/api/UpdateUser", middleware.Verify(4), Controllers.UpdateUser)
+	app.Get("/api/FetchUsers", middleware.Verify(4), Controllers.FetchUsers)
+	app.Delete("/api/DeleteUser", middleware.Verify(4), Controllers.DeleteUser)
 	app.Post("/api/RegisterCar", Apis.RegisterCar)
 	app.Post("/api/RegisterTransporter", Apis.RegisterTransporter)
 	app.Post("/api/Login", Controllers.Login)
 	app.Get("/api/validate-token", Controllers.ValidateToken)
 	app.Use("/api/User", Controllers.User)
 	app.Use("/api/Logout", Controllers.Logout)
-	app.Get("/api/GetVehicleSpeedViolations", Controllers.GetVehicleSpeedViolations, middleware.Verify(1))
+	app.Get("/api/GetVehicleSpeedViolations", middleware.Verify(1), Controllers.GetVehicleSpeedViolations)
+
+	// Logs API routes
+	app.Get("/api/logs", middleware.Verify(4), Controllers.GetLogs)
+	app.Get("/api/logs/stats", middleware.Verify(4), Controllers.GetLogStats)
+	app.Get("/api/logs/path/:path", middleware.Verify(4), Controllers.GetLogsByPath)
 
 	// app.Get("/ShowAllServiceEvents", adaptor.HTTPHandlerFunc(PreviewData.ShowAllServiceEvents))
 	app.Post("/api/removedata", ManipulateData.DeleteData)
@@ -159,22 +164,22 @@ func FiberConfig() {
 	app.Get("/api/GetAllServiceEvents", Apis.GetAllServiceEvents)
 	app.Post("/api/CreateOilChange", Apis.CreateOilChange)
 	app.Post("/api/EditOilChange", Apis.EditOilChange)
-	app.Post("/api/DeleteOilChange", Apis.DeleteOilChange, middleware.Verify(1))
-	app.Get("/api/GetAllOilChanges", Apis.GetAllOilChanges, middleware.Verify(1))
-	app.Get("/api/GetOilChange/:oilChangeId", Apis.GetOilChange, middleware.Verify(1))
+	app.Post("/api/DeleteOilChange", middleware.Verify(1), Apis.DeleteOilChange)
+	app.Get("/api/GetAllOilChanges", middleware.Verify(1), Apis.GetAllOilChanges)
+	app.Get("/api/GetOilChange/:oilChangeId", middleware.Verify(1), Apis.GetOilChange)
 	app.Use("/api/GetVehicleStatus", Apis.GetVehicleStatus)
 	app.Use("/api/GetVehicleMapPoints", Apis.GetVehicleMapPoints)
 
 	app.Use("/api/GetVehicleMilage", Scrapper.GetVehicleMileageHistory)
 	app.Get("/api/GetLocations", Apis.GetLocations)
-	app.Post("/api/RegisterDriverLoan", Apis.RegisterDriverLoan, middleware.Verify(3))
+	app.Post("/api/RegisterDriverLoan", middleware.Verify(3), Apis.RegisterDriverLoan)
 	app.Post("/api/loans/stats", Apis.FetchLoanStats)
 	app.Post("/api/RegisterDriverExpense", Apis.RegisterDriverExpense)
 	app.Post("/api/RegisterDriverSalary", Apis.RegisterDriverSalary)
 	app.Post("/api/GetDriverSalaryPreview", Apis.GetDriverSalaryPreview)
 	app.Post("/api/GetDriverSalaries", Apis.GetDriverSalaries)
 	app.Post("/api/DeleteExpense", Apis.DeleteExpense)
-	app.Post("/api/DeleteLoan", Apis.DeleteLoan, middleware.Verify(3))
+	app.Post("/api/DeleteLoan", middleware.Verify(3), Apis.DeleteLoan)
 	app.Post("/api/GetDriverExpenses", Apis.GetDriverExpenses)
 	app.Post("/api/GetTripExpenses", Apis.GetTripExpenses)
 	app.Post("/api/GetDriverLoans", Apis.GetDriverLoans)
@@ -196,9 +201,9 @@ func FiberConfig() {
 	// Group fuel routes under /api/fuel
 	fuel := app.Group("/api/fuel", middleware.Verify(1))
 	fuel.Get("/statistics", handler.GetFuelStatistics)
-	protectedApis.Post("/AddFuelEvent", Apis.AddFuelEvent, middleware.Verify(3))
-	protectedApis.Post("/EditFuelEvent", Apis.EditFuelEvent, middleware.Verify(3))
-	protectedApis.Post("/DeleteFuelEvent", Apis.DeleteFuelEvent, middleware.Verify(3))
+	protectedApis.Post("/AddFuelEvent", middleware.Verify(3), Apis.AddFuelEvent)
+	protectedApis.Post("/EditFuelEvent", middleware.Verify(3), Apis.EditFuelEvent)
+	protectedApis.Post("/DeleteFuelEvent", middleware.Verify(3), Apis.DeleteFuelEvent)
 	protectedApis.Get("/GetFuelEvents", Apis.GetFuelEvents)
 	protectedApis.Get("/GetFuelEventById/:id", Apis.GetFuelEventById)
 	// app.Post("/api/GenerateReceipt", Apis.GenerateCSVReceipt)
