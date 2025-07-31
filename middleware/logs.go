@@ -83,6 +83,12 @@ func LoggingMiddleware(config ...LogConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
+		// Only log GET, POST, PUT, DELETE requests
+		method := c.Method()
+		if method != "GET" && method != "POST" && method != "PUT" && method != "DELETE" {
+			return c.Next()
+		}
+
 		// Check if we should skip this path
 		for _, skipPath := range cfg.SkipPaths {
 			if c.Path() == skipPath {
@@ -280,6 +286,12 @@ func SimpleLogger() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
+		// Only log GET, POST, PUT, DELETE requests
+		method := c.Method()
+		if method != "GET" && method != "POST" && method != "PUT" && method != "DELETE" {
+			return c.Next()
+		}
+
 		err := c.Next()
 
 		latency := time.Since(start)
@@ -327,6 +339,12 @@ func RequestLogger() fiber.Handler {
 func ErrorLogger() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
+
+		// Only log GET, POST, PUT, DELETE requests
+		method := c.Method()
+		if method != "GET" && method != "POST" && method != "PUT" && method != "DELETE" {
+			return c.Next()
+		}
 
 		err := c.Next()
 
