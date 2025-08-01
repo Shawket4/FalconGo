@@ -35,6 +35,7 @@ func Connect() {
 	DB = connection
 	DB.AutoMigrate(&SpeedAlert{})
 	DB.AutoMigrate(&FCMToken{})
+	DB.AutoMigrate(&PetroAppRecord{})
 	connection.AutoMigrate(
 		&User{},     // Users typically have no dependencies
 		&Location{}, // Base location data

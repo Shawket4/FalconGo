@@ -1,0 +1,7 @@
+package PetroApp
+
+const token string = "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBwLnBldHJvYXBwZWcuY29tL2Rhc2hib2FyZF9hcGkvbG9naW4iLCJpYXQiOjE3NTM5MjM5NjgsImV4cCI6MTc1NTEzMzU2OCwibmJmIjoxNzUzOTIzOTY4LCJqdGkiOiJ5QUVVUG1mVFduR1p6b1RLIiwic3ViIjoiODI0NzUiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3In0.5PX8nUnlV5g3rN3iwYu9vKYNrI3_ts5yk4F9HfAyDx0"
+
+const cookie string = "laravel_session=BjEFE3GxRbBEdADjdUxghaUMrac11Cx2bRvdZiZ7"
+
+const baseUrl string = "https://app.petroappeg.com/dashboard_api/bills"
