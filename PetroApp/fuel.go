@@ -3,6 +3,7 @@ package PetroApp
 import (
 	"Falcon/Constants"
 	"Falcon/Models"
+	"Falcon/Whatsapp"
 	"Falcon/email"
 	"encoding/json"
 	"fmt"
@@ -473,7 +474,41 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		OdometerAfter:  record.Odo,
 		Time:           parsedTime,
 	}
+	whatsappMessage := fmt.Sprintf(`🚛 *FUEL EVENT NOTIFICATION*
 
+*Vehicle:* %s
+*Driver:* %s
+*Date:* %s
+*Time:* %s
+
+⛽ *Fuel Details:*
+- Amount: %.2f L
+- Cost: %.2f EGP
+- Price/L: %.2f EGP
+- Efficiency: %.2f km/L
+
+🏪 *Station:* %s
+
+%s`,
+		fuelEvent.CarNoPlate,
+		fuelEvent.DriverName,
+		fuelEvent.Date,
+		parsedTime,
+		fuelEvent.Liters,
+		fuelEvent.Price,
+		fuelEvent.PricePerLiter,
+		fuelEvent.FuelRate,
+		fuelEvent.Transporter,
+		func() string {
+			if fuelEvent.FuelRate > 2.8 {
+				return "⚠️ *HIGH EFFICIENCY ALERT* - Above normal range"
+			} else if fuelEvent.FuelRate < 1.9 {
+				return "🚨 *LOW EFFICIENCY ALERT* - Below normal range"
+			}
+			return "✅ *Normal fuel efficiency*"
+		}())
+
+	Whatsapp.SendMessage(Constants.WhatsAppAlertNumber, whatsappMessage)
 	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
 		emailSubject := fmt.Sprintf("⚠️ Fuel Rate Anomaly Alert - Vehicle %s", fuelEvent.CarNoPlate)
 

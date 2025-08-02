@@ -14,6 +14,7 @@ import (
 	"time"
 
 	// "log"
+	"Falcon/Whatsapp"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -199,7 +200,7 @@ func FiberConfig() {
 	handler := &Apis.FuelHandler{DB: Models.DB}
 
 	// Group fuel routes under /api/fuel
-	fuel := app.Group("/api/fuel", middleware.Verify(1))
+	fuel := app.Group("/api/fuel", middleware.Verify(1), middleware.CheckWPLoginMiddleware())
 	fuel.Get("/statistics", handler.GetFuelStatistics)
 	fuel.Get("/sync-car-odometers", middleware.Verify(3), Apis.SyncCarLastFuelOdometer)
 	protectedApis.Post("/AddFuelEvent", middleware.Verify(3), Apis.AddFuelEvent)
@@ -207,6 +208,8 @@ func FiberConfig() {
 	protectedApis.Post("/DeleteFuelEvent", middleware.Verify(3), Apis.DeleteFuelEvent)
 	protectedApis.Get("/GetFuelEvents", Apis.GetFuelEvents)
 	protectedApis.Get("/GetFuelEventById/:id", Apis.GetFuelEventById)
+
+	protectedApis.Get("/GetWhatsAppQRCode", Whatsapp.GetQRCode, middleware.Verify(4))
 	// app.Post("/api/GenerateReceipt", Apis.GenerateCSVReceipt)
 	// app.Use("/api/AddCar", AddEvent.AddCarHandler)
 	// app.Use("/api/AddServiceEvent", AddEvent.AddCarHandler)
