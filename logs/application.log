@@ -259,3 +259,17 @@
 2025/08/01 16:21:31 Successfully synced PetroApp record ID 3830857 to new FuelEvent ID 536 (vehicle: ف ى ر 9156, fuel rate: 2.934 km/L)
 2025/08/01 16:21:31 Successfully synced PetroApp record ID 3833611 to new FuelEvent ID 537 (vehicle: ف د ى 6584, fuel rate: 5.879 km/L)
 2025/08/01 16:21:31 Synchronization complete: 7 new FuelEvents created, 4 duplicates skipped, 0 errors
+2025/08/02 17:13:46 Starting PetroApp records fetch operation
+2025/08/02 17:13:46 Fetching records from 2025/08/01 to 2025/08/02
+2025/08/02 17:13:46 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/01-2025/08/02&limit=1000&page=1
+2025/08/02 17:13:47 PetroApp API response status: 200 200 OK
+2025/08/02 17:13:47 Successfully fetched 4 records from PetroApp API
+2025/08/02 17:13:47 Validated 4 out of 4 records
+2025/08/02 17:13:47 Processing 4 PetroApp records for storage
+2025/08/02 17:13:47 PetroApp record ID 3848150 already exists, skipping
+2025/08/02 17:13:47 PetroApp record ID 3843589 already exists, skipping
+2025/08/02 17:13:47 PetroApp record ID 3843588 already exists, skipping
+2025/08/02 17:13:47 PetroApp record ID 3842846 already exists, skipping
+2025/08/02 17:13:47 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/02 17:13:47 Starting PetroApp to FuelEvent synchronization
+2025/08/02 17:13:47 No unsynced PetroApp records found

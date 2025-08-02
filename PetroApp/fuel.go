@@ -1,7 +1,9 @@
 package PetroApp
 
 import (
+	"Falcon/Constants"
 	"Falcon/Models"
+	"Falcon/email"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -474,6 +476,89 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		Transporter:    transporter,
 		OdometerBefore: odometerBefore,
 		OdometerAfter:  record.Odo,
+	}
+
+	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
+		emailSubject := fmt.Sprintf("⚠️ Fuel Rate Anomaly Alert - Vehicle %s", fuelEvent.CarNoPlate)
+
+		emailBody := fmt.Sprintf(`FUEL RATE ANOMALY DETECTED
+	
+	Vehicle Details:
+	- Plate Number: %s
+	- Driver: %s
+	- Date: %s
+	
+	Fuel Transaction Details:
+	- Fuel Rate: %.3f km/L (ANOMALY DETECTED)
+	- Distance Traveled: %d km (from %d to %d)
+	- Fuel Consumed: %.3f liters
+	- Cost: %.2f EGP
+	- Price per Liter: %.2f EGP/L
+	- Station: %s
+	
+	Alert Reason:
+	- Normal fuel efficiency range: 1.9 - 2.8 km/L
+	- Current fuel efficiency: %.3f km/L
+	- This is %s the normal range
+	
+	Possible Causes:
+	%s
+	
+	Action Required:
+	- Verify odometer readings for accuracy
+	- Check if fuel tank was already partially full
+	- Investigate potential fuel theft or leakage
+	- Confirm driver behavior and route efficiency
+	
+	PetroApp Record ID: %d
+	Generated: %s
+	
+	This is an automated alert from the Falcon Fleet Management System.
+	Please investigate this anomaly and take appropriate action.`,
+			fuelEvent.CarNoPlate,
+			fuelEvent.DriverName,
+			fuelEvent.Date,
+			fuelEvent.FuelRate,
+			fuelEvent.OdometerAfter-fuelEvent.OdometerBefore,
+			fuelEvent.OdometerBefore,
+			fuelEvent.OdometerAfter,
+			fuelEvent.Liters,
+			fuelEvent.Price,
+			fuelEvent.PricePerLiter,
+			fuelEvent.Transporter,
+			fuelEvent.FuelRate,
+			func() string {
+				if fuelEvent.FuelRate > 2.8 {
+					return "ABOVE"
+				}
+				return "BELOW"
+			}(),
+			func() string {
+				if fuelEvent.FuelRate > 2.8 {
+					return `- Partial refueling (tank was already partially full)
+	- Incorrect odometer reading
+	- Vehicle was driven between fuel stops without recording
+	- Data entry error in distance calculation`
+				}
+				return `- Fuel theft or unauthorized siphoning
+	- Fuel leakage from tank or fuel lines
+	- Heavy traffic or inefficient driving
+	- Vehicle mechanical issues (engine, transmission)
+	- Incorrect fuel amount recording
+	- Multiple vehicles sharing same fuel transaction`
+			}(),
+			record.ID,
+			time.Now().Format("2006-01-02 15:04:05"))
+
+		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
+			To:      []string{"shawketibrahim7@gmail.com"},
+			Subject: emailSubject,
+			Body:    emailBody,
+			IsHTML:  false,
+		})
+
+		log.Printf("Fuel rate anomaly email sent for vehicle %s (rate: %.3f km/L)",
+			fuelEvent.CarNoPlate, fuelEvent.FuelRate)
 	}
 
 	return fuelEvent, nil
