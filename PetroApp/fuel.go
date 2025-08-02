@@ -40,7 +40,7 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 
 	// Get date range: last month to current day
 	now := time.Now()
-	startDate := now.AddDate(0, -1, 0).Format("2006/01/02")
+	startDate := now.AddDate(0, 0, -1).Format("2006/01/02")
 	endDate := now.Format("2006/01/02")
 
 	params := fmt.Sprintf("?dates=%s-%s&limit=1000&page=1", startDate, endDate)
@@ -317,6 +317,16 @@ func SyncPetroAppRecordsToFuelEvents() error {
 			log.Printf("Error creating FuelEvent for PetroApp record ID %d: %v", record.ID, err)
 			errors++
 			continue
+		}
+
+		// Update the car's last_fuel_odometer with the current odometer reading
+		if err := tx.Model(&Models.Car{}).
+			Where("car_no_plate = ?", fuelEvent.CarNoPlate).
+			Update("last_fuel_odometer", fuelEvent.OdometerAfter).Error; err != nil {
+			log.Printf("Error updating car's last_fuel_odometer for vehicle %s: %v", fuelEvent.CarNoPlate, err)
+			// Don't fail the entire sync for this error, just log it
+		} else {
+			log.Printf("Updated car's last_fuel_odometer to %d for vehicle %s", fuelEvent.OdometerAfter, fuelEvent.CarNoPlate)
 		}
 
 		// Mark PetroApp record as synced after successful creation

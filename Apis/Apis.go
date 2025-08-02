@@ -17,6 +17,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type Car struct {
@@ -1785,3 +1786,88 @@ func GetPhotoAlbum(c *fiber.Ctx) error {
 // 	}
 // 	return c.SendFile(filename, true)
 // }
+
+// UpdateCarLastFuelOdometer updates the car's last_fuel_odometer based on the most recent FuelEvent
+func SyncCarLastFuelOdometer(c *fiber.Ctx) error {
+	log.Println("Starting car last fuel odometer update process...")
+
+	// Get all cars
+	var cars []Models.Car
+	if err := Models.DB.Find(&cars).Error; err != nil {
+		log.Printf("Error fetching cars: %v", err)
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to fetch cars",
+			"error":   err.Error(),
+		})
+	}
+
+	updatedCount := 0
+	errorCount := 0
+	results := make(map[string]interface{})
+
+	for _, car := range cars {
+		// Get the most recent FuelEvent for this car
+		var lastFuelEvent Models.FuelEvent
+		err := Models.DB.Where("car_no_plate = ?", car.CarNoPlate).
+			Order("date DESC, created_at DESC").
+			First(&lastFuelEvent).Error
+
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Printf("No fuel events found for car %s", car.CarNoPlate)
+				results[car.CarNoPlate] = map[string]interface{}{
+					"status":  "no_fuel_events",
+					"message": "No fuel events found for this car",
+				}
+				continue
+			}
+			log.Printf("Error fetching fuel events for car %s: %v", car.CarNoPlate, err)
+			results[car.CarNoPlate] = map[string]interface{}{
+				"status":  "error",
+				"message": "Database error",
+				"error":   err.Error(),
+			}
+			errorCount++
+			continue
+		}
+
+		// Update the car's last_fuel_odometer
+		if err := Models.DB.Model(&car).Update("last_fuel_odometer", lastFuelEvent.OdometerAfter).Error; err != nil {
+			log.Printf("Error updating car %s last_fuel_odometer: %v", car.CarNoPlate, err)
+			results[car.CarNoPlate] = map[string]interface{}{
+				"status":  "error",
+				"message": "Failed to update odometer",
+				"error":   err.Error(),
+			}
+			errorCount++
+			continue
+		}
+
+		// Check if the odometer was actually updated
+		var updatedCar Models.Car
+		Models.DB.First(&updatedCar, car.ID)
+
+		results[car.CarNoPlate] = map[string]interface{}{
+			"status":            "updated",
+			"previous_odometer": car.LastFuelOdometer,
+			"new_odometer":      lastFuelEvent.OdometerAfter,
+			"fuel_event_date":   lastFuelEvent.Date,
+			"fuel_event_id":     lastFuelEvent.ID,
+		}
+
+		log.Printf("Updated car %s last_fuel_odometer from %d to %d (FuelEvent ID: %d, Date: %s)",
+			car.CarNoPlate, car.LastFuelOdometer, lastFuelEvent.OdometerAfter, lastFuelEvent.ID, lastFuelEvent.Date)
+		updatedCount++
+	}
+
+	log.Printf("Car last fuel odometer update completed: %d updated, %d errors", updatedCount, errorCount)
+
+	return c.JSON(fiber.Map{
+		"success":       true,
+		"message":       fmt.Sprintf("Updated %d cars, %d errors", updatedCount, errorCount),
+		"updated_count": updatedCount,
+		"error_count":   errorCount,
+		"results":       results,
+	})
+}

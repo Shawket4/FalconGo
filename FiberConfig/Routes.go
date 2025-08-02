@@ -201,6 +201,7 @@ func FiberConfig() {
 	// Group fuel routes under /api/fuel
 	fuel := app.Group("/api/fuel", middleware.Verify(1))
 	fuel.Get("/statistics", handler.GetFuelStatistics)
+	fuel.Post("/sync-car-odometers", middleware.Verify(3), Apis.SyncCarLastFuelOdometer)
 	protectedApis.Post("/AddFuelEvent", middleware.Verify(3), Apis.AddFuelEvent)
 	protectedApis.Post("/EditFuelEvent", middleware.Verify(3), Apis.EditFuelEvent)
 	protectedApis.Post("/DeleteFuelEvent", middleware.Verify(3), Apis.DeleteFuelEvent)
