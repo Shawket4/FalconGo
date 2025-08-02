@@ -18,12 +18,15 @@ import (
 
 // Plate number conversion map - maps PetroApp format to Arabic format
 var PlateNumberMap = map[string]string{
+	"C E F-4 3 8 1": "ف ع ص 4381",
+	"C Q F-4 2 5 3": "ف ق ص 4253",
 	"R Y F-9 1 5 6": "ف ى ر 9156",
 	"N A F-5 1 3 9": "ف أ ن 5139",
 	"S M F-9 2 4 7": "ف م س 9247",
 	"S R F-4 5 9 3": "ف ر س 4593",
 	"N A F-7 4 2 1": "ف ا ن 7421",
 	"Y D F-6 5 8 4": "ف د ى 6584",
+	"Y D F-6 8 3 4": "ف د ى 6834",
 }
 
 // API response structure
