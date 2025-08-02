@@ -273,3 +273,45 @@
 2025/08/02 17:13:47 Storage complete: 0 new records stored, 4 existing records skipped
 2025/08/02 17:13:47 Starting PetroApp to FuelEvent synchronization
 2025/08/02 17:13:47 No unsynced PetroApp records found
+2025/08/02 22:38:41 Starting PetroApp records fetch operation
+2025/08/02 22:38:41 Fetching records from 2025/08/01 to 2025/08/02
+2025/08/02 22:38:41 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/01-2025/08/02&limit=1000&page=1
+2025/08/02 22:38:42 PetroApp API response status: 200 200 OK
+2025/08/02 22:38:42 Successfully fetched 6 records from PetroApp API
+2025/08/02 22:38:42 Validated 6 out of 6 records
+2025/08/02 22:38:42 Processing 6 PetroApp records for storage
+2025/08/02 22:38:42 Created new PetroApp record ID 3852320 for vehicle R Y F-9 1 5 6
+2025/08/02 22:38:42 Created new PetroApp record ID 3852260 for vehicle Y D F-6 8 3 4
+2025/08/02 22:38:42 PetroApp record ID 3848150 already exists, skipping
+2025/08/02 22:38:42 PetroApp record ID 3843589 already exists, skipping
+2025/08/02 22:38:42 PetroApp record ID 3843588 already exists, skipping
+2025/08/02 22:38:42 PetroApp record ID 3842846 already exists, skipping
+2025/08/02 22:38:42 Storage complete: 2 new records stored, 4 existing records skipped
+2025/08/02 22:38:42 Starting PetroApp to FuelEvent synchronization
+2025/08/02 22:38:42 Found 2 unsynced PetroApp records to process
+2025/08/02 22:38:42 Updated car's last_fuel_odometer to 362012 for vehicle ف د ى 6834
+2025/08/02 22:38:42 Successfully synced PetroApp record ID 3852260 to new FuelEvent ID 546 (vehicle: ف د ى 6834, fuel rate: 2.343 km/L)
+2025/08/02 22:38:43 Fuel rate anomaly email sent for vehicle ف ى ر 9156 (rate: 1.872 km/L)
+2025/08/02 22:38:43 Updated car's last_fuel_odometer to 892054 for vehicle ف ى ر 9156
+2025/08/02 22:38:43 Successfully synced PetroApp record ID 3852320 to new FuelEvent ID 547 (vehicle: ف ى ر 9156, fuel rate: 1.872 km/L)
+2025/08/02 22:38:43 Synchronization complete: 2 new FuelEvents created, 0 duplicates skipped, 0 errors
+2025/08/02 22:38:44 HTTP client successfully authenticated
+2025/08/02 22:38:46 Collector successfully authenticated
+2025/08/02 22:39:12 HTTP client successfully authenticated
+2025/08/02 22:39:13 Collector successfully authenticated
+2025/08/02 22:39:13 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/02 22:39:15 HTTP client successfully authenticated
+2025/08/02 22:39:16 Collector successfully authenticated
+2025/08/02 22:39:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sat%2C+02+Aug+2025+00%3A00%3A00+GMT&to=Sat%2C+02+Aug+2025+19%3A39%3A13+GMT
+2025/08/02 22:39:18 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/02 22:39:18 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/02 22:39:21 HTTP client successfully authenticated
+2025/08/02 22:39:23 Collector successfully authenticated
+2025/08/02 22:39:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sat%2C+02+Aug+2025+00%3A00%3A00+GMT&to=Sat%2C+02+Aug+2025+19%3A39%3A18+GMT
+2025/08/02 22:39:25 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/02 22:39:28 HTTP client successfully authenticated
+2025/08/02 22:39:29 Collector successfully authenticated
+2025/08/02 22:39:29 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sat%2C+02+Aug+2025+00%3A00%3A00+GMT&to=Sat%2C+02+Aug+2025+19%3A39%3A25+GMT
+2025/08/02 22:39:31 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/02 22:39:31 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/02 22:39:33 HTTP client successfully authenticated

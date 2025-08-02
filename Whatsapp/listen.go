@@ -57,7 +57,7 @@ func CheckWPLogin(c *fiber.Ctx) error {
 
 	// Check if user is logged in
 	if len(output.Results) == 0 {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"error": "Not logged in to WhatsApp",
 		})
 	}
