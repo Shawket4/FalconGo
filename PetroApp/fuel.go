@@ -38,7 +38,7 @@ type PetroAppAPIResponse struct {
 func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 	log.Println("Starting PetroApp records fetch operation")
 
-	// Get date range: last month to current day
+	// Get date range: last day to current day
 	now := time.Now()
 	startDate := now.AddDate(0, 0, -1).Format("2006/01/02")
 	endDate := now.Format("2006/01/02")
