@@ -15,6 +15,7 @@ type FuelEvent struct {
 	CarNoPlate         string  `json:"car_no_plate"`
 	DriverName         string  `json:"driver_name"`
 	Date               string  `json:"date"`
+	Time               string  `json:"time"`
 	Liters             float64 `json:"liters"`
 	PricePerLiter      float64 `json:"price_per_liter"`
 	Price              float64 `json:"price"`

@@ -385,11 +385,6 @@ func fuelEventExistsInTx(tx *gorm.DB, fuelEvent Models.FuelEvent) bool {
 	return false
 }
 
-// fuelEventExists checks if a FuelEvent with the same characteristics already exists
-func fuelEventExists(fuelEvent Models.FuelEvent) bool {
-	return fuelEventExistsInTx(Models.DB, fuelEvent)
-}
-
 // convertPetroAppToFuelEvent converts a PetroApp record to a FuelEvent
 func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent, error) {
 	// Validate and convert cost
@@ -433,7 +428,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 	}
 
 	// Parse and validate date
-	parsedDate, err := parsePetroAppDate(record.Date)
+	parsedDate, parsedTime, err := parsePetroAppDate(record.Date)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date format '%s': %w", record.Date, err)
 	}
@@ -476,6 +471,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		Transporter:    transporter,
 		OdometerBefore: odometerBefore,
 		OdometerAfter:  record.Odo,
+		Time:           parsedTime,
 	}
 
 	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
@@ -581,29 +577,29 @@ func convertPlateNumber(petroAppPlate string) string {
 }
 
 // parsePetroAppDate parses PetroApp date format to required format
-func parsePetroAppDate(dateString string) (string, error) {
+func parsePetroAppDate(dateString string) (string, string, error) {
 	trimmedDate := strings.TrimSpace(dateString)
 	if trimmedDate == "" {
-		return "", fmt.Errorf("date string is empty")
+		return "", "", fmt.Errorf("date string is empty")
 	}
 
 	// Parse PetroApp format: "2025-07-31 12:35:19"
 	t, err := time.Parse("2006-01-02 15:04:05", trimmedDate)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse date '%s': %w", trimmedDate, err)
+		return "", "", fmt.Errorf("failed to parse date '%s': %w", trimmedDate, err)
 	}
 
 	// Validate date is reasonable (not too far in past or future)
 	now := time.Now()
 	if t.Before(now.AddDate(-10, 0, 0)) {
-		return "", fmt.Errorf("date is too far in the past: %s", trimmedDate)
+		return "", "", fmt.Errorf("date is too far in the past: %s", trimmedDate)
 	}
 	if t.After(now.AddDate(0, 0, 1)) {
-		return "", fmt.Errorf("date is in the future: %s", trimmedDate)
+		return "", "", fmt.Errorf("date is in the future: %s", trimmedDate)
 	}
 
-	// Return in FuelEvent format: "2006-01-02"
-	return t.Format("2006-01-02"), nil
+	// Return date in FuelEvent format: "2006-01-02" and time as "3:04 PM"
+	return t.Format("2006-01-02"), t.Format("3:04 PM"), nil
 }
 
 // getPreviousOdometerReading gets the previous odometer reading for accurate fuel rate calculation
