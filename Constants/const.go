@@ -18,7 +18,7 @@ var EmailConfig Models.EmailConfig = Models.EmailConfig{
 	SkipTLSCheck: false,
 }
 
-const WhatsappGoService = "http://165.22.31.49:3000"
+const WhatsappGoService = "http://localhost:3000"
 
 const WhatsAppAlertNumber = "+201061856523"
 const WhatsAppAlertNumber2 = "+201280701070"
