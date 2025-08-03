@@ -34,9 +34,9 @@ func Connect() {
 	connection, err := gorm.Open(sqlite.Open("database.db"))
 	DB = connection
 	DB.AutoMigrate(&SpeedAlert{})
-	DB.AutoMigrate(&FCMToken{})
 	DB.AutoMigrate(&PetroAppRecord{})
-	connection.AutoMigrate(
+	DB.AutoMigrate(&PetroAppStation{})
+	DB.AutoMigrate(
 		&User{},     // Users typically have no dependencies
 		&Location{}, // Base location data
 		&Terminal{}, // Base terminal data
@@ -50,7 +50,7 @@ func Connect() {
 
 	// 2. Then migrate models with simple foreign key relationships
 
-	connection.AutoMigrate(
+	DB.AutoMigrate(
 		&Truck{},        // Once tires are created
 		&TirePosition{}, // Depends on Truck and Tire
 		&Expense{},      // Depends on Driver
@@ -59,7 +59,7 @@ func Connect() {
 	)
 
 	// 3. Finally, migrate models with complex relationships or that depend on multiple other models
-	connection.AutoMigrate(
+	DB.AutoMigrate(
 		&FeeMapping{}, // Required for trips but has no dependencies itself
 		&TripStruct{}, // Depends on Car, Driver, and relates to FeeMapping
 		&FuelEvent{},  // Depends on Car info
@@ -67,7 +67,7 @@ func Connect() {
 		&OilChange{},  // Depends on Car info
 	)
 
-	connection.AutoMigrate(&Vendor{}, &VendorTransaction{})
+	DB.AutoMigrate(&Vendor{}, &VendorTransaction{})
 
 	// 4. After migrations, set up any special indexes
 	// var admin User

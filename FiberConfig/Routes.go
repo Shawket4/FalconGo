@@ -7,6 +7,7 @@ import (
 	"Falcon/Models"
 	"Falcon/MultiRouteOptimizer"
 	"Falcon/Notifications"
+	"Falcon/PetroApp"
 	"Falcon/PreviewData"
 	"Falcon/Scrapper"
 	"Falcon/middleware"
@@ -253,6 +254,7 @@ func FiberConfig() {
 	api.Get("/trucks/:id/positions", Controllers.GetTruckPositions)
 	api.Post("/positions/assign", Controllers.AssignTireToPosition)
 	api.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
+	app.Post("/get-closest-stations", PetroApp.GetClosestStations)
 	// WebSocket
 	// app.Use("/ws", func(c *fiber.Ctx) error {
 	// 	// IsWebSocketUpgrade returns true if the client

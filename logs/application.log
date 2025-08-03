@@ -315,3 +315,443 @@
 2025/08/02 22:39:31 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
 2025/08/02 22:39:31 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
 2025/08/02 22:39:33 HTTP client successfully authenticated
+2025/08/03 11:38:19 Starting PetroApp records fetch operation
+2025/08/03 11:38:19 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 11:38:19 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 11:44:44 Starting PetroApp records fetch operation
+2025/08/03 11:44:44 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 11:44:44 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:20:27 Starting PetroApp records fetch operation
+2025/08/03 12:20:27 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 12:20:27 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:20:28 PetroApp API response status: 200 200 OK
+2025/08/03 12:20:28 Successfully fetched 3 records from PetroApp API
+2025/08/03 12:20:28 Validated 3 out of 3 records
+2025/08/03 12:20:28 Processing 3 PetroApp records for storage
+2025/08/03 12:20:28 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 12:20:28 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 12:20:28 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 12:20:28 Storage complete: 0 new records stored, 3 existing records skipped
+2025/08/03 12:20:28 Starting PetroApp to FuelEvent synchronization
+2025/08/03 12:20:28 No unsynced PetroApp records found
+2025/08/03 12:20:28 {"timestamp":"2025-08-03T12:20:28.710951+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":233375,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":25}
+2025/08/03 12:20:29 HTTP client successfully authenticated
+2025/08/03 12:20:31 Collector successfully authenticated
+2025/08/03 12:20:34 {"timestamp":"2025-08-03T12:20:34.511823+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":398292,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":25}
+2025/08/03 12:20:45 {"timestamp":"2025-08-03T12:20:45.145167+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":381625,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":25}
+2025/08/03 12:21:05 HTTP client successfully authenticated
+2025/08/03 12:21:06 Collector successfully authenticated
+2025/08/03 12:21:06 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 12:21:07 HTTP client successfully authenticated
+2025/08/03 12:21:11 Starting PetroApp records fetch operation
+2025/08/03 12:21:11 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 12:21:11 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:21:12 PetroApp API response status: 200 200 OK
+2025/08/03 12:21:12 Successfully fetched 3 records from PetroApp API
+2025/08/03 12:21:12 Validated 3 out of 3 records
+2025/08/03 12:21:12 Processing 3 PetroApp records for storage
+2025/08/03 12:21:12 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 12:21:12 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 12:21:12 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 12:21:12 Storage complete: 0 new records stored, 3 existing records skipped
+2025/08/03 12:21:12 Starting PetroApp to FuelEvent synchronization
+2025/08/03 12:21:12 No unsynced PetroApp records found
+2025/08/03 12:21:13 {"timestamp":"2025-08-03T12:21:13.504646+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":1041584,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":25}
+2025/08/03 12:22:01 Starting PetroApp records fetch operation
+2025/08/03 12:22:01 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 12:22:01 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:22:02 PetroApp API response status: 200 200 OK
+2025/08/03 12:22:02 Successfully fetched 3 records from PetroApp API
+2025/08/03 12:22:02 Validated 3 out of 3 records
+2025/08/03 12:22:02 Processing 3 PetroApp records for storage
+2025/08/03 12:22:02 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 12:22:02 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 12:22:02 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 12:22:02 Storage complete: 0 new records stored, 3 existing records skipped
+2025/08/03 12:22:02 Starting PetroApp to FuelEvent synchronization
+2025/08/03 12:22:02 No unsynced PetroApp records found
+2025/08/03 12:22:08 Starting PetroApp records fetch operation
+2025/08/03 12:22:08 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 12:22:08 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:22:09 PetroApp API response status: 200 200 OK
+2025/08/03 12:22:09 Successfully fetched 3 records from PetroApp API
+2025/08/03 12:22:09 Validated 3 out of 3 records
+2025/08/03 12:22:09 Processing 3 PetroApp records for storage
+2025/08/03 12:22:09 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 12:22:09 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 12:22:09 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 12:22:09 Storage complete: 0 new records stored, 3 existing records skipped
+2025/08/03 12:22:09 Starting PetroApp to FuelEvent synchronization
+2025/08/03 12:22:09 No unsynced PetroApp records found
+2025/08/03 12:22:11 Error calculating road distances: failed to call OSRM API: Get "http://165.22.31.49:5000/table/v1/driving/30.940211,29.942465;30.955567,29.953708;30.912856,29.932264;30.906766,29.932742;30.922069,29.968947;30.902309,29.928490;30.964160,29.906778;30.902545,29.895871;30.872269,29.929172;30.980190,30.006689;31.040969,29.962256?sources=0": dial tcp 165.22.31.49:5000: connect: connection refused
+2025/08/03 12:22:11 {"timestamp":"2025-08-03T12:22:11.344281+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":250158417,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":571}
+2025/08/03 12:22:12 HTTP client successfully authenticated
+2025/08/03 12:22:14 Collector successfully authenticated
+2025/08/03 12:22:43 HTTP client successfully authenticated
+2025/08/03 12:22:44 Collector successfully authenticated
+2025/08/03 12:22:44 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 12:23:10 Starting PetroApp records fetch operation
+2025/08/03 12:23:10 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 12:23:10 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 12:23:11 PetroApp API response status: 200 200 OK
+2025/08/03 12:23:11 Successfully fetched 3 records from PetroApp API
+2025/08/03 12:23:11 Validated 3 out of 3 records
+2025/08/03 12:23:11 Processing 3 PetroApp records for storage
+2025/08/03 12:23:11 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 12:23:11 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 12:23:11 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 12:23:11 Storage complete: 0 new records stored, 3 existing records skipped
+2025/08/03 12:23:11 Starting PetroApp to FuelEvent synchronization
+2025/08/03 12:23:11 No unsynced PetroApp records found
+2025/08/03 12:23:13 Error calculating road distances: failed to call OSRM API: Get "http://165.22.31.49:5000/table/v1/driving/30.940211,29.942465;30.955567,29.953708;30.912856,29.932264;30.906766,29.932742;30.922069,29.968947;30.902309,29.928490;30.964160,29.906778;30.902545,29.895871;30.872269,29.929172;30.980190,30.006689;31.040969,29.962256?sources=0": dial tcp 165.22.31.49:5000: connect: connection refused
+2025/08/03 12:23:13 {"timestamp":"2025-08-03T12:23:13.847425+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":122752875,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":571}
+2025/08/03 12:23:15 HTTP client successfully authenticated
+2025/08/03 12:23:16 Collector successfully authenticated
+2025/08/03 12:23:18 Error calculating road distances: failed to call OSRM API: Get "http://165.22.31.49:5000/table/v1/driving/30.940211,29.942465;30.955567,29.953708;30.912856,29.932264;30.906766,29.932742;30.922069,29.968947;30.902309,29.928490;30.964160,29.906778;30.902545,29.895871;30.872269,29.929172;30.980190,30.006689;31.040969,29.962256?sources=0": dial tcp 165.22.31.49:5000: connect: connection refused
+2025/08/03 12:23:18 {"timestamp":"2025-08-03T12:23:18.404135+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":109980958,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.44.1","request_id":"","user_id":null,"username":"","content_length":571}
+2025/08/03 12:23:26 Get "https://fms-gps.etit-eg.com/WebPages/UpdateTransportersData.aspx": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+2025/08/03 12:23:26 Failed to get current location data: Get "https://fms-gps.etit-eg.com/WebPages/UpdateTransportersData.aspx": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+2025/08/03 18:27:02 Starting PetroApp records fetch operation
+2025/08/03 18:27:02 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:27:02 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:27:02 PetroApp API response status: 200 200 OK
+2025/08/03 18:27:02 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:27:02 Validated 4 out of 4 records
+2025/08/03 18:27:02 Processing 4 PetroApp records for storage
+2025/08/03 18:27:02 Created new PetroApp record ID 3859831 for vehicle S R F-4 5 9 3
+2025/08/03 18:27:02 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:27:02 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:27:02 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:27:02 Storage complete: 1 new records stored, 3 existing records skipped
+2025/08/03 18:27:02 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:27:02 Found 1 unsynced PetroApp records to process
+2025/08/03 18:27:02 Updated car's last_fuel_odometer to 878325 for vehicle ف ر س 4593
+2025/08/03 18:27:02 Successfully synced PetroApp record ID 3859831 to new FuelEvent ID 550 (vehicle: ف ر س 4593, fuel rate: 1.998 km/L)
+2025/08/03 18:27:02 Synchronization complete: 1 new FuelEvents created, 0 duplicates skipped, 0 errors
+2025/08/03 18:27:04 HTTP client successfully authenticated
+2025/08/03 18:27:05 Collector successfully authenticated
+2025/08/03 18:27:17 Starting PetroApp records fetch operation
+2025/08/03 18:27:17 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:27:17 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:27:19 PetroApp API response status: 200 200 OK
+2025/08/03 18:27:19 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:27:19 Validated 4 out of 4 records
+2025/08/03 18:27:19 Processing 4 PetroApp records for storage
+2025/08/03 18:27:19 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:27:19 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:27:19 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:27:19 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:27:19 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:27:19 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:27:19 No unsynced PetroApp records found
+2025/08/03 18:27:47 Starting PetroApp records fetch operation
+2025/08/03 18:27:47 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:27:47 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:27:49 PetroApp API response status: 200 200 OK
+2025/08/03 18:27:49 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:27:49 Validated 4 out of 4 records
+2025/08/03 18:27:49 Processing 4 PetroApp records for storage
+2025/08/03 18:27:49 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:27:49 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:27:49 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:27:49 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:27:49 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:27:49 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:27:49 No unsynced PetroApp records found
+2025/08/03 18:27:51 HTTP client successfully authenticated
+2025/08/03 18:27:52 Collector successfully authenticated
+2025/08/03 18:28:17 Starting PetroApp records fetch operation
+2025/08/03 18:28:17 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:28:17 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:28:18 PetroApp API response status: 200 200 OK
+2025/08/03 18:28:18 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:28:18 Validated 4 out of 4 records
+2025/08/03 18:28:18 Processing 4 PetroApp records for storage
+2025/08/03 18:28:18 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:28:18 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:28:18 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:28:18 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:28:18 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:28:18 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:28:18 No unsynced PetroApp records found
+2025/08/03 18:28:19 HTTP client successfully authenticated
+2025/08/03 18:28:19 Collector successfully authenticated
+2025/08/03 18:29:38 Starting PetroApp records fetch operation
+2025/08/03 18:29:38 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:29:38 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:29:39 PetroApp API response status: 200 200 OK
+2025/08/03 18:29:39 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:29:39 Validated 4 out of 4 records
+2025/08/03 18:29:39 Processing 4 PetroApp records for storage
+2025/08/03 18:29:39 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:29:39 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:29:39 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:29:39 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:29:39 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:29:39 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:29:39 No unsynced PetroApp records found
+2025/08/03 18:29:40 HTTP client successfully authenticated
+2025/08/03 18:29:41 Collector successfully authenticated
+2025/08/03 18:31:03 Starting PetroApp records fetch operation
+2025/08/03 18:31:03 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:31:03 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:31:03 PetroApp API response status: 200 200 OK
+2025/08/03 18:31:03 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:31:03 Validated 4 out of 4 records
+2025/08/03 18:31:03 Processing 4 PetroApp records for storage
+2025/08/03 18:31:03 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:31:03 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:31:03 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:31:03 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:31:03 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:31:03 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:31:03 No unsynced PetroApp records found
+2025/08/03 18:38:17 Starting PetroApp records fetch operation
+2025/08/03 18:38:17 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:38:17 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:38:17 PetroApp API response status: 200 200 OK
+2025/08/03 18:38:17 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:38:17 Validated 4 out of 4 records
+2025/08/03 18:38:17 Processing 4 PetroApp records for storage
+2025/08/03 18:38:17 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:38:17 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:38:17 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:38:17 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:38:17 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:38:17 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:38:17 No unsynced PetroApp records found
+2025/08/03 18:38:19 HTTP client successfully authenticated
+2025/08/03 18:38:20 Collector successfully authenticated
+2025/08/03 18:38:21 {"timestamp":"2025-08-03T18:38:21.351307+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":32782459,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":657}
+2025/08/03 18:38:43 HTTP client successfully authenticated
+2025/08/03 18:38:43 Collector successfully authenticated
+2025/08/03 18:38:43 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 18:38:44 HTTP client successfully authenticated
+2025/08/03 18:38:45 Collector successfully authenticated
+2025/08/03 18:38:45 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A38%3A43+GMT
+2025/08/03 18:38:46 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:38:46 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 18:38:49 HTTP client successfully authenticated
+2025/08/03 18:38:50 Collector successfully authenticated
+2025/08/03 18:38:50 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A38%3A46+GMT
+2025/08/03 18:38:51 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/03 18:38:52 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:38:53 HTTP client successfully authenticated
+2025/08/03 18:38:53 Collector successfully authenticated
+2025/08/03 18:38:53 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A38%3A52+GMT
+2025/08/03 18:38:55 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:38:55 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:38:56 HTTP client successfully authenticated
+2025/08/03 18:38:56 Collector successfully authenticated
+2025/08/03 18:38:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A38%3A55+GMT
+2025/08/03 18:38:58 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:38:58 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:38:59 HTTP client successfully authenticated
+2025/08/03 18:39:00 Collector successfully authenticated
+2025/08/03 18:39:00 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A38%3A58+GMT
+2025/08/03 18:39:02 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/03 18:39:02 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/03 18:39:03 HTTP client successfully authenticated
+2025/08/03 18:39:04 Collector successfully authenticated
+2025/08/03 18:39:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A39%3A02+GMT
+2025/08/03 18:43:51 Starting PetroApp records fetch operation
+2025/08/03 18:43:51 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:43:51 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:43:52 PetroApp API response status: 200 200 OK
+2025/08/03 18:43:52 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:43:52 Validated 4 out of 4 records
+2025/08/03 18:43:52 Processing 4 PetroApp records for storage
+2025/08/03 18:43:52 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:43:52 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:43:52 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:43:52 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:43:52 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:43:52 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:43:52 No unsynced PetroApp records found
+2025/08/03 18:43:54 HTTP client successfully authenticated
+2025/08/03 18:43:54 Collector successfully authenticated
+2025/08/03 18:44:17 HTTP client successfully authenticated
+2025/08/03 18:44:17 Collector successfully authenticated
+2025/08/03 18:44:17 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 18:44:19 HTTP client successfully authenticated
+2025/08/03 18:44:19 Collector successfully authenticated
+2025/08/03 18:44:19 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A44%3A17+GMT
+2025/08/03 18:44:21 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:44:21 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 18:44:22 HTTP client successfully authenticated
+2025/08/03 18:44:23 Collector successfully authenticated
+2025/08/03 18:44:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A44%3A21+GMT
+2025/08/03 18:44:24 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/03 18:44:25 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:44:26 HTTP client successfully authenticated
+2025/08/03 18:44:27 Collector successfully authenticated
+2025/08/03 18:44:27 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A44%3A25+GMT
+2025/08/03 18:44:28 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:44:28 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:44:29 HTTP client successfully authenticated
+2025/08/03 18:44:31 Starting PetroApp records fetch operation
+2025/08/03 18:44:31 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:44:31 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:44:32 PetroApp API response status: 200 200 OK
+2025/08/03 18:44:32 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:44:32 Validated 4 out of 4 records
+2025/08/03 18:44:32 Processing 4 PetroApp records for storage
+2025/08/03 18:44:32 Created new PetroApp record ID 3859831 for vehicle S R F-4 5 9 3
+2025/08/03 18:44:32 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:44:32 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:44:32 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:44:32 Storage complete: 1 new records stored, 3 existing records skipped
+2025/08/03 18:44:32 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:44:32 Found 1 unsynced PetroApp records to process
+2025/08/03 18:44:32 Updated car's last_fuel_odometer to 878325 for vehicle ف ر س 4593
+2025/08/03 18:44:32 Successfully synced PetroApp record ID 3859831 to new FuelEvent ID 550 (vehicle: ف ر س 4593, fuel rate: 1.998 km/L)
+2025/08/03 18:44:32 Synchronization complete: 1 new FuelEvents created, 0 duplicates skipped, 0 errors
+2025/08/03 18:44:33 HTTP client successfully authenticated
+2025/08/03 18:45:07 Starting PetroApp records fetch operation
+2025/08/03 18:45:07 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:45:07 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:45:07 PetroApp API response status: 200 200 OK
+2025/08/03 18:45:07 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:45:07 Validated 4 out of 4 records
+2025/08/03 18:45:07 Processing 4 PetroApp records for storage
+2025/08/03 18:45:07 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 18:45:07 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:45:07 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:45:07 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:45:07 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 18:45:07 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:45:07 No unsynced PetroApp records found
+2025/08/03 18:45:09 HTTP client successfully authenticated
+2025/08/03 18:45:09 Collector successfully authenticated
+2025/08/03 18:45:32 HTTP client successfully authenticated
+2025/08/03 18:45:32 Collector successfully authenticated
+2025/08/03 18:45:32 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 18:45:33 HTTP client successfully authenticated
+2025/08/03 18:45:34 Collector successfully authenticated
+2025/08/03 18:45:34 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A45%3A32+GMT
+2025/08/03 18:45:36 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:45:36 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 18:45:39 Starting PetroApp records fetch operation
+2025/08/03 18:45:39 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:45:39 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:45:40 PetroApp API response status: 200 200 OK
+2025/08/03 18:45:40 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:45:40 Validated 4 out of 4 records
+2025/08/03 18:45:40 Processing 4 PetroApp records for storage
+2025/08/03 18:45:40 Created new PetroApp record ID 3859831 for vehicle S R F-4 5 9 3
+2025/08/03 18:45:40 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:45:40 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:45:40 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:45:40 Storage complete: 1 new records stored, 3 existing records skipped
+2025/08/03 18:45:40 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:45:40 Found 1 unsynced PetroApp records to process
+2025/08/03 18:45:40 Updated car's last_fuel_odometer to 878325 for vehicle ف ر س 4593
+2025/08/03 18:45:40 Successfully synced PetroApp record ID 3859831 to new FuelEvent ID 550 (vehicle: ف ر س 4593, fuel rate: 1.998 km/L)
+2025/08/03 18:45:40 Synchronization complete: 1 new FuelEvents created, 0 duplicates skipped, 0 errors
+2025/08/03 18:45:42 HTTP client successfully authenticated
+2025/08/03 18:45:42 Collector successfully authenticated
+2025/08/03 18:46:05 HTTP client successfully authenticated
+2025/08/03 18:46:06 Collector successfully authenticated
+2025/08/03 18:46:06 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 18:46:07 HTTP client successfully authenticated
+2025/08/03 18:46:08 Collector successfully authenticated
+2025/08/03 18:46:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A06+GMT
+2025/08/03 18:46:10 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:10 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 18:46:11 HTTP client successfully authenticated
+2025/08/03 18:46:12 Collector successfully authenticated
+2025/08/03 18:46:12 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A10+GMT
+2025/08/03 18:46:13 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/03 18:46:14 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:46:16 HTTP client successfully authenticated
+2025/08/03 18:46:16 Collector successfully authenticated
+2025/08/03 18:46:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A14+GMT
+2025/08/03 18:46:18 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:18 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 18:46:19 HTTP client successfully authenticated
+2025/08/03 18:46:20 Collector successfully authenticated
+2025/08/03 18:46:20 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A18+GMT
+2025/08/03 18:46:21 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:21 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:46:22 HTTP client successfully authenticated
+2025/08/03 18:46:23 Collector successfully authenticated
+2025/08/03 18:46:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A21+GMT
+2025/08/03 18:46:25 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/03 18:46:26 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/03 18:46:27 HTTP client successfully authenticated
+2025/08/03 18:46:28 Collector successfully authenticated
+2025/08/03 18:46:28 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A26+GMT
+2025/08/03 18:46:29 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:29 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/03 18:46:30 HTTP client successfully authenticated
+2025/08/03 18:46:31 Collector successfully authenticated
+2025/08/03 18:46:31 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A29+GMT
+2025/08/03 18:46:32 Error checking vehicle ف ا ن 7421: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:32 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:46:33 HTTP client successfully authenticated
+2025/08/03 18:46:34 Collector successfully authenticated
+2025/08/03 18:46:34 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A32+GMT
+2025/08/03 18:46:36 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/03 18:46:37 HTTP client successfully authenticated
+2025/08/03 18:46:38 Collector successfully authenticated
+2025/08/03 18:46:38 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A36+GMT
+2025/08/03 18:46:40 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:46:41 HTTP client successfully authenticated
+2025/08/03 18:46:41 Collector successfully authenticated
+2025/08/03 18:46:41 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A40+GMT
+2025/08/03 18:46:43 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/03 18:46:43 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 18:46:44 HTTP client successfully authenticated
+2025/08/03 18:46:45 Collector successfully authenticated
+2025/08/03 18:46:45 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A43+GMT
+2025/08/03 18:46:46 Found 4 speed alerts for vehicle ف م س 9247
+2025/08/03 18:46:47 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:46:48 HTTP client successfully authenticated
+2025/08/03 18:46:48 Collector successfully authenticated
+2025/08/03 18:46:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A47+GMT
+2025/08/03 18:46:50 Found 3 speed alerts for vehicle ف د ى 6584
+2025/08/03 18:46:51 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 18:46:52 HTTP client successfully authenticated
+2025/08/03 18:46:53 Collector successfully authenticated
+2025/08/03 18:46:53 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+15%3A46%3A51+GMT
+2025/08/03 18:46:54 Found 22 speed alerts for vehicle ف ع ص 4381
+2025/08/03 18:46:55 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/03 18:48:53 Starting PetroApp records fetch operation
+2025/08/03 18:48:53 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:48:53 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:48:55 PetroApp API response status: 200 200 OK
+2025/08/03 18:48:55 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:48:55 Validated 4 out of 4 records
+2025/08/03 18:48:55 Processing 4 PetroApp records for storage
+2025/08/03 18:48:55 Created new PetroApp record ID 3859831 for vehicle S R F-4 5 9 3
+2025/08/03 18:48:55 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:48:55 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:48:55 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:48:55 Storage complete: 1 new records stored, 3 existing records skipped
+2025/08/03 18:48:55 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:48:55 Found 1 unsynced PetroApp records to process
+2025/08/03 18:48:55 Updated car's last_fuel_odometer to 878325 for vehicle ف ر س 4593
+2025/08/03 18:48:55 Successfully synced PetroApp record ID 3859831 to new FuelEvent ID 550 (vehicle: ف ر س 4593, fuel rate: 1.998 km/L)
+2025/08/03 18:48:55 Synchronization complete: 1 new FuelEvents created, 0 duplicates skipped, 0 errors
+2025/08/03 18:48:56 HTTP client successfully authenticated
+2025/08/03 18:48:57 Collector successfully authenticated
+2025/08/03 18:52:32 Starting PetroApp records fetch operation
+2025/08/03 18:52:32 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 18:52:32 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 18:52:33 PetroApp API response status: 200 200 OK
+2025/08/03 18:52:33 Successfully fetched 4 records from PetroApp API
+2025/08/03 18:52:33 Validated 4 out of 4 records
+2025/08/03 18:52:33 Processing 4 PetroApp records for storage
+2025/08/03 18:52:33 Created new PetroApp record ID 3859831 for vehicle S R F-4 5 9 3
+2025/08/03 18:52:33 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 18:52:33 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 18:52:33 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 18:52:33 Storage complete: 1 new records stored, 3 existing records skipped
+2025/08/03 18:52:33 Starting PetroApp to FuelEvent synchronization
+2025/08/03 18:52:33 Found 1 unsynced PetroApp records to process
+2025/08/03 18:52:35 Found existing FuelEvent ID 550 matching: vehicle=ف ر س 4593, date=2025-08-03, odometer=877178-878325
+2025/08/03 18:52:35 FuelEvent already exists for PetroApp record ID 3859831 (vehicle: S R F-4 5 9 3, date: 2025-08-03 16:31:37, odometer: 877178-878325), skipping creation and marking as synced
+2025/08/03 18:52:35 Successfully marked duplicate PetroApp record ID 3859831 as synced
+2025/08/03 18:52:35 Synchronization complete: 0 new FuelEvents created, 1 duplicates skipped, 0 errors
+2025/08/03 18:52:36 HTTP client successfully authenticated
+2025/08/03 18:52:36 Collector successfully authenticated

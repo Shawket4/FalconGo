@@ -367,6 +367,39 @@ func SyncPetroAppRecordsToFuelEvents() error {
 	return nil
 }
 
+func createWhatsAppMessage(fuelEvent Models.FuelEvent) string {
+	var messageBuilder strings.Builder
+	messageBuilder.WriteString("🚛 *FUEL EVENT NOTIFICATION*\n\n")
+	messageBuilder.WriteString("*Vehicle:* " + fuelEvent.CarNoPlate + "\n")
+	messageBuilder.WriteString("*Driver:* " + fuelEvent.DriverName + "\n")
+	messageBuilder.WriteString("*Date:* " + fuelEvent.Date + "\n")
+	messageBuilder.WriteString("*Time:* " + fuelEvent.Time + "\n\n")
+	messageBuilder.WriteString("⛽ *Fuel Details:*\n")
+	messageBuilder.WriteString(fmt.Sprintf("- Amount: %.2f L\n", fuelEvent.Liters))
+	messageBuilder.WriteString(fmt.Sprintf("- Cost: %.2f EGP\n", fuelEvent.Price))
+	messageBuilder.WriteString(fmt.Sprintf("- Price/L: %.2f EGP\n", fuelEvent.PricePerLiter))
+	messageBuilder.WriteString(fmt.Sprintf("- Efficiency: %.2f km/L\n\n", fuelEvent.FuelRate))
+	messageBuilder.WriteString("🏪 *Station:* " + fuelEvent.Transporter + "\n\n")
+
+	// Add efficiency status
+	if fuelEvent.FuelRate > 2.8 {
+		messageBuilder.WriteString("⚠️ *HIGH EFFICIENCY ALERT* - Above normal range")
+	} else if fuelEvent.FuelRate < 1.9 {
+		messageBuilder.WriteString("🚨 *LOW EFFICIENCY ALERT* - Below normal range")
+	} else {
+		messageBuilder.WriteString("✅ *Normal fuel efficiency*")
+	}
+
+	rawMessage := messageBuilder.String()
+
+	// Properly escape for JSON
+	jsonBytes, _ := json.Marshal(rawMessage)
+	// Remove the surrounding quotes that json.Marshal adds
+	escapedMessage := string(jsonBytes[1 : len(jsonBytes)-1])
+
+	return escapedMessage
+}
+
 // fuelEventExistsInTx checks if a FuelEvent exists within a transaction
 func fuelEventExistsInTx(tx *gorm.DB, fuelEvent Models.FuelEvent) bool {
 	var existingEvent Models.FuelEvent
@@ -477,41 +510,10 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		OdometerAfter:  record.Odo,
 		Time:           parsedTime,
 	}
-	whatsappMessage := fmt.Sprintf(`🚛 *FUEL EVENT NOTIFICATION*
 
-*Vehicle:* %s
-*Driver:* %s
-*Date:* %s
-*Time:* %s
-
-⛽ *Fuel Details:*
-- Amount: %.2f L
-- Cost: %.2f EGP
-- Price/L: %.2f EGP
-- Efficiency: %.2f km/L
-
-🏪 *Station:* %s
-
-%s`,
-		fuelEvent.CarNoPlate,
-		fuelEvent.DriverName,
-		fuelEvent.Date,
-		parsedTime,
-		fuelEvent.Liters,
-		fuelEvent.Price,
-		fuelEvent.PricePerLiter,
-		fuelEvent.FuelRate,
-		fuelEvent.Transporter,
-		func() string {
-			if fuelEvent.FuelRate > 2.8 {
-				return "⚠️ *HIGH EFFICIENCY ALERT* - Above normal range"
-			} else if fuelEvent.FuelRate < 1.9 {
-				return "🚨 *LOW EFFICIENCY ALERT* - Below normal range"
-			}
-			return "✅ *Normal fuel efficiency*"
-		}())
-
+	whatsappMessage := createWhatsAppMessage(*fuelEvent)
 	Whatsapp.SendMessage(Constants.WhatsAppAlertNumber, whatsappMessage)
+	Whatsapp.SendMessage(Constants.WhatsAppAlertNumber2, whatsappMessage)
 	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
 		emailSubject := fmt.Sprintf("⚠️ Fuel Rate Anomaly Alert - Vehicle %s", fuelEvent.CarNoPlate)
 
