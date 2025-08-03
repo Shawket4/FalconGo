@@ -116,7 +116,7 @@ func enrichWithOSRMData(stations *[]StationWithDistance, originLat, originLng fl
 
 // Alternative approach using OSRM route service (if you prefer individual calls)
 func getOSRMRouteData(originLat, originLng, destLat, destLng float64) (float64, float64, error) {
-	url := fmt.Sprintf("https://router.project-osrm.org/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
+	url := fmt.Sprintf("http://localhost:5000/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
 		originLng, originLat, destLng, destLat)
 
 	client := &http.Client{
