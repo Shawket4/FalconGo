@@ -512,8 +512,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 	}
 
 	whatsappMessage := createWhatsAppMessage(*fuelEvent)
-	Whatsapp.SendMessage(Constants.WhatsAppAlertNumber, whatsappMessage)
-	Whatsapp.SendMessage(Constants.WhatsAppAlertNumber2, whatsappMessage)
+	Whatsapp.SendMessage(Constants.WhatsAppGPID, whatsappMessage)
 	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
 		emailSubject := fmt.Sprintf("⚠️ Fuel Rate Anomaly Alert - Vehicle %s", fuelEvent.CarNoPlate)
 
