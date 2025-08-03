@@ -66,7 +66,7 @@ func main() {
 	setupLogging()
 	// Setup routes
 	Models.Connect()
-	PetroApp.MigrateStations()
+	// PetroApp.MigrateStations()
 	// Scrapper.SetupLandMarks()
 	FiberConfig.FiberConfig()
 }

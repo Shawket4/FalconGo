@@ -1447,3 +1447,14 @@
 2025/08/04 00:51:28 HTTP client successfully authenticated
 2025/08/04 00:51:29 Collector successfully authenticated
 2025/08/04 00:51:29 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A27+GMT
+2025/08/04 01:06:24 Starting PetroApp records fetch operation
+2025/08/04 01:06:24 Fetching records from 2025/08/03 to 2025/08/04
+2025/08/04 01:06:24 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/03-2025/08/04&limit=1000&page=1
+2025/08/04 01:06:24 PetroApp API response status: 200 200 OK
+2025/08/04 01:06:24 Successfully fetched 1 records from PetroApp API
+2025/08/04 01:06:24 Validated 1 out of 1 records
+2025/08/04 01:06:24 Processing 1 PetroApp records for storage
+2025/08/04 01:06:24 PetroApp record ID 3859831 already exists, skipping
+2025/08/04 01:06:24 Storage complete: 0 new records stored, 1 existing records skipped
+2025/08/04 01:06:24 Starting PetroApp to FuelEvent synchronization
+2025/08/04 01:06:24 No unsynced PetroApp records found
