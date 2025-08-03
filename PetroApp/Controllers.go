@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -107,73 +106,9 @@ func enrichWithOSRMData(stations *[]StationWithDistance, originLat, originLng fl
 
 	// Build coordinates string for OSRM
 	// Format: "lng1,lat1;lng2,lat2;lng3,lat3"
-	var coords []string
-	coords = append(coords, fmt.Sprintf("%.6f,%.6f", originLng, originLat)) // Origin first
 
-	for _, station := range *stations {
-		coords = append(coords, fmt.Sprintf("%.6f,%.6f", station.Station.Lng, station.Station.Lat))
-	}
-
-	coordinatesStr := strings.Join(coords, ";")
-
-	// OSRM table service URL - gets distances and durations from origin (index 0) to all destinations
-	osrmURL := fmt.Sprintf("http://localhost:5001/table/v1/driving/%s?sources=0&annotations=duration,distance", coordinatesStr)
-
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	resp, err := client.Get(osrmURL)
-	if err != nil {
-		return fmt.Errorf("failed to call OSRM: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("OSRM returned status %d", resp.StatusCode)
-	}
-
-	var osrmResp struct {
-		Code      string      `json:"code"`
-		Distances [][]float64 `json:"distances,omitempty"` // distances[source][destination] - may not be present
-		Durations [][]float64 `json:"durations"`           // durations[source][destination]
-		Sources   []struct {
-			Location []float64 `json:"location"`
-		} `json:"sources"`
-		Destinations []struct {
-			Location []float64 `json:"location"`
-		} `json:"destinations"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&osrmResp); err != nil {
-		return fmt.Errorf("failed to decode OSRM response: %w", err)
-	}
-
-	if osrmResp.Code != "Ok" {
-		return fmt.Errorf("OSRM returned error code: %s", osrmResp.Code)
-	}
-
-	// Check if we have the expected data structure
-	if len(osrmResp.Durations) == 0 || len(osrmResp.Durations[0]) != len(*stations)+1 {
-		return fmt.Errorf("unexpected OSRM response structure")
-	}
-
-	// Update stations with road distances and durations
-	// Skip index 0 (origin to origin), start from index 1
-	for i := range *stations {
-		distanceIndex := i + 1 // +1 because index 0 is origin to origin
-		if distanceIndex < len(osrmResp.Durations[0]) {
-			// Use distances if available, otherwise estimate from duration
-			if len(osrmResp.Distances) > 0 && len(osrmResp.Distances[0]) > distanceIndex {
-				(*stations)[i].RoadDistance = osrmResp.Distances[0][distanceIndex]
-			} else {
-				// Estimate distance from duration (assuming average speed of 30 km/h in city)
-				// Convert duration from seconds to hours, then multiply by speed
-				(*stations)[i].RoadDistance = (osrmResp.Durations[0][distanceIndex] / 3600) * 30000 // meters
-			}
-			(*stations)[i].Duration = osrmResp.Durations[0][distanceIndex]
-		}
+	for i, station := range *stations {
+		(*stations)[i].RoadDistance, (*stations)[i].Duration, _ = getOSRMRouteData(originLat, originLng, station.Station.Lat, station.Station.Lng)
 	}
 
 	return nil
@@ -181,7 +116,7 @@ func enrichWithOSRMData(stations *[]StationWithDistance, originLat, originLng fl
 
 // Alternative approach using OSRM route service (if you prefer individual calls)
 func getOSRMRouteData(originLat, originLng, destLat, destLng float64) (float64, float64, error) {
-	url := fmt.Sprintf("http://localhost:5000/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
+	url := fmt.Sprintf("https://router.project-osrm.org/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
 		originLng, originLat, destLng, destLat)
 
 	client := &http.Client{
@@ -208,5 +143,5 @@ func getOSRMRouteData(originLat, originLng, destLat, destLng float64) (float64, 
 	}
 
 	route := osrmResp.Routes[0]
-	return route.Distance, route.Duration, nil
+	return route.Distance / 1000, route.Duration / 60, nil
 }

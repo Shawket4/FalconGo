@@ -935,3 +935,515 @@
 2025/08/03 19:21:17 Synchronization complete: 1 new FuelEvents created, 0 duplicates skipped, 0 errors
 2025/08/03 19:21:18 HTTP client successfully authenticated
 2025/08/03 19:21:18 Collector successfully authenticated
+2025/08/03 21:55:30 Starting PetroApp records fetch operation
+2025/08/03 21:55:30 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 21:55:30 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 21:55:32 PetroApp API response status: 200 200 OK
+2025/08/03 21:55:32 Successfully fetched 4 records from PetroApp API
+2025/08/03 21:55:32 Validated 4 out of 4 records
+2025/08/03 21:55:32 Processing 4 PetroApp records for storage
+2025/08/03 21:55:32 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 21:55:32 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 21:55:32 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 21:55:32 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 21:55:32 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 21:55:32 Starting PetroApp to FuelEvent synchronization
+2025/08/03 21:55:32 No unsynced PetroApp records found
+2025/08/03 21:55:33 {"timestamp":"2025-08-03T21:55:33.032761+03:00","method":"POST","path":"/get-closest-station","url":"/get-closest-station","status":200,"latency":344000,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","error":"Cannot POST /get-closest-station","user_id":null,"username":"","content_length":0}
+2025/08/03 21:55:46 {"timestamp":"2025-08-03T21:55:46.255506+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":633375,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":25}
+2025/08/03 21:56:02 Starting PetroApp records fetch operation
+2025/08/03 21:56:02 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 21:56:02 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 21:56:02 Error executing HTTP request: Get "https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1": dial tcp: lookup app.petroappeg.com: no such host
+2025/08/03 21:56:02 Starting PetroApp to FuelEvent synchronization
+2025/08/03 21:56:02 No unsynced PetroApp records found
+2025/08/03 21:56:02 Login failed: error fetching response: Get "https://etit-fms.etit-eg.com": dial tcp: lookup etit-fms.etit-eg.com: no such host
+2025/08/03 21:56:06 Starting PetroApp records fetch operation
+2025/08/03 21:56:06 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 21:56:06 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 21:56:06 Error executing HTTP request: Get "https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1": dial tcp: lookup app.petroappeg.com: no such host
+2025/08/03 21:56:06 Starting PetroApp to FuelEvent synchronization
+2025/08/03 21:56:06 No unsynced PetroApp records found
+2025/08/03 21:56:06 Login failed: error fetching response: Get "https://etit-fms.etit-eg.com": dial tcp: lookup etit-fms.etit-eg.com: no such host
+2025/08/03 21:56:10 {"timestamp":"2025-08-03T21:56:10.527325+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":17428208,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":576}
+2025/08/03 21:57:16 {"timestamp":"2025-08-03T21:57:16.044859+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":74953542,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":657}
+2025/08/03 22:04:25 Starting PetroApp records fetch operation
+2025/08/03 22:04:25 Fetching records from 2025/08/02 to 2025/08/03
+2025/08/03 22:04:25 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/02-2025/08/03&limit=1000&page=1
+2025/08/03 22:04:26 PetroApp API response status: 200 200 OK
+2025/08/03 22:04:26 Successfully fetched 4 records from PetroApp API
+2025/08/03 22:04:26 Validated 4 out of 4 records
+2025/08/03 22:04:26 Processing 4 PetroApp records for storage
+2025/08/03 22:04:26 PetroApp record ID 3859831 already exists, skipping
+2025/08/03 22:04:26 PetroApp record ID 3852320 already exists, skipping
+2025/08/03 22:04:26 PetroApp record ID 3852260 already exists, skipping
+2025/08/03 22:04:26 PetroApp record ID 3848150 already exists, skipping
+2025/08/03 22:04:26 Storage complete: 0 new records stored, 4 existing records skipped
+2025/08/03 22:04:26 Starting PetroApp to FuelEvent synchronization
+2025/08/03 22:04:26 No unsynced PetroApp records found
+2025/08/03 22:04:27 {"timestamp":"2025-08-03T22:04:27.82638+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":19548292,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":576}
+2025/08/03 22:04:30 HTTP client successfully authenticated
+2025/08/03 22:04:31 Collector successfully authenticated
+2025/08/03 22:04:33 {"timestamp":"2025-08-03T22:04:33.131329+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":83599791,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":683}
+2025/08/03 22:04:55 HTTP client successfully authenticated
+2025/08/03 22:04:57 Collector successfully authenticated
+2025/08/03 22:04:57 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/03 22:05:00 HTTP client successfully authenticated
+2025/08/03 22:05:02 Collector successfully authenticated
+2025/08/03 22:05:02 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A04%3A57+GMT
+2025/08/03 22:05:04 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:05:04 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 22:05:06 HTTP client successfully authenticated
+2025/08/03 22:05:08 Collector successfully authenticated
+2025/08/03 22:05:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A04+GMT
+2025/08/03 22:05:10 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/03 22:05:11 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 22:05:13 HTTP client successfully authenticated
+2025/08/03 22:05:14 Collector successfully authenticated
+2025/08/03 22:05:14 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A11+GMT
+2025/08/03 22:05:16 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:05:16 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/03 22:05:18 HTTP client successfully authenticated
+2025/08/03 22:05:19 Collector successfully authenticated
+2025/08/03 22:05:19 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A16+GMT
+2025/08/03 22:05:22 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:05:22 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 22:05:24 HTTP client successfully authenticated
+2025/08/03 22:05:25 Collector successfully authenticated
+2025/08/03 22:05:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A22+GMT
+2025/08/03 22:05:27 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/03 22:05:28 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/03 22:05:31 HTTP client successfully authenticated
+2025/08/03 22:05:33 Collector successfully authenticated
+2025/08/03 22:05:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A28+GMT
+2025/08/03 22:05:35 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:05:35 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/03 22:05:37 HTTP client successfully authenticated
+2025/08/03 22:05:41 Collector successfully authenticated
+2025/08/03 22:05:41 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A35+GMT
+2025/08/03 22:05:44 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 22:05:47 HTTP client successfully authenticated
+2025/08/03 22:05:49 Collector successfully authenticated
+2025/08/03 22:05:49 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A44+GMT
+2025/08/03 22:05:52 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/03 22:05:55 HTTP client successfully authenticated
+2025/08/03 22:06:00 Collector successfully authenticated
+2025/08/03 22:06:00 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A05%3A52+GMT
+2025/08/03 22:06:04 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 22:06:09 HTTP client successfully authenticated
+2025/08/03 22:06:11 Collector successfully authenticated
+2025/08/03 22:06:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A04+GMT
+2025/08/03 22:06:13 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:06:13 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/03 22:06:16 HTTP client successfully authenticated
+2025/08/03 22:06:18 Collector successfully authenticated
+2025/08/03 22:06:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A13+GMT
+2025/08/03 22:06:20 Found 11 speed alerts for vehicle ف م س 9247
+2025/08/03 22:06:21 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 22:06:24 HTTP client successfully authenticated
+2025/08/03 22:06:26 Collector successfully authenticated
+2025/08/03 22:06:26 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A21+GMT
+2025/08/03 22:06:29 Found 3 speed alerts for vehicle ف د ى 6584
+2025/08/03 22:06:29 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/03 22:06:32 HTTP client successfully authenticated
+2025/08/03 22:06:34 Collector successfully authenticated
+2025/08/03 22:06:34 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A29+GMT
+2025/08/03 22:06:37 Found 54 speed alerts for vehicle ف ع ص 4381
+2025/08/03 22:06:38 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/03 22:06:41 HTTP client successfully authenticated
+2025/08/03 22:06:43 Collector successfully authenticated
+2025/08/03 22:06:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A38+GMT
+2025/08/03 22:06:45 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/03 22:06:45 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/03 22:06:52 HTTP client successfully authenticated
+2025/08/03 22:06:55 Collector successfully authenticated
+2025/08/03 22:06:55 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A45+GMT
+2025/08/03 22:06:57 Found 2 speed alerts for vehicle ف ر ص 6359
+2025/08/03 22:06:58 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/03 22:07:02 HTTP client successfully authenticated
+2025/08/03 22:07:04 Collector successfully authenticated
+2025/08/03 22:07:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A06%3A58+GMT
+2025/08/03 22:07:06 Found 1 speed alerts for vehicle ف ر ص 8461
+2025/08/03 22:07:06 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/03 22:07:09 HTTP client successfully authenticated
+2025/08/03 22:07:13 Collector successfully authenticated
+2025/08/03 22:07:13 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A07%3A06+GMT
+2025/08/03 22:07:16 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/03 22:07:19 HTTP client successfully authenticated
+2025/08/03 22:07:23 Collector successfully authenticated
+2025/08/03 22:07:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+19%3A07%3A16+GMT
+2025/08/03 22:08:15 UNIQUE constraint failed: speed_alerts.hash
+2025/08/04 00:15:04 Starting PetroApp records fetch operation
+2025/08/04 00:15:04 Fetching records from 2025/08/03 to 2025/08/04
+2025/08/04 00:15:04 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/03-2025/08/04&limit=1000&page=1
+2025/08/04 00:15:04 PetroApp API response status: 200 200 OK
+2025/08/04 00:15:04 Successfully fetched 1 records from PetroApp API
+2025/08/04 00:15:04 Validated 1 out of 1 records
+2025/08/04 00:15:04 Processing 1 PetroApp records for storage
+2025/08/04 00:15:04 PetroApp record ID 3859831 already exists, skipping
+2025/08/04 00:15:04 Storage complete: 0 new records stored, 1 existing records skipped
+2025/08/04 00:15:04 Starting PetroApp to FuelEvent synchronization
+2025/08/04 00:15:04 No unsynced PetroApp records found
+2025/08/04 00:15:06 HTTP client successfully authenticated
+2025/08/04 00:15:07 Collector successfully authenticated
+2025/08/04 00:15:30 HTTP client successfully authenticated
+2025/08/04 00:15:32 Collector successfully authenticated
+2025/08/04 00:15:32 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/04 00:15:34 HTTP client successfully authenticated
+2025/08/04 00:15:35 Collector successfully authenticated
+2025/08/04 00:15:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A32+GMT
+2025/08/04 00:15:36 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:15:36 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:15:38 HTTP client successfully authenticated
+2025/08/04 00:15:38 Collector successfully authenticated
+2025/08/04 00:15:38 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A36+GMT
+2025/08/04 00:15:40 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/04 00:15:41 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:15:42 HTTP client successfully authenticated
+2025/08/04 00:15:43 Collector successfully authenticated
+2025/08/04 00:15:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A41+GMT
+2025/08/04 00:15:45 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:15:45 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:15:47 HTTP client successfully authenticated
+2025/08/04 00:15:48 Collector successfully authenticated
+2025/08/04 00:15:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A45+GMT
+2025/08/04 00:15:49 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:15:49 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:15:51 HTTP client successfully authenticated
+2025/08/04 00:15:51 Collector successfully authenticated
+2025/08/04 00:15:51 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A49+GMT
+2025/08/04 00:15:53 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/04 00:15:54 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:15:55 HTTP client successfully authenticated
+2025/08/04 00:15:56 Collector successfully authenticated
+2025/08/04 00:15:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A54+GMT
+2025/08/04 00:15:58 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:15:58 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/04 00:15:59 HTTP client successfully authenticated
+2025/08/04 00:16:00 Collector successfully authenticated
+2025/08/04 00:16:00 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A15%3A58+GMT
+2025/08/04 00:16:02 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:16:04 HTTP client successfully authenticated
+2025/08/04 00:16:05 Collector successfully authenticated
+2025/08/04 00:16:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A02+GMT
+2025/08/04 00:16:07 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:16:09 HTTP client successfully authenticated
+2025/08/04 00:16:09 Collector successfully authenticated
+2025/08/04 00:16:09 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A07+GMT
+2025/08/04 00:16:12 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:16:14 HTTP client successfully authenticated
+2025/08/04 00:16:14 Collector successfully authenticated
+2025/08/04 00:16:14 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A12+GMT
+2025/08/04 00:16:16 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:16:16 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:16:17 HTTP client successfully authenticated
+2025/08/04 00:16:18 Collector successfully authenticated
+2025/08/04 00:16:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A16+GMT
+2025/08/04 00:16:20 Found 11 speed alerts for vehicle ف م س 9247
+2025/08/04 00:16:20 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:16:22 HTTP client successfully authenticated
+2025/08/04 00:16:23 Collector successfully authenticated
+2025/08/04 00:16:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A20+GMT
+2025/08/04 00:16:25 Found 3 speed alerts for vehicle ف د ى 6584
+2025/08/04 00:16:25 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:16:26 HTTP client successfully authenticated
+2025/08/04 00:16:27 Collector successfully authenticated
+2025/08/04 00:16:27 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A25+GMT
+2025/08/04 00:16:29 Found 93 speed alerts for vehicle ف ع ص 4381
+2025/08/04 00:16:30 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/04 00:16:31 HTTP client successfully authenticated
+2025/08/04 00:16:32 Collector successfully authenticated
+2025/08/04 00:16:32 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A30+GMT
+2025/08/04 00:16:33 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:16:33 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:16:34 HTTP client successfully authenticated
+2025/08/04 00:16:35 Collector successfully authenticated
+2025/08/04 00:16:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A33+GMT
+2025/08/04 00:16:37 Found 2 speed alerts for vehicle ف ر ص 6359
+2025/08/04 00:16:37 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:16:38 HTTP client successfully authenticated
+2025/08/04 00:16:39 Collector successfully authenticated
+2025/08/04 00:16:39 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A37+GMT
+2025/08/04 00:16:41 Found 1 speed alerts for vehicle ف ر ص 8461
+2025/08/04 00:16:41 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:16:43 HTTP client successfully authenticated
+2025/08/04 00:16:44 Collector successfully authenticated
+2025/08/04 00:16:44 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A41+GMT
+2025/08/04 00:16:46 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:16:48 HTTP client successfully authenticated
+2025/08/04 00:16:48 Collector successfully authenticated
+2025/08/04 00:16:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A16%3A46+GMT
+2025/08/04 00:16:51 UNIQUE constraint failed: speed_alerts.hash
+2025/08/04 00:31:51 Starting PetroApp records fetch operation
+2025/08/04 00:31:51 Fetching records from 2025/08/03 to 2025/08/04
+2025/08/04 00:31:51 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/03-2025/08/04&limit=1000&page=1
+2025/08/04 00:31:51 PetroApp API response status: 200 200 OK
+2025/08/04 00:31:51 Successfully fetched 1 records from PetroApp API
+2025/08/04 00:31:51 Validated 1 out of 1 records
+2025/08/04 00:31:51 Processing 1 PetroApp records for storage
+2025/08/04 00:31:51 PetroApp record ID 3859831 already exists, skipping
+2025/08/04 00:31:51 Storage complete: 0 new records stored, 1 existing records skipped
+2025/08/04 00:31:51 Starting PetroApp to FuelEvent synchronization
+2025/08/04 00:31:51 No unsynced PetroApp records found
+2025/08/04 00:31:52 HTTP client successfully authenticated
+2025/08/04 00:31:53 Collector successfully authenticated
+2025/08/04 00:32:15 HTTP client successfully authenticated
+2025/08/04 00:32:16 Collector successfully authenticated
+2025/08/04 00:32:16 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/04 00:32:17 HTTP client successfully authenticated
+2025/08/04 00:32:18 Collector successfully authenticated
+2025/08/04 00:32:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A16+GMT
+2025/08/04 00:32:19 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:32:19 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:32:20 HTTP client successfully authenticated
+2025/08/04 00:32:21 Collector successfully authenticated
+2025/08/04 00:32:21 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A19+GMT
+2025/08/04 00:32:23 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/04 00:32:23 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:32:24 HTTP client successfully authenticated
+2025/08/04 00:32:25 Collector successfully authenticated
+2025/08/04 00:32:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A23+GMT
+2025/08/04 00:32:27 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:32:27 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:32:28 HTTP client successfully authenticated
+2025/08/04 00:32:28 Collector successfully authenticated
+2025/08/04 00:32:28 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A27+GMT
+2025/08/04 00:32:30 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:32:30 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:32:31 HTTP client successfully authenticated
+2025/08/04 00:32:32 Collector successfully authenticated
+2025/08/04 00:32:32 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A30+GMT
+2025/08/04 00:32:34 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/04 00:32:34 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:32:35 HTTP client successfully authenticated
+2025/08/04 00:32:36 Collector successfully authenticated
+2025/08/04 00:32:36 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A34+GMT
+2025/08/04 00:32:38 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:32:38 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/04 00:32:39 HTTP client successfully authenticated
+2025/08/04 00:32:39 Collector successfully authenticated
+2025/08/04 00:32:39 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A38+GMT
+2025/08/04 00:32:41 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:32:42 HTTP client successfully authenticated
+2025/08/04 00:32:43 Collector successfully authenticated
+2025/08/04 00:32:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A41+GMT
+2025/08/04 00:32:45 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:32:46 HTTP client successfully authenticated
+2025/08/04 00:32:47 Collector successfully authenticated
+2025/08/04 00:32:47 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A45+GMT
+2025/08/04 00:32:49 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:32:50 HTTP client successfully authenticated
+2025/08/04 00:32:51 Collector successfully authenticated
+2025/08/04 00:32:51 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A49+GMT
+2025/08/04 00:32:53 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:32:53 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:32:53 HTTP client successfully authenticated
+2025/08/04 00:32:54 Collector successfully authenticated
+2025/08/04 00:32:54 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A53+GMT
+2025/08/04 00:32:56 Found 11 speed alerts for vehicle ف م س 9247
+2025/08/04 00:32:56 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:32:57 HTTP client successfully authenticated
+2025/08/04 00:32:58 Collector successfully authenticated
+2025/08/04 00:32:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A32%3A56+GMT
+2025/08/04 00:33:00 Found 3 speed alerts for vehicle ف د ى 6584
+2025/08/04 00:33:01 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:33:02 HTTP client successfully authenticated
+2025/08/04 00:33:02 Collector successfully authenticated
+2025/08/04 00:33:02 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A01+GMT
+2025/08/04 00:33:04 Found 93 speed alerts for vehicle ف ع ص 4381
+2025/08/04 00:33:05 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/04 00:33:06 HTTP client successfully authenticated
+2025/08/04 00:33:06 Collector successfully authenticated
+2025/08/04 00:33:06 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A05+GMT
+2025/08/04 00:33:08 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:33:08 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:33:09 HTTP client successfully authenticated
+2025/08/04 00:33:09 Collector successfully authenticated
+2025/08/04 00:33:09 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A08+GMT
+2025/08/04 00:33:11 Found 2 speed alerts for vehicle ف ر ص 6359
+2025/08/04 00:33:12 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:33:13 HTTP client successfully authenticated
+2025/08/04 00:33:13 Collector successfully authenticated
+2025/08/04 00:33:13 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A12+GMT
+2025/08/04 00:33:15 Found 1 speed alerts for vehicle ف ر ص 8461
+2025/08/04 00:33:15 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:33:17 HTTP client successfully authenticated
+2025/08/04 00:33:17 Collector successfully authenticated
+2025/08/04 00:33:17 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A15+GMT
+2025/08/04 00:33:20 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:33:21 HTTP client successfully authenticated
+2025/08/04 00:33:21 Collector successfully authenticated
+2025/08/04 00:33:21 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A33%3A20+GMT
+2025/08/04 00:33:24 UNIQUE constraint failed: speed_alerts.hash
+2025/08/04 00:48:24 Starting PetroApp records fetch operation
+2025/08/04 00:48:24 Fetching records from 2025/08/03 to 2025/08/04
+2025/08/04 00:48:24 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/03-2025/08/04&limit=1000&page=1
+2025/08/04 00:48:25 PetroApp API response status: 200 200 OK
+2025/08/04 00:48:25 Successfully fetched 1 records from PetroApp API
+2025/08/04 00:48:25 Validated 1 out of 1 records
+2025/08/04 00:48:25 Processing 1 PetroApp records for storage
+2025/08/04 00:48:25 PetroApp record ID 3859831 already exists, skipping
+2025/08/04 00:48:25 Storage complete: 0 new records stored, 1 existing records skipped
+2025/08/04 00:48:25 Starting PetroApp to FuelEvent synchronization
+2025/08/04 00:48:25 No unsynced PetroApp records found
+2025/08/04 00:48:26 HTTP client successfully authenticated
+2025/08/04 00:48:27 Collector successfully authenticated
+2025/08/04 00:48:50 HTTP client successfully authenticated
+2025/08/04 00:48:50 Collector successfully authenticated
+2025/08/04 00:48:50 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/04 00:48:52 HTTP client successfully authenticated
+2025/08/04 00:48:52 Collector successfully authenticated
+2025/08/04 00:48:52 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A48%3A50+GMT
+2025/08/04 00:48:54 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:48:54 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:48:55 HTTP client successfully authenticated
+2025/08/04 00:48:56 Collector successfully authenticated
+2025/08/04 00:48:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A48%3A54+GMT
+2025/08/04 00:48:59 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/04 00:48:59 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:49:00 HTTP client successfully authenticated
+2025/08/04 00:49:01 Collector successfully authenticated
+2025/08/04 00:49:01 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A48%3A59+GMT
+2025/08/04 00:49:02 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:49:02 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:49:04 HTTP client successfully authenticated
+2025/08/04 00:49:04 Collector successfully authenticated
+2025/08/04 00:49:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A02+GMT
+2025/08/04 00:49:06 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:49:06 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:49:07 HTTP client successfully authenticated
+2025/08/04 00:49:08 Collector successfully authenticated
+2025/08/04 00:49:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A06+GMT
+2025/08/04 00:49:09 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/04 00:49:10 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:49:11 HTTP client successfully authenticated
+2025/08/04 00:49:12 Collector successfully authenticated
+2025/08/04 00:49:12 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A10+GMT
+2025/08/04 00:49:13 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:49:13 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/04 00:49:14 HTTP client successfully authenticated
+2025/08/04 00:49:15 Collector successfully authenticated
+2025/08/04 00:49:15 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A13+GMT
+2025/08/04 00:49:17 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:49:18 HTTP client successfully authenticated
+2025/08/04 00:49:19 Collector successfully authenticated
+2025/08/04 00:49:19 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A17+GMT
+2025/08/04 00:49:21 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:49:22 HTTP client successfully authenticated
+2025/08/04 00:49:23 Collector successfully authenticated
+2025/08/04 00:49:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A21+GMT
+2025/08/04 00:49:26 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:49:27 HTTP client successfully authenticated
+2025/08/04 00:49:28 Collector successfully authenticated
+2025/08/04 00:49:28 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A26+GMT
+2025/08/04 00:49:29 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:49:29 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:49:30 HTTP client successfully authenticated
+2025/08/04 00:49:31 Collector successfully authenticated
+2025/08/04 00:49:31 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A29+GMT
+2025/08/04 00:49:33 Found 11 speed alerts for vehicle ف م س 9247
+2025/08/04 00:49:33 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:49:35 HTTP client successfully authenticated
+2025/08/04 00:49:35 Collector successfully authenticated
+2025/08/04 00:49:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A33+GMT
+2025/08/04 00:49:37 Found 3 speed alerts for vehicle ف د ى 6584
+2025/08/04 00:49:38 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:49:39 HTTP client successfully authenticated
+2025/08/04 00:49:39 Collector successfully authenticated
+2025/08/04 00:49:39 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A38+GMT
+2025/08/04 00:49:41 Found 93 speed alerts for vehicle ف ع ص 4381
+2025/08/04 00:49:42 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/04 00:49:43 HTTP client successfully authenticated
+2025/08/04 00:49:43 Collector successfully authenticated
+2025/08/04 00:49:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A42+GMT
+2025/08/04 00:49:45 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:49:45 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:49:46 HTTP client successfully authenticated
+2025/08/04 00:49:46 Collector successfully authenticated
+2025/08/04 00:49:46 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A45+GMT
+2025/08/04 00:49:48 Found 2 speed alerts for vehicle ف ر ص 6359
+2025/08/04 00:49:49 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:49:50 HTTP client successfully authenticated
+2025/08/04 00:49:50 Collector successfully authenticated
+2025/08/04 00:49:50 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A49+GMT
+2025/08/04 00:49:52 Found 1 speed alerts for vehicle ف ر ص 8461
+2025/08/04 00:49:53 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/04 00:49:54 HTTP client successfully authenticated
+2025/08/04 00:49:55 Collector successfully authenticated
+2025/08/04 00:49:55 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A53+GMT
+2025/08/04 00:49:57 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:49:58 HTTP client successfully authenticated
+2025/08/04 00:49:58 Collector successfully authenticated
+2025/08/04 00:49:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A49%3A57+GMT
+2025/08/04 00:50:20 Starting PetroApp records fetch operation
+2025/08/04 00:50:20 Fetching records from 2025/08/03 to 2025/08/04
+2025/08/04 00:50:20 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/03-2025/08/04&limit=1000&page=1
+2025/08/04 00:50:21 PetroApp API response status: 200 200 OK
+2025/08/04 00:50:21 Successfully fetched 1 records from PetroApp API
+2025/08/04 00:50:21 Validated 1 out of 1 records
+2025/08/04 00:50:21 Processing 1 PetroApp records for storage
+2025/08/04 00:50:21 PetroApp record ID 3859831 already exists, skipping
+2025/08/04 00:50:21 Storage complete: 0 new records stored, 1 existing records skipped
+2025/08/04 00:50:21 Starting PetroApp to FuelEvent synchronization
+2025/08/04 00:50:21 No unsynced PetroApp records found
+2025/08/04 00:50:22 HTTP client successfully authenticated
+2025/08/04 00:50:23 Collector successfully authenticated
+2025/08/04 00:50:45 HTTP client successfully authenticated
+2025/08/04 00:50:46 Collector successfully authenticated
+2025/08/04 00:50:46 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/04 00:50:47 HTTP client successfully authenticated
+2025/08/04 00:50:48 Collector successfully authenticated
+2025/08/04 00:50:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A50%3A46+GMT
+2025/08/04 00:50:50 Error checking vehicle ف ج م 8567: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:50:50 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:50:51 HTTP client successfully authenticated
+2025/08/04 00:50:51 Collector successfully authenticated
+2025/08/04 00:50:51 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A50%3A50+GMT
+2025/08/04 00:50:53 Found 12 speed alerts for vehicle ف ى ر 8427
+2025/08/04 00:50:53 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:50:54 HTTP client successfully authenticated
+2025/08/04 00:50:55 Collector successfully authenticated
+2025/08/04 00:50:55 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A50%3A53+GMT
+2025/08/04 00:50:57 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:50:57 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/04 00:50:58 HTTP client successfully authenticated
+2025/08/04 00:50:58 Collector successfully authenticated
+2025/08/04 00:50:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A50%3A57+GMT
+2025/08/04 00:51:00 Error checking vehicle ف ق ص 4253: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:51:00 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:51:01 HTTP client successfully authenticated
+2025/08/04 00:51:01 Collector successfully authenticated
+2025/08/04 00:51:01 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A00+GMT
+2025/08/04 00:51:03 Found 48 speed alerts for vehicle ف ر س 4593
+2025/08/04 00:51:03 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/04 00:51:05 HTTP client successfully authenticated
+2025/08/04 00:51:05 Collector successfully authenticated
+2025/08/04 00:51:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A03+GMT
+2025/08/04 00:51:07 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:51:07 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/04 00:51:08 HTTP client successfully authenticated
+2025/08/04 00:51:08 Collector successfully authenticated
+2025/08/04 00:51:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A07+GMT
+2025/08/04 00:51:10 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:51:12 HTTP client successfully authenticated
+2025/08/04 00:51:12 Collector successfully authenticated
+2025/08/04 00:51:12 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A10+GMT
+2025/08/04 00:51:15 {"timestamp":"2025-08-04T00:50:55.739465+03:00","method":"POST","path":"/get-closest-stations","url":"/get-closest-stations","status":200,"latency":19378461500,"ip":"127.0.0.1","user_agent":"PostmanRuntime/7.45.0","request_id":"","user_id":null,"username":"","content_length":682}
+2025/08/04 00:51:15 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/04 00:51:16 HTTP client successfully authenticated
+2025/08/04 00:51:16 Collector successfully authenticated
+2025/08/04 00:51:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A15+GMT
+2025/08/04 00:51:18 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:51:20 HTTP client successfully authenticated
+2025/08/04 00:51:20 Collector successfully authenticated
+2025/08/04 00:51:20 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A18+GMT
+2025/08/04 00:51:22 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/04 00:51:22 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/04 00:51:23 HTTP client successfully authenticated
+2025/08/04 00:51:24 Collector successfully authenticated
+2025/08/04 00:51:24 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A22+GMT
+2025/08/04 00:51:26 Found 11 speed alerts for vehicle ف م س 9247
+2025/08/04 00:51:27 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/04 00:51:28 HTTP client successfully authenticated
+2025/08/04 00:51:29 Collector successfully authenticated
+2025/08/04 00:51:29 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Sun%2C+03+Aug+2025+00%3A00%3A00+GMT&to=Sun%2C+03+Aug+2025+21%3A51%3A27+GMT
