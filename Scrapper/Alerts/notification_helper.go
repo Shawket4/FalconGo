@@ -1,7 +1,9 @@
 package Alerts
 
 import (
+	"Falcon/Constants"
 	"Falcon/Models"
+	"Falcon/Whatsapp"
 	"context"
 	"fmt"
 	"log"
@@ -54,10 +56,17 @@ func ProcessAlertsWithHighestExceed(alerts []Models.SpeedAlert, db *gorm.DB) err
 	}
 
 	for vehicleID, alert := range vehicleAlerts {
-		if err := sendFirebaseNotification(alert); err != nil {
-			log.Printf("Error sending notification for vehicle %s: %v", vehicleID, err)
-			continue
+		// if err := sendFirebaseNotification(alert); err != nil {
+		// 	log.Printf("Error sending notification for vehicle %s: %v", vehicleID, err)
+		// 	continue
+		// }
+		var message string
+		if alert.ExceedsBy >= 30 {
+			message = createSpeedAlertMessage(alert)
+		} else {
+			message = createCompactSpeedAlertMessage(alert)
 		}
+		Whatsapp.SendMessage(Constants.WhatsAppGPIDEtit, message)
 		alert.AlertedAdmin = true
 		if err := db.Save(alert).Error; err != nil {
 			log.Printf("Failed to update alert status: %v", err)

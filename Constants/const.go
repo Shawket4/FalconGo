@@ -21,4 +21,5 @@ var EmailConfig Models.EmailConfig = Models.EmailConfig{
 const WhatsappGoService = "http://localhost:3000"
 
 const WhatsAppAlertNumber = "+201061856523"
-const WhatsAppGPID = "120363420442360151@g.us"
+const WhatsAppGPIDFuel = "120363420442360151@g.us"
+const WhatsAppGPIDEtit = "120363418908976957@g.us"
