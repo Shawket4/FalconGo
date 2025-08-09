@@ -145,7 +145,9 @@ func FiberConfig() {
 	// app.Post("/api/PreviousStep", Controllers.PreviousStep)
 	// app.Post("/api/CompleteTrip", Controllers.CompleteTrip)
 	app.Get("/api/GetCars", Apis.GetCars)
+	app.Post("/api/GetCar", Apis.GetCar)
 	app.Get("/api/GetDrivers", Apis.GetDrivers)
+	app.Post("/api/GetDriver", Apis.GetDriver)
 	app.Post("/api/GetTransporters", Apis.GetTransporters)
 	app.Use("/api/GetCarProfileData", Apis.GetCarProfileData)
 	app.Use("/api/GetDriverProfileData", Apis.GetDriverProfileData)
@@ -185,6 +187,7 @@ func FiberConfig() {
 	app.Post("/api/GetDriverExpenses", Apis.GetDriverExpenses)
 	app.Post("/api/GetTripExpenses", Apis.GetTripExpenses)
 	app.Post("/api/GetDriverLoans", Apis.GetDriverLoans)
+
 	app.Post("/api/GetTripLoans", Apis.GetTripLoans)
 	// app.Post("/api/CalculateDriverSalary", Apis.CalculateDriverSalary)
 	app.Use("/api/GetNotifications", Notifications.ReturnNotifications)

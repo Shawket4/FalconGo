@@ -81,6 +81,22 @@ func GetCars(c *fiber.Ctx) error {
 	return c.JSON(cars)
 }
 
+func GetCar(c *fiber.Ctx) error {
+	var input struct {
+		ID uint `json:"id"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	var car Models.Car
+	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.ID).Find(&car).Error; err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	return c.JSON(car)
+}
+
 func SetCarDriverPair(c *fiber.Ctx) error {
 	var input struct {
 		CarID    uint `json:"car_id"`
@@ -114,6 +130,22 @@ func GetDrivers(c *fiber.Ctx) error {
 	//drivers, err = db.Query("SELECT `name` FROM `drivers` WHERE AND `driver_license_expiration_date` > CURRENT_DATE() AND `safety_license_expiration_date` > CURRENT_DATE() AND `drug_test_expiration_date` > CURRENT_DATE() AND `is_in_trip` = 0 AND `is_approved` = 1;")
 
 	return c.JSON(drivers)
+}
+
+func GetDriver(c *fiber.Ctx) error {
+	var input struct {
+		ID uint `json:"id"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	var driver Models.Driver
+	if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", input.ID).Find(&driver).Error; err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	return c.JSON(driver)
 }
 
 func GetTransporters(c *fiber.Ctx) error {
