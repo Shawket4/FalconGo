@@ -2942,6 +2942,10 @@ func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 	trip.Distance = mapping.Distance
 	trip.Fee = mapping.Fee
 
+	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", trip.CarID).Update("driver_id", trip.DriverID).Error; err != nil {
+		log.Println(err)
+	}
+
 	// 	defer func() {
 	// 		go func() {
 	// 			emailBody := fmt.Sprintf(`
