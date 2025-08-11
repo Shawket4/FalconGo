@@ -330,6 +330,7 @@ func AddFuelEvent(c *fiber.Ctx) error {
 	inputJson.Price = inputJson.PricePerLiter * inputJson.Liters
 	fmt.Println(inputJson)
 	inputJson.FuelRate = float64(inputJson.OdometerAfter-inputJson.OdometerBefore) / inputJson.Liters
+	inputJson.Method = "Manual"
 	if err := Models.DB.Create(&inputJson).Error; err != nil {
 		log.Println(err.Error())
 		return c.JSON(fiber.Map{

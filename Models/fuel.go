@@ -25,6 +25,7 @@ type FuelEvent struct {
 	OdometerAfter      int     `json:"odometer_after"`
 	ExcelIndex         int
 	ExcelIndexExpenses int
+	Method             string `json:"method"`
 }
 
 func (input *FuelEvent) Add() (*FuelEvent, error) {

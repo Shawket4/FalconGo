@@ -487,14 +487,27 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 	fuelRate := calculateFuelRate(odometerBefore, record.Odo, liters)
 
 	// Validate essential fields are not empty
-	driverName := strings.TrimSpace(record.DelegateName)
+	var driverID uint
+	var driverName string
+	if err := Models.DB.Model(&Models.Car{}).Where("car_no_plate = ?", convertedPlate).Select("driver_id", &driverID).Error; err != nil {
+		log.Println(err)
+	}
+	if driverID != 0 {
+		if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", driverID).Select("name", &driverName).Error; err != nil {
+			log.Println(err)
+		}
+	}
+
 	if driverName == "" {
-		driverName = "Unknown Driver" // Provide default
+		driverName = strings.TrimSpace(record.DelegateName)
+		if driverName == "" {
+			driverName = "PetroApp Unknown Driver" // Provide default
+		}
 	}
 
 	transporter := strings.TrimSpace(record.Station)
 	if transporter == "" {
-		transporter = "Unknown Station" // Provide default
+		transporter = "Unknown PetroApp Station" // Provide default
 	}
 
 	fuelEvent := &Models.FuelEvent{
@@ -509,6 +522,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		OdometerBefore: odometerBefore,
 		OdometerAfter:  record.Odo,
 		Time:           parsedTime,
+		Method:         "PetroApp",
 	}
 
 	whatsappMessage := createWhatsAppMessage(*fuelEvent)
