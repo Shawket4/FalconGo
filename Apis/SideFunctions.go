@@ -111,7 +111,7 @@ func GetFuelEvents(c *fiber.Ctx) error {
 		log.Printf("Filtering by payment method: %s\n", methodFilter)
 		// Assuming your FuelEvent model has a payment_method or method field
 		// Adjust the field name based on your actual database schema
-		query = query.Where("payment_method = ?", "PetroApp")
+		query = query.Where("method = ?", "PetroApp")
 
 		// Alternative if the field is named differently:
 		// query = query.Where("method = ?", "PetroApp")
