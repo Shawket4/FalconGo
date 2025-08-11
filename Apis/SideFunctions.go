@@ -74,6 +74,9 @@ func GetFuelEvents(c *fiber.Ctx) error {
 	startDateStr := c.Query("startDate")
 	endDateStr := c.Query("endDate")
 
+	// Get method filter parameter (new)
+	methodFilter := c.Query("method")
+
 	// Build the query
 	query := Models.DB
 
@@ -103,6 +106,20 @@ func GetFuelEvents(c *fiber.Ctx) error {
 		}
 	}
 
+	// Apply method filter (new)
+	if methodFilter == "PetroApp" {
+		log.Printf("Filtering by payment method: %s\n", methodFilter)
+		// Assuming your FuelEvent model has a payment_method or method field
+		// Adjust the field name based on your actual database schema
+		query = query.Where("payment_method = ?", "PetroApp")
+
+		// Alternative if the field is named differently:
+		// query = query.Where("method = ?", "PetroApp")
+		// or
+		// query = query.Where("fuel_method = ?", "PetroApp")
+	}
+	// If methodFilter is "all" or empty, no additional filter is applied
+
 	// Execute the query
 	if err := query.Find(&FuelEvents).Error; err != nil {
 		log.Println(err.Error())
@@ -110,6 +127,9 @@ func GetFuelEvents(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
+
+	// Log the count for debugging
+	log.Printf("Found %d fuel events with filters - method: %s\n", len(FuelEvents), methodFilter)
 
 	// Sort the results
 	FuelEvents = sortFuelByDate(FuelEvents)
