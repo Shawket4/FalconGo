@@ -2,8 +2,10 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -2875,6 +2877,25 @@ func (h *TripHandler) GetTrip(c *fiber.Ctx) error {
 	})
 }
 
+func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]interface{}, error) {
+	// Replace with your OSRM server URL
+	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=geometry&steps=false",
+		startLng, startLat, endLng, endLat)
+
+	resp, err := http.Get(osrmURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // CreateTrip creates a new trip
 func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 	trip := new(Models.TripStruct)
@@ -2946,48 +2967,72 @@ func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 		log.Println(err)
 	}
 
-	// 	defer func() {
-	// 		go func() {
-	// 			emailBody := fmt.Sprintf(`
-	// Trip details:
-
-	// Receipt No: %s
-	// Date: %s
-	// Company: %s
-	// Terminal: %s
-	// Drop-off: %s
-	// Tank: %d
-	// Driver: %s
-	// Car: %s
-	// Distance: %.2f km
-	// Fee: $%.2f
-
-	// This is an automated message.
-	// `,
-	// 				trip.ReceiptNo,
-	// 				trip.Date,
-	// 				trip.Company,
-	// 				trip.Terminal,
-	// 				trip.DropOffPoint,
-	// 				trip.TankCapacity,
-	// 				trip.DriverName,
-	// 				trip.CarNoPlate,
-	// 				trip.Distance,
-	// 				trip.Fee,
-	// 			)
-	// 			email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-	// 				To:      []string{"shawket.4@icloud.com", "mohamedeltaef44@gmail.com"},
-	// 				Subject: fmt.Sprintf("%s: A New Trip Has Been Registered", trip.Company),
-	// 				Body:    emailBody,
-	// 				IsHTML:  false,
-	// 			})
-	// 		}()
-	// 	}()
+	var Terminal Models.Terminal
+	if err := Models.DB.Model(&Models.Terminal{}).Where("name = ?", trip.Terminal).First(&Terminal).Error; err != nil {
+		log.Println(err)
+	}
 
 	return c.Status(http.StatusCreated).JSON(fiber.Map{
 		"message": "Trip created successfully",
 		"data":    trip,
+		"terminal_location": map[string]interface{}{
+			"lat": Terminal.Latitude,
+			"lng": Terminal.Longitude,
+		},
+		"drop_off_point_location": map[string]interface{}{
+			"lat": mapping.Latitude,
+			"lng": mapping.Longitude,
+		},
+		"route_data": func() map[string]interface{} {
+			osrmData, err := getRouteFromOSRM(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+			if err != nil {
+				log.Printf("OSRM error: %v", err)
+				// Fallback to simple calculation
+				distance := calculateDistance(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+				return map[string]interface{}{
+					"distance": distance,
+					"duration": distance * 2 * 60, // rough estimate in seconds
+					"geometry": nil,
+				}
+			}
+
+			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+				route := routes[0].(map[string]interface{})
+				return map[string]interface{}{
+					"distance": route["distance"].(float64) / 1000, // Convert to km
+					"duration": route["duration"].(float64),        // Already in seconds
+					"geometry": route["geometry"],
+				}
+			}
+
+			return nil
+		}(),
 	})
+}
+
+func calculateDistance(lat1, lng1, lat2, lng2 float64) float64 {
+	const R = 6371 // Earth's radius in kilometers
+
+	// Convert latitude and longitude from degrees to radians
+	lat1Rad := lat1 * math.Pi / 180
+	lng1Rad := lng1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	lng2Rad := lng2 * math.Pi / 180
+
+	// Haversine formula
+	dLat := lat2Rad - lat1Rad
+	dLng := lng2Rad - lng1Rad
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
+			math.Sin(dLng/2)*math.Sin(dLng/2)
+
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	// Distance in kilometers
+	distance := R * c
+
+	return distance
 }
 
 // UpdateTrip updates an existing trip
@@ -3144,47 +3189,46 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Distance = mapping.Distance
 		existingTrip.Fee = mapping.Fee
 	}
-	// defer func() {
-	// 	go func() {
-	// 		emailBody := fmt.Sprintf(`
-	// 		Trip details:
+	var Terminal Models.Terminal
+	if err := Models.DB.Model(&Models.Terminal{}).Where("name = ?", existingTrip.Terminal).First(&Terminal).Error; err != nil {
+		log.Println(err)
+	}
 
-	// 		Receipt No: %s
-	// 		Date: %s
-	// 		Company: %s
-	// 		Terminal: %s
-	// 		Drop-off: %s
-	// 		Tank: %d
-	// 		Driver: %s
-	// 		Car: %s
-	// 		Distance: %.2f km
-	// 		Fee: $%.2f
-
-	// 		This is an automated message.
-	// 		`,
-	// 			existingTrip.ReceiptNo,
-	// 			existingTrip.Date,
-	// 			existingTrip.Company,
-	// 			existingTrip.Terminal,
-	// 			existingTrip.DropOffPoint,
-	// 			existingTrip.TankCapacity,
-	// 			existingTrip.DriverName,
-	// 			existingTrip.CarNoPlate,
-	// 			existingTrip.Distance,
-	// 			existingTrip.Fee,
-	// 		)
-	// 		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-	// 			To:      []string{"shawket.4@icloud.com", "mohamedeltaef44@gmail.com"},
-	// 			Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Updated", existingTrip.Company, existingTrip.ReceiptNo),
-	// 			Body:    emailBody,
-	// 			IsHTML:  false,
-	// 		})
-	// 	}()
-
-	// }()
-	return c.Status(http.StatusOK).JSON(fiber.Map{
+	return c.Status(http.StatusCreated).JSON(fiber.Map{
 		"message": "Trip updated successfully",
 		"data":    existingTrip,
+		"terminal_location": map[string]interface{}{
+			"lat": Terminal.Latitude,
+			"lng": Terminal.Longitude,
+		},
+		"drop_off_point_location": map[string]interface{}{
+			"lat": mapping.Latitude,
+			"lng": mapping.Longitude,
+		},
+		"route_data": func() map[string]interface{} {
+			osrmData, err := getRouteFromOSRM(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+			if err != nil {
+				log.Printf("OSRM error: %v", err)
+				// Fallback to simple calculation
+				distance := calculateDistance(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+				return map[string]interface{}{
+					"distance": distance,
+					"duration": distance * 2 * 60, // rough estimate in seconds
+					"geometry": nil,
+				}
+			}
+
+			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+				route := routes[0].(map[string]interface{})
+				return map[string]interface{}{
+					"distance": route["distance"].(float64) / 1000, // Convert to km
+					"duration": route["duration"].(float64),        // Already in seconds
+					"geometry": route["geometry"],
+				}
+			}
+
+			return nil
+		}(),
 	})
 }
 

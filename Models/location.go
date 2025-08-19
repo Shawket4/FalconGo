@@ -10,6 +10,8 @@ type Location struct {
 
 type Terminal struct {
 	gorm.Model
-	Name    string `json:"name" gorm:"unique"`
-	Address string `json:"address"`
+	Name      string  `json:"name" gorm:"unique"`
+	Address   string  `json:"address"`
+	Latitude  float64 `json:"lat"`
+	Longitude float64 `json:"long"`
 }

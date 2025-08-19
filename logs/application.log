@@ -16988,3 +16988,566 @@
 2025/08/19 12:11:47 Collector successfully authenticated
 2025/08/19 12:11:47 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+09%3A11%3A45+GMT
 2025/08/19 12:11:50 UNIQUE constraint failed: speed_alerts.hash
+2025/08/19 21:48:29 Starting PetroApp records fetch operation
+2025/08/19 21:48:29 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 21:48:29 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 21:48:31 PetroApp API response status: 200 200 OK
+2025/08/19 21:48:31 Successfully fetched 7 records from PetroApp API
+2025/08/19 21:48:31 Validated 7 out of 7 records
+2025/08/19 21:48:31 Processing 7 PetroApp records for storage
+2025/08/19 21:48:31 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 21:48:31 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 21:48:31 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 21:48:31 Starting PetroApp to FuelEvent synchronization
+2025/08/19 21:48:31 No unsynced PetroApp records found
+2025/08/19 21:48:33 HTTP client successfully authenticated
+2025/08/19 21:48:49 Starting PetroApp records fetch operation
+2025/08/19 21:48:49 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 21:48:49 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 21:48:50 PetroApp API response status: 200 200 OK
+2025/08/19 21:48:50 Successfully fetched 7 records from PetroApp API
+2025/08/19 21:48:50 Validated 7 out of 7 records
+2025/08/19 21:48:50 Processing 7 PetroApp records for storage
+2025/08/19 21:48:50 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 21:48:50 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 21:48:50 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 21:48:50 Starting PetroApp to FuelEvent synchronization
+2025/08/19 21:48:50 No unsynced PetroApp records found
+2025/08/19 21:48:52 HTTP client successfully authenticated
+2025/08/19 21:48:54 Collector successfully authenticated
+2025/08/19 22:01:23 Starting PetroApp records fetch operation
+2025/08/19 22:01:23 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 22:01:23 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 22:01:25 PetroApp API response status: 200 200 OK
+2025/08/19 22:01:25 Successfully fetched 7 records from PetroApp API
+2025/08/19 22:01:25 Validated 7 out of 7 records
+2025/08/19 22:01:25 Processing 7 PetroApp records for storage
+2025/08/19 22:01:25 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 22:01:25 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 22:01:25 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 22:01:25 Starting PetroApp to FuelEvent synchronization
+2025/08/19 22:01:25 No unsynced PetroApp records found
+2025/08/19 22:01:27 HTTP client successfully authenticated
+2025/08/19 22:01:29 Collector successfully authenticated
+2025/08/19 22:01:34 {"timestamp":"2025-08-19T22:01:34.18982+03:00","method":"POST","path":"/api/login","url":"/api/login","status":200,"latency":739235167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":158}
+2025/08/19 22:01:34 Default date range: 2025-08-01 to 2025-08-31
+2025/08/19 22:01:34 Found 74 fuel events with filters - method: 
+2025/08/19 22:01:34 {"timestamp":"2025-08-19T22:01:34.962603+03:00","method":"GET","path":"/api/protected/GetFuelEvents","url":"/api/protected/GetFuelEvents","status":200,"latency":35869875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":4193}
+2025/08/19 22:01:35 {"timestamp":"2025-08-19T22:01:35.141586+03:00","method":"GET","path":"/api/protected/CheckWPLogin","url":"/api/protected/CheckWPLogin","status":500,"latency":3004750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":36}
+2025/08/19 22:01:39 Default date range: 2025-08-01 to 2025-08-31
+2025/08/19 22:01:39 Found 74 fuel events with filters - method: 
+2025/08/19 22:01:39 {"timestamp":"2025-08-19T22:01:39.775829+03:00","method":"GET","path":"/api/protected/GetFuelEvents","url":"/api/protected/GetFuelEvents","status":200,"latency":58690583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":4193}
+2025/08/19 22:01:42 {"timestamp":"2025-08-19T22:01:42.225207+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":502417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:01:42 {"timestamp":"2025-08-19T22:01:42.231599+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":50714416,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2912}
+2025/08/19 22:01:42 {"timestamp":"2025-08-19T22:01:42.23416+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":58734833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:01:54 {"timestamp":"2025-08-19T22:01:54.485476+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1122500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:01:57 {"timestamp":"2025-08-19T22:01:57.049099+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":10979833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:02:16 HTTP client successfully authenticated
+2025/08/19 22:02:18 Collector successfully authenticated
+2025/08/19 22:02:18 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/19 22:02:24 HTTP client successfully authenticated
+2025/08/19 22:02:27 Collector successfully authenticated
+2025/08/19 22:02:27 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A02%3A18+GMT
+2025/08/19 22:02:30 Found 8 speed alerts for vehicle ف ج م 8567
+2025/08/19 22:02:31 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:02:35 HTTP client successfully authenticated
+2025/08/19 22:02:39 Collector successfully authenticated
+2025/08/19 22:02:39 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A02%3A31+GMT
+2025/08/19 22:02:39 record not found
+2025/08/19 22:02:39 {"timestamp":"2025-08-19T22:02:39.78534+03:00","method":"POST","path":"/api/trips","url":"/api/trips","status":201,"latency":8406417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":345}
+2025/08/19 22:02:43 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:02:45 HTTP client successfully authenticated
+2025/08/19 22:02:48 Collector successfully authenticated
+2025/08/19 22:02:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A02%3A43+GMT
+2025/08/19 22:02:51 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:02:51 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:02:53 HTTP client successfully authenticated
+2025/08/19 22:02:56 Collector successfully authenticated
+2025/08/19 22:02:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A02%3A51+GMT
+2025/08/19 22:02:59 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:03:03 HTTP client successfully authenticated
+2025/08/19 22:03:03 {"timestamp":"2025-08-19T22:03:03.857126+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":424125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:03 {"timestamp":"2025-08-19T22:03:03.858309+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":14595250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:03:08 Collector successfully authenticated
+2025/08/19 22:03:08 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A02%3A59+GMT
+2025/08/19 22:03:09 {"timestamp":"2025-08-19T22:03:09.419708+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":368166,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:09 {"timestamp":"2025-08-19T22:03:09.421201+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026search=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":16162958,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":900}
+2025/08/19 22:03:10 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:03:13 HTTP client successfully authenticated
+2025/08/19 22:03:16 {"timestamp":"2025-08-19T22:03:16.291756+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":990583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:16 {"timestamp":"2025-08-19T22:03:16.291756+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":19051666,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:03:16 Collector successfully authenticated
+2025/08/19 22:03:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A10+GMT
+2025/08/19 22:03:18 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:03:18 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/19 22:03:22 HTTP client successfully authenticated
+2025/08/19 22:03:22 {"timestamp":"2025-08-19T22:03:22.617585+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":417250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:22 {"timestamp":"2025-08-19T22:03:22.618763+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":13995416,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":834}
+2025/08/19 22:03:25 Collector successfully authenticated
+2025/08/19 22:03:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A18+GMT
+2025/08/19 22:03:27 Found 1 speed alerts for vehicle ف ا ن 7421
+2025/08/19 22:03:27 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:03:30 HTTP client successfully authenticated
+2025/08/19 22:03:34 Collector successfully authenticated
+2025/08/19 22:03:34 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A27+GMT
+2025/08/19 22:03:38 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:03:44 HTTP client successfully authenticated
+2025/08/19 22:03:47 Collector successfully authenticated
+2025/08/19 22:03:47 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A38+GMT
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.433418+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":793917,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.434448+03:00","method":"GET","path":"/api/trips/2719","url":"/api/trips/2719","status":200,"latency":3831500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":325}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.438884+03:00","method":"GET","path":"/api/trips/2719","url":"/api/trips/2719","status":200,"latency":2913000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":325}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.443657+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":411042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.444911+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":207625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.444327+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":8073709,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.453253+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":6768417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.436235+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":45384750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2877}
+2025/08/19 22:03:50 {"timestamp":"2025-08-19T22:03:50.437906+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":56399000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:03:50 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:03:52 {"timestamp":"2025-08-19T22:03:52.072761+03:00","method":"PUT","path":"/api/trips/2719","url":"/api/trips/2719","status":201,"latency":6503167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":354}
+2025/08/19 22:03:52 {"timestamp":"2025-08-19T22:03:52.105473+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":358125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:52 {"timestamp":"2025-08-19T22:03:52.105454+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":15988459,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:03:53 HTTP client successfully authenticated
+2025/08/19 22:03:56 {"timestamp":"2025-08-19T22:03:56.256227+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":255333,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:03:56 {"timestamp":"2025-08-19T22:03:56.256587+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":12250750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":837}
+2025/08/19 22:03:56 Collector successfully authenticated
+2025/08/19 22:03:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A50+GMT
+2025/08/19 22:03:58 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:03:58 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:04:01 HTTP client successfully authenticated
+2025/08/19 22:04:03 Collector successfully authenticated
+2025/08/19 22:04:03 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A03%3A58+GMT
+2025/08/19 22:04:08 Found 1 speed alerts for vehicle ف م س 9247
+2025/08/19 22:04:08 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:04:11 HTTP client successfully authenticated
+2025/08/19 22:04:14 Collector successfully authenticated
+2025/08/19 22:04:14 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A08+GMT
+2025/08/19 22:04:17 Error checking vehicle ف د ى 6584: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:04:17 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:04:20 HTTP client successfully authenticated
+2025/08/19 22:04:21 Collector successfully authenticated
+2025/08/19 22:04:21 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A17+GMT
+2025/08/19 22:04:25 Error checking vehicle ف ع ص 4381: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:04:25 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/19 22:04:27 HTTP client successfully authenticated
+2025/08/19 22:04:31 Collector successfully authenticated
+2025/08/19 22:04:31 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A25+GMT
+2025/08/19 22:04:34 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:04:34 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:04:36 HTTP client successfully authenticated
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.101201+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":398459,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.101201+03:00","method":"GET","path":"/api/trips/2719","url":"/api/trips/2719","status":200,"latency":3287167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":340}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.106622+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":725875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.108182+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":411750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.107649+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":8836500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.11707+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":6551875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.104787+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":42785666,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2877}
+2025/08/19 22:04:39 {"timestamp":"2025-08-19T22:04:39.105806+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":54494583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:04:40 Collector successfully authenticated
+2025/08/19 22:04:40 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A34+GMT
+2025/08/19 22:04:42 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:04:45 HTTP client successfully authenticated
+2025/08/19 22:04:46 {"timestamp":"2025-08-19T22:04:46.33261+03:00","method":"PUT","path":"/api/trips/2719","url":"/api/trips/2719","status":201,"latency":6969750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":354}
+2025/08/19 22:04:46 {"timestamp":"2025-08-19T22:04:46.364909+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":350167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:04:46 {"timestamp":"2025-08-19T22:04:46.365473+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":13014042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:04:48 Collector successfully authenticated
+2025/08/19 22:04:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A42+GMT
+2025/08/19 22:04:50 {"timestamp":"2025-08-19T22:04:50.203577+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":359375,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:04:50 {"timestamp":"2025-08-19T22:04:50.203565+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":13699416,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":837}
+2025/08/19 22:04:51 Found 3 speed alerts for vehicle ف ر ص 8461
+2025/08/19 22:04:51 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:04:52 {"timestamp":"2025-08-19T22:04:52.59966+03:00","method":"DELETE","path":"/api/trips/2719","url":"/api/trips/2719","status":200,"latency":2091833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":39}
+2025/08/19 22:04:52 {"timestamp":"2025-08-19T22:04:52.603691+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":15802167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":842}
+2025/08/19 22:04:53 {"timestamp":"2025-08-19T22:04:53.301472+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":436875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:04:53 {"timestamp":"2025-08-19T22:04:53.304072+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":51266208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2877}
+2025/08/19 22:04:53 {"timestamp":"2025-08-19T22:04:53.304085+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":64635500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:04:55 HTTP client successfully authenticated
+2025/08/19 22:04:58 Collector successfully authenticated
+2025/08/19 22:04:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A04%3A51+GMT
+2025/08/19 22:04:58 {"timestamp":"2025-08-19T22:04:58.41966+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1499542,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:05:00 {"timestamp":"2025-08-19T22:05:00.52449+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":13240791,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:05:00 Found 12 speed alerts for vehicle ف د ى 6834
+2025/08/19 22:05:01 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:05:04 HTTP client successfully authenticated
+2025/08/19 22:05:06 {"timestamp":"2025-08-19T22:05:06.094733+03:00","method":"POST","path":"/api/trips","url":"/api/trips","status":201,"latency":5811625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":327}
+2025/08/19 22:05:06 Collector successfully authenticated
+2025/08/19 22:05:06 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A05%3A01+GMT
+2025/08/19 22:05:10 UNIQUE constraint failed: speed_alerts.hash
+2025/08/19 22:06:10 {"timestamp":"2025-08-19T22:06:10.185141+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":432458,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:06:10 {"timestamp":"2025-08-19T22:06:10.185132+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":12613708,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:06:14 {"timestamp":"2025-08-19T22:06:14.06471+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":558917,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:06:14 {"timestamp":"2025-08-19T22:06:14.064665+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":15517333,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":865}
+2025/08/19 22:06:16 {"timestamp":"2025-08-19T22:06:16.199868+03:00","method":"DELETE","path":"/api/trips/2720","url":"/api/trips/2720","status":200,"latency":2248042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":39}
+2025/08/19 22:06:16 {"timestamp":"2025-08-19T22:06:16.204947+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":15826584,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":842}
+2025/08/19 22:06:16 {"timestamp":"2025-08-19T22:06:16.964598+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":381750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:06:17 {"timestamp":"2025-08-19T22:06:16.968226+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":51928167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2872}
+2025/08/19 22:06:17 {"timestamp":"2025-08-19T22:06:16.970307+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":61685334,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:06:21 {"timestamp":"2025-08-19T22:06:21.745395+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":962375,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:06:22 {"timestamp":"2025-08-19T22:06:22.870022+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":7697208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:06:25 record not found
+2025/08/19 22:06:25 {"timestamp":"2025-08-19T22:06:25.48043+03:00","method":"POST","path":"/api/trips","url":"/api/trips","status":201,"latency":6514958,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":331}
+2025/08/19 22:06:56 {"timestamp":"2025-08-19T22:06:56.06832+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":290417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:06:56 {"timestamp":"2025-08-19T22:06:56.067895+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":15953875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:06:59 {"timestamp":"2025-08-19T22:06:59.774172+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":853792,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:06:59 {"timestamp":"2025-08-19T22:06:59.775356+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":14746917,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":865}
+2025/08/19 22:07:15 {"timestamp":"2025-08-19T22:07:15.896278+03:00","method":"DELETE","path":"/api/trips/2721","url":"/api/trips/2721","status":200,"latency":2940791,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":39}
+2025/08/19 22:07:15 {"timestamp":"2025-08-19T22:07:15.902965+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":16340084,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":842}
+2025/08/19 22:07:19 {"timestamp":"2025-08-19T22:07:19.029299+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":418417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:07:19 {"timestamp":"2025-08-19T22:07:19.036097+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":51037708,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2877}
+2025/08/19 22:07:19 {"timestamp":"2025-08-19T22:07:19.037329+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":63275875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:07:22 {"timestamp":"2025-08-19T22:07:22.764251+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1218458,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:07:24 {"timestamp":"2025-08-19T22:07:24.03243+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":11161791,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:07:39 {"timestamp":"2025-08-19T22:07:39.615374+03:00","method":"POST","path":"/api/trips","url":"/api/trips","status":201,"latency":7065625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":330}
+2025/08/19 22:09:06 {"timestamp":"2025-08-19T22:09:06.34732+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":614833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:06 {"timestamp":"2025-08-19T22:09:06.348804+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":15547041,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:09:09 {"timestamp":"2025-08-19T22:09:09.747413+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":384125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:09 {"timestamp":"2025-08-19T22:09:09.748655+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":14410084,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":866}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.386633+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":375333,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.387226+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":3059875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":294}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.390864+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":2916042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":294}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.396505+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":692083,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.398352+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":896084,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.397539+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":9702833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.407877+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":6947958,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.393639+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":47183709,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2875}
+2025/08/19 22:09:11 {"timestamp":"2025-08-19T22:09:11.393803+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":58742500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:09:13 {"timestamp":"2025-08-19T22:09:13.342254+03:00","method":"PUT","path":"/api/trips/2722","url":"/api/trips/2722","status":201,"latency":6556875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":345}
+2025/08/19 22:09:13 {"timestamp":"2025-08-19T22:09:13.373596+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":344792,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:13 {"timestamp":"2025-08-19T22:09:13.37359+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":15680083,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:09:17 {"timestamp":"2025-08-19T22:09:17.507445+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":245583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:17 {"timestamp":"2025-08-19T22:09:17.507427+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":9001500,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":859}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.184017+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":376834,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.184602+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":3954250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":309}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.190226+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":546458,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.191916+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":407125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.191046+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":9657709,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.201291+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":7172583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.187509+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":49408667,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2875}
+2025/08/19 22:09:19 {"timestamp":"2025-08-19T22:09:19.188691+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":60812250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:09:24 {"timestamp":"2025-08-19T22:09:24.456144+03:00","method":"PUT","path":"/api/trips/2722","url":"/api/trips/2722","status":201,"latency":6043000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":338}
+2025/08/19 22:09:24 {"timestamp":"2025-08-19T22:09:24.488276+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":338041,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:24 {"timestamp":"2025-08-19T22:09:24.488276+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":14204708,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:09:29 {"timestamp":"2025-08-19T22:09:29.798785+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":397375,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:09:29 {"timestamp":"2025-08-19T22:09:29.799449+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":12016125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":859}
+2025/08/19 22:10:10 Starting PetroApp records fetch operation
+2025/08/19 22:10:10 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 22:10:10 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 22:10:11 PetroApp API response status: 200 200 OK
+2025/08/19 22:10:11 Successfully fetched 7 records from PetroApp API
+2025/08/19 22:10:11 Validated 7 out of 7 records
+2025/08/19 22:10:11 Processing 7 PetroApp records for storage
+2025/08/19 22:10:11 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 22:10:11 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 22:10:11 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 22:10:11 Starting PetroApp to FuelEvent synchronization
+2025/08/19 22:10:11 No unsynced PetroApp records found
+2025/08/19 22:10:14 HTTP client successfully authenticated
+2025/08/19 22:10:16 Collector successfully authenticated
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.150617+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":476708,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.150619+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":4363291,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":306}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.166214+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1245750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.168058+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":485292,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.166199+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":8941667,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.17577+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":6162583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.164925+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":43428583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2867}
+2025/08/19 22:10:53 {"timestamp":"2025-08-19T22:10:53.166234+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":54983167,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:10:54 {"timestamp":"2025-08-19T22:10:54.044972+03:00","method":"PUT","path":"/api/trips/2722","url":"/api/trips/2722","status":201,"latency":6516875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":338}
+2025/08/19 22:11:00 HTTP client successfully authenticated
+2025/08/19 22:11:02 Collector successfully authenticated
+2025/08/19 22:11:02 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/19 22:11:04 HTTP client successfully authenticated
+2025/08/19 22:11:07 Collector successfully authenticated
+2025/08/19 22:11:07 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A02+GMT
+2025/08/19 22:11:10 Found 8 speed alerts for vehicle ف ج م 8567
+2025/08/19 22:11:11 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:11:14 HTTP client successfully authenticated
+2025/08/19 22:11:16 Collector successfully authenticated
+2025/08/19 22:11:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A11+GMT
+2025/08/19 22:11:19 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:11:22 HTTP client successfully authenticated
+2025/08/19 22:11:23 Collector successfully authenticated
+2025/08/19 22:11:23 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A19+GMT
+2025/08/19 22:11:25 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:11:25 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:11:27 {"timestamp":"2025-08-19T22:11:27.16512+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":465084,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:11:27 {"timestamp":"2025-08-19T22:11:27.165867+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":12063791,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:11:28 HTTP client successfully authenticated
+2025/08/19 22:11:29 {"timestamp":"2025-08-19T22:11:29.635498+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":381416,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:11:29 {"timestamp":"2025-08-19T22:11:29.636102+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":12213250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":857}
+2025/08/19 22:11:30 Collector successfully authenticated
+2025/08/19 22:11:30 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A25+GMT
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.029189+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":746334,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.029188+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":3541250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":304}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.037446+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1785959,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.040157+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":477041,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.038545+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":9796375,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.0489+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":9029458,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.037015+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":48480959,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2867}
+2025/08/19 22:11:32 {"timestamp":"2025-08-19T22:11:32.037034+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":59141583,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:11:33 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:11:34 {"timestamp":"2025-08-19T22:11:34.121746+03:00","method":"PUT","path":"/api/trips/2722","url":"/api/trips/2722","status":201,"latency":9699958,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":337}
+2025/08/19 22:11:35 HTTP client successfully authenticated
+2025/08/19 22:11:40 {"timestamp":"2025-08-19T22:11:40.207508+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":346916,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:11:40 {"timestamp":"2025-08-19T22:11:40.207496+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":14608625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:11:42 {"timestamp":"2025-08-19T22:11:42.939133+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":662917,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:11:42 {"timestamp":"2025-08-19T22:11:42.940173+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":13460542,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":860}
+2025/08/19 22:11:43 Collector successfully authenticated
+2025/08/19 22:11:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A33+GMT
+2025/08/19 22:11:46 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:11:49 HTTP client successfully authenticated
+2025/08/19 22:11:52 Collector successfully authenticated
+2025/08/19 22:11:52 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A46+GMT
+2025/08/19 22:11:55 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:11:55 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/19 22:11:58 HTTP client successfully authenticated
+2025/08/19 22:12:00 Collector successfully authenticated
+2025/08/19 22:12:00 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A11%3A55+GMT
+2025/08/19 22:12:02 Found 1 speed alerts for vehicle ف ا ن 7421
+2025/08/19 22:12:03 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:12:07 HTTP client successfully authenticated
+2025/08/19 22:12:16 Collector successfully authenticated
+2025/08/19 22:12:16 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A03+GMT
+2025/08/19 22:12:19 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:12:21 HTTP client successfully authenticated
+2025/08/19 22:12:25 Collector successfully authenticated
+2025/08/19 22:12:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A19+GMT
+2025/08/19 22:12:29 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:12:31 HTTP client successfully authenticated
+2025/08/19 22:12:33 Collector successfully authenticated
+2025/08/19 22:12:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A29+GMT
+2025/08/19 22:12:35 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:12:35 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:12:40 HTTP client successfully authenticated
+2025/08/19 22:12:41 Collector successfully authenticated
+2025/08/19 22:12:41 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A35+GMT
+2025/08/19 22:12:43 Found 1 speed alerts for vehicle ف م س 9247
+2025/08/19 22:12:44 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:12:46 HTTP client successfully authenticated
+2025/08/19 22:12:48 Collector successfully authenticated
+2025/08/19 22:12:48 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A44+GMT
+2025/08/19 22:12:49 Error checking vehicle ف د ى 6584: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:12:49 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:12:52 HTTP client successfully authenticated
+2025/08/19 22:12:56 Collector successfully authenticated
+2025/08/19 22:12:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A49+GMT
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.69832+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":225083,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.697865+03:00","method":"GET","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":3432792,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":309}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.706479+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1867750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.708911+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":398250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.708173+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":10711000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.719579+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":8165834,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.706131+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":47985209,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2867}
+2025/08/19 22:12:58 {"timestamp":"2025-08-19T22:12:58.706158+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":60056208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:12:59 Error checking vehicle ف ع ص 4381: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:12:59 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/19 22:13:01 HTTP client successfully authenticated
+2025/08/19 22:13:01 {"timestamp":"2025-08-19T22:13:01.433516+03:00","method":"PUT","path":"/api/trips/2722","url":"/api/trips/2722","status":201,"latency":5161959,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":337}
+2025/08/19 22:13:03 Collector successfully authenticated
+2025/08/19 22:13:03 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A12%3A59+GMT
+2025/08/19 22:13:04 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:13:04 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:13:07 HTTP client successfully authenticated
+2025/08/19 22:13:09 Collector successfully authenticated
+2025/08/19 22:13:09 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A13%3A04+GMT
+2025/08/19 22:13:09 {"timestamp":"2025-08-19T22:13:09.979525+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":780125,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:13:09 {"timestamp":"2025-08-19T22:13:09.980621+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":14826250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":898}
+2025/08/19 22:13:12 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:13:15 HTTP client successfully authenticated
+2025/08/19 22:13:18 Collector successfully authenticated
+2025/08/19 22:13:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A13%3A12+GMT
+2025/08/19 22:13:20 Found 3 speed alerts for vehicle ف ر ص 8461
+2025/08/19 22:13:20 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:13:24 HTTP client successfully authenticated
+2025/08/19 22:13:26 Collector successfully authenticated
+2025/08/19 22:13:26 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A13%3A20+GMT
+2025/08/19 22:13:28 Found 18 speed alerts for vehicle ف د ى 6834
+2025/08/19 22:13:29 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:13:30 {"timestamp":"2025-08-19T22:13:30.738803+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":403250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:13:30 {"timestamp":"2025-08-19T22:13:30.739439+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":14779208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":869}
+2025/08/19 22:13:31 HTTP client successfully authenticated
+2025/08/19 22:13:33 Collector successfully authenticated
+2025/08/19 22:13:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A13%3A29+GMT
+2025/08/19 22:13:33 {"timestamp":"2025-08-19T22:13:33.79203+03:00","method":"DELETE","path":"/api/trips/2722","url":"/api/trips/2722","status":200,"latency":2399042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":39}
+2025/08/19 22:13:33 {"timestamp":"2025-08-19T22:13:33.803438+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":16063792,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":842}
+2025/08/19 22:13:35 UNIQUE constraint failed: speed_alerts.hash
+2025/08/19 22:13:43 {"timestamp":"2025-08-19T22:13:43.288887+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":629709,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:13:43 {"timestamp":"2025-08-19T22:13:43.292756+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":45647292,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2867}
+2025/08/19 22:13:43 {"timestamp":"2025-08-19T22:13:43.292756+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":58212166,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:13:50 {"timestamp":"2025-08-19T22:13:50.992058+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":1206584,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:13:53 {"timestamp":"2025-08-19T22:13:53.053278+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":12169208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:13:55 {"timestamp":"2025-08-19T22:13:55.920817+03:00","method":"POST","path":"/api/trips","url":"/api/trips","status":201,"latency":6193417,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":336}
+2025/08/19 22:18:35 Starting PetroApp records fetch operation
+2025/08/19 22:18:35 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 22:18:35 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 22:18:37 PetroApp API response status: 200 200 OK
+2025/08/19 22:18:37 Successfully fetched 7 records from PetroApp API
+2025/08/19 22:18:37 Validated 7 out of 7 records
+2025/08/19 22:18:37 Processing 7 PetroApp records for storage
+2025/08/19 22:18:37 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 22:18:37 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 22:18:37 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 22:18:37 Starting PetroApp to FuelEvent synchronization
+2025/08/19 22:18:37 No unsynced PetroApp records found
+2025/08/19 22:18:42 HTTP client successfully authenticated
+2025/08/19 22:18:43 Collector successfully authenticated
+2025/08/19 22:19:03 {"timestamp":"2025-08-19T22:19:03.934251+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":841083,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:19:03 {"timestamp":"2025-08-19T22:19:03.934352+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":2783000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:19:03 {"timestamp":"2025-08-19T22:19:03.934398+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":17451833,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:19:03 {"timestamp":"2025-08-19T22:19:03.939075+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":53879333,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2916}
+2025/08/19 22:19:04 {"timestamp":"2025-08-19T22:19:03.940851+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":62024375,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:19:08 {"timestamp":"2025-08-19T22:19:08.018308+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":488625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:19:08 {"timestamp":"2025-08-19T22:19:08.019511+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19","status":200,"latency":14726625,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":883}
+2025/08/19 22:19:10 {"timestamp":"2025-08-19T22:19:10.444946+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":413292,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:19:10 {"timestamp":"2025-08-19T22:19:10.446282+03:00","method":"GET","path":"/api/trips/date","url":"/api/trips/date?page=1\u0026start_date=2025-08-01\u0026end_date=2025-08-19\u0026company=Watanya","status":200,"latency":11121166,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":861}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.652042+03:00","method":"GET","path":"/api/mappings/companies","url":"/api/mappings/companies","status":200,"latency":384250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":104}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.652544+03:00","method":"GET","path":"/api/trips/2723","url":"/api/trips/2723","status":200,"latency":3199875,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":309}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.656327+03:00","method":"GET","path":"/api/trips/2723","url":"/api/trips/2723","status":200,"latency":3390917,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":309}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.661372+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":474709,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.66314+03:00","method":"GET","path":"/api/mappings/terminals/Watanya","url":"/api/mappings/terminals/Watanya","status":200,"latency":385042,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":194}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.662312+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":11895208,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.674683+03:00","method":"GET","path":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","url":"/api/mappings/dropoffs/Watanya/%D9%87%D8%A7%D9%8A%D9%83%D8%B3%D8%AA%D8%A8","status":200,"latency":7253000,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":973}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.660001+03:00","method":"GET","path":"/api/GetCars","url":"/api/GetCars","status":200,"latency":47050916,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":2907}
+2025/08/19 22:19:12 {"timestamp":"2025-08-19T22:19:12.660099+03:00","method":"GET","path":"/api/GetDrivers","url":"/api/GetDrivers","status":200,"latency":57188750,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":null,"username":"","content_length":3756}
+2025/08/19 22:19:14 {"timestamp":"2025-08-19T22:19:14.142947+03:00","method":"PUT","path":"/api/trips/2723","url":"/api/trips/2723","status":201,"latency":4540250,"ip":"127.0.0.1","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36","request_id":"","user_id":7,"username":"Apex","content_length":346}
+2025/08/19 22:19:27 HTTP client successfully authenticated
+2025/08/19 22:19:29 Collector successfully authenticated
+2025/08/19 22:19:29 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/19 22:19:31 HTTP client successfully authenticated
+2025/08/19 22:19:32 Collector successfully authenticated
+2025/08/19 22:19:32 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A19%3A29+GMT
+2025/08/19 22:19:35 Found 8 speed alerts for vehicle ف ج م 8567
+2025/08/19 22:19:35 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:19:42 HTTP client successfully authenticated
+2025/08/19 22:19:46 Collector successfully authenticated
+2025/08/19 22:19:46 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A19%3A35+GMT
+2025/08/19 22:19:49 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:19:52 HTTP client successfully authenticated
+2025/08/19 22:19:56 Collector successfully authenticated
+2025/08/19 22:19:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A19%3A49+GMT
+2025/08/19 22:19:58 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:19:58 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/08/19 22:20:01 HTTP client successfully authenticated
+2025/08/19 22:20:04 Collector successfully authenticated
+2025/08/19 22:20:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A19%3A58+GMT
+2025/08/19 22:20:07 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:20:11 HTTP client successfully authenticated
+2025/08/19 22:20:13 Collector successfully authenticated
+2025/08/19 22:20:13 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A07+GMT
+2025/08/19 22:20:16 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:20:19 HTTP client successfully authenticated
+2025/08/19 22:20:21 Collector successfully authenticated
+2025/08/19 22:20:21 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A16+GMT
+2025/08/19 22:20:24 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:20:24 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/08/19 22:20:27 HTTP client successfully authenticated
+2025/08/19 22:20:28 Collector successfully authenticated
+2025/08/19 22:20:28 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A24+GMT
+2025/08/19 22:20:33 Found 1 speed alerts for vehicle ف ا ن 7421
+2025/08/19 22:20:33 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:20:36 HTTP client successfully authenticated
+2025/08/19 22:20:37 Collector successfully authenticated
+2025/08/19 22:20:37 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A33+GMT
+2025/08/19 22:20:40 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:20:43 HTTP client successfully authenticated
+2025/08/19 22:20:45 Collector successfully authenticated
+2025/08/19 22:20:45 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A40+GMT
+2025/08/19 22:20:48 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:20:50 HTTP client successfully authenticated
+2025/08/19 22:20:51 Collector successfully authenticated
+2025/08/19 22:20:51 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A48+GMT
+2025/08/19 22:20:53 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:20:53 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:20:56 HTTP client successfully authenticated
+2025/08/19 22:20:58 Collector successfully authenticated
+2025/08/19 22:20:58 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A20%3A53+GMT
+2025/08/19 22:21:00 Found 1 speed alerts for vehicle ف م س 9247
+2025/08/19 22:21:01 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:21:03 HTTP client successfully authenticated
+2025/08/19 22:21:05 Collector successfully authenticated
+2025/08/19 22:21:05 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A01+GMT
+2025/08/19 22:21:07 Error checking vehicle ف د ى 6584: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:21:07 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/08/19 22:21:09 HTTP client successfully authenticated
+2025/08/19 22:21:11 Collector successfully authenticated
+2025/08/19 22:21:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A07+GMT
+2025/08/19 22:21:13 Error checking vehicle ف ع ص 4381: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:21:13 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/08/19 22:21:15 HTTP client successfully authenticated
+2025/08/19 22:21:18 Collector successfully authenticated
+2025/08/19 22:21:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A13+GMT
+2025/08/19 22:21:20 Error checking vehicle ف أ ن 5139: error parsing speed data: unexpected end of JSON input
+2025/08/19 22:21:20 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/08/19 22:21:23 HTTP client successfully authenticated
+2025/08/19 22:21:25 Collector successfully authenticated
+2025/08/19 22:21:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A20+GMT
+2025/08/19 22:21:31 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:21:34 HTTP client successfully authenticated
+2025/08/19 22:21:35 Collector successfully authenticated
+2025/08/19 22:21:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A31+GMT
+2025/08/19 22:21:39 Found 3 speed alerts for vehicle ف ر ص 8461
+2025/08/19 22:21:39 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/08/19 22:21:42 HTTP client successfully authenticated
+2025/08/19 22:21:43 Collector successfully authenticated
+2025/08/19 22:21:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A39+GMT
+2025/08/19 22:21:45 Found 18 speed alerts for vehicle ف د ى 6834
+2025/08/19 22:21:46 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/08/19 22:21:48 HTTP client successfully authenticated
+2025/08/19 22:21:50 Collector successfully authenticated
+2025/08/19 22:21:50 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A21%3A46+GMT
+2025/08/19 22:21:53 UNIQUE constraint failed: speed_alerts.hash
+2025/08/19 22:26:53 Starting PetroApp records fetch operation
+2025/08/19 22:26:53 Fetching records from 2025/08/18 to 2025/08/19
+2025/08/19 22:26:53 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/18-2025/08/19&limit=1000&page=1
+2025/08/19 22:26:59 PetroApp API response status: 200 200 OK
+2025/08/19 22:26:59 Successfully fetched 7 records from PetroApp API
+2025/08/19 22:26:59 Validated 7 out of 7 records
+2025/08/19 22:26:59 Processing 7 PetroApp records for storage
+2025/08/19 22:26:59 PetroApp record ID 4017913 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 4016107 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 4008368 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 4007907 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 4006798 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 4001932 already exists, skipping
+2025/08/19 22:26:59 PetroApp record ID 3999965 already exists, skipping
+2025/08/19 22:26:59 Storage complete: 0 new records stored, 7 existing records skipped
+2025/08/19 22:26:59 Starting PetroApp to FuelEvent synchronization
+2025/08/19 22:26:59 No unsynced PetroApp records found
+2025/08/19 22:27:02 HTTP client successfully authenticated
+2025/08/19 22:27:04 Collector successfully authenticated
+2025/08/19 22:27:47 HTTP client successfully authenticated
+2025/08/19 22:27:49 Collector successfully authenticated
+2025/08/19 22:27:49 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/08/19 22:27:59 HTTP client successfully authenticated
+2025/08/19 22:28:03 Collector successfully authenticated
+2025/08/19 22:28:03 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A27%3A49+GMT
+2025/08/19 22:28:06 Found 8 speed alerts for vehicle ف ج م 8567
+2025/08/19 22:28:06 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/08/19 22:28:09 HTTP client successfully authenticated
+2025/08/19 22:28:11 Collector successfully authenticated
+2025/08/19 22:28:11 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+19%3A28%3A06+GMT
+2025/08/19 22:28:15 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts

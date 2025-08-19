@@ -48,6 +48,9 @@ type FeeMapping struct {
 	DropOffPoint string  `json:"drop_off_point"` // Drop-off location
 	Distance     float64 `json:"distance"`       // Distance in kilometers
 	Fee          float64 `json:"fee"`            // Associated fee for this mapping
+	Latitude     float64 `json:"lat"`
+	Longitude    float64 `json:"long"`
+	OSRMDistance float64 `json:"osrm_distance"`
 }
 
 // Ensure uniqueness of company, terminal, and drop-off point combination
