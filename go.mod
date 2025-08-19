@@ -18,7 +18,7 @@ require (
 	golang.org/x/crypto v0.38.0
 	gorm.io/datatypes v1.1.0
 	gorm.io/driver/sqlite v1.5.2
-	gorm.io/gorm v1.25.2-0.20230530020048-26663ab9bf55
+	gorm.io/gorm v1.25.10
 
 )
 
@@ -49,6 +49,10 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.6.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
@@ -101,7 +105,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gorm.io/driver/mysql v1.4.5 // indirect
-	gorm.io/driver/postgres v1.5.2 // indirect
+	gorm.io/driver/postgres v1.6.0 // indirect
 )
 
 require (
@@ -109,6 +113,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/gocolly/colly v1.2.0
 	github.com/gofiber/template v1.6.28
+	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

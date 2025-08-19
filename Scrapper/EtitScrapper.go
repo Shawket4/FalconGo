@@ -350,8 +350,6 @@ func trimLeftChars(s string, n int) string {
 	return s[:0]
 }
 
-
-
 func GetFeeRate(data MileageStruct) (float64, float64, error) {
 	GlobalClient, _ = app.Login()
 	app.GetCurrentLocationData(GlobalClient)
@@ -404,11 +402,7 @@ func GetFeeRate(data MileageStruct) (float64, float64, error) {
 		log.Println(err.Error())
 		return 0, 0, err
 	}
-	// err = json.NewDecoder(res.Body).Decode(&unMarshalledData)
-	if err != nil {
-		log.Println(err.Error())
-		return 0, 0, err
-	}
+
 	fmt.Println(unMarshalledData.TotalMilage)
 	mileage, err := strconv.ParseFloat(unMarshalledData.TotalMilage, 64)
 	if err != nil {

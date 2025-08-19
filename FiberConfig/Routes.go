@@ -3,6 +3,7 @@ package FiberConfig
 import (
 	"Falcon/Apis"
 	"Falcon/Controllers"
+	"Falcon/ETA"
 	"Falcon/ManipulateData"
 	"Falcon/Models"
 	"Falcon/MultiRouteOptimizer"
@@ -200,6 +201,7 @@ func FiberConfig() {
 	protectedApis.Post("/GetPhotoAlbum", Apis.GetPhotoAlbum)
 	protectedApis.Post("/RegisterDriver", Controllers.RegisterDriver)
 	protectedApis.Post("/UpdateDriver", Controllers.UpdateDriver)
+	app.Post("/convert/upload", ETA.ConvertToExcel)
 	//protectedApis.Use(middleware.Verify)
 	handler := &Apis.FuelHandler{DB: Models.DB}
 

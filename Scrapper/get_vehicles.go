@@ -1,6 +1,7 @@
 package Scrapper
 
 import (
+	"Falcon/Models"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -138,8 +139,37 @@ func GetCurrentLocationData(client *colly.Collector) error {
 		return errors.New("Empty")
 	}
 	VehicleStatusList = VehicleStatusListTemp
-	fmt.Println(VehicleStatusList)
 	return nil
+}
+
+type NominatimResponse struct {
+	DisplayName string `json:"display_name"`
+}
+
+func getAddressFromCoords(lat, lng string) (string, error) {
+	url := fmt.Sprintf("https://nominatim.openstreetmap.org/reverse?format=json&lat=%s&lon=%s&zoom=18&addressdetails=1", lat, lng)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// Add User-Agent header (required by Nominatim)
+	req.Header.Set("User-Agent", "Apex/1.0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result NominatimResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	return result.DisplayName, nil
 }
 
 // GetVehicleData fetches vehicle data using authenticated client
@@ -168,7 +198,15 @@ func GetVehicleData() {
 	if VehicleStatusList != nil {
 		isLoaded = true
 	}
-
+	for _, vehicle := range VehicleStatusList {
+		address, err := getAddressFromCoords(vehicle.Latitude, vehicle.Longitude)
+		if err != nil {
+			log.Println(err)
+		}
+		if err := Models.DB.Model(&Models.Car{}).Where("etit_car_id = ?", vehicle.ID).Updates(&Models.Car{Latitude: vehicle.Latitude, Longitude: vehicle.Longitude, LocationTimeStamp: vehicle.Timestamp, EngineStatus: vehicle.EngineStatus, Location: address, Speed: vehicle.Speed}).Error; err != nil {
+			log.Println(err)
+		}
+	}
 	// Wait for data to be fully processed
 	time.Sleep(time.Second * 20)
 	RunSpeedCheckJob(80, true)

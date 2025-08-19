@@ -50,7 +50,7 @@ func main() {
 			Scrapper.GetVehicleData()
 			// time.Sleep(time.Second * 10)
 			// Scrapper.CalculateDistanceWorker()
-			time.Sleep(time.Minute * 15)
+			time.Sleep(time.Minute * 5)
 		}
 	}()
 	// go func() {

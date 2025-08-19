@@ -27,6 +27,9 @@ type Car struct {
 	Location                        string         `json:"location"`
 	Latitude                        string         `json:"lat"`
 	Longitude                       string         `json:"long"`
+	LocationTimeStamp               string         `json:"location_time_stamp"`
+	EngineStatus                    string         `json:"engine_status"`
+	Speed                           int            `json:"speed"`
 	LastFuelOdometer                int            `json:"last_fuel_odometer"`
 	LastOilChangeID                 int            `json:"last_oil_change_id"`
 	DriverID                        uint           `json:"driver_id"`
