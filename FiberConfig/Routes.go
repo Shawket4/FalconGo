@@ -90,6 +90,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Get("/:id", tripHandler.GetTrip)
 	trips.Post("/", tripHandler.CreateTrip)
 	trips.Put("/:id", tripHandler.UpdateTrip)
+	trips.Get("/:id/details", tripHandler.GetTripDetails)
 	trips.Delete("/:id", tripHandler.DeleteTrip)
 
 	// Additional trip routes for filtering and stats

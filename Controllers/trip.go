@@ -2896,6 +2896,103 @@ func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]in
 	return result, nil
 }
 
+func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
+	tripID := c.Params("id")
+
+	// Convert tripID to uint
+	id, err := strconv.ParseUint(tripID, 10, 32)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid trip ID",
+			"error":   err.Error(),
+		})
+	}
+
+	// Get the trip
+	var trip Models.TripStruct
+	result := h.DB.First(&trip, uint(id))
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{
+				"message": "Trip not found",
+			})
+		}
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch trip",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	// Verify that the company, terminal, and drop-off point exist in mappings
+	var mapping Models.FeeMapping
+	result = h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+		trip.Company, trip.Terminal, trip.DropOffPoint).First(&mapping)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"message": "Invalid mapping: the specified company, terminal, and drop-off point combination doesn't exist",
+			})
+		}
+
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to validate mapping",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	// Get terminal location
+	var Terminal Models.Terminal
+	if err := h.DB.Model(&Models.Terminal{}).Where("name = ?", trip.Terminal).First(&Terminal).Error; err != nil {
+		log.Printf("Terminal lookup error: %v", err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to find terminal location",
+			"error":   err.Error(),
+		})
+	}
+
+	// Add fee mapping data to trip (same as CreateTrip)
+	trip.Distance = mapping.Distance
+	trip.Fee = mapping.Fee
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Trip details retrieved successfully",
+		"data":    trip,
+		"terminal_location": map[string]interface{}{
+			"lat": Terminal.Latitude,
+			"lng": Terminal.Longitude,
+		},
+		"drop_off_point_location": map[string]interface{}{
+			"lat": mapping.Latitude,
+			"lng": mapping.Longitude,
+		},
+		"route_data": func() map[string]interface{} {
+			osrmData, err := getRouteFromOSRM(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+			if err != nil {
+				log.Printf("OSRM error: %v", err)
+				// Fallback to simple calculation
+				distance := calculateDistance(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+				return map[string]interface{}{
+					"distance": distance,
+					"duration": distance * 2 * 60, // rough estimate in seconds
+					"geometry": nil,
+				}
+			}
+
+			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+				route := routes[0].(map[string]interface{})
+				return map[string]interface{}{
+					"distance": route["distance"].(float64) / 1000, // Convert to km
+					"duration": route["duration"].(float64),        // Already in seconds
+					"geometry": route["geometry"],
+				}
+			}
+
+			return nil
+		}(),
+	})
+}
+
 // CreateTrip creates a new trip
 func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 	trip := new(Models.TripStruct)
