@@ -2879,9 +2879,9 @@ func (h *TripHandler) GetTrip(c *fiber.Ctx) error {
 
 func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]interface{}, error) {
 	// Replace with your OSRM server URL
-	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=geometry&steps=false",
+	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
 		startLng, startLat, endLng, endLat)
-
+	fmt.Println(osrmURL)
 	resp, err := http.Get(osrmURL)
 	if err != nil {
 		return nil, err
