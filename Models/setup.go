@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 
@@ -82,15 +80,7 @@ func Connect() {
 	if err != nil {
 		log.Println(err)
 	}
-	batchSize := 50
-	rateLimitDelay := 100 * time.Millisecond // Small delay between requests
 
-	err = updateWatanyaOSRMDistancesBatch(connection, batchSize, rateLimitDelay)
-	if err != nil {
-		log.Printf("Error updating Watanya OSRM distances: %v", err)
-	} else {
-		log.Println("Successfully updated Watanya OSRM distances")
-	}
 	// connection.Save(&admin)
 	// var location Location
 	// location.Name = "جحدم"
@@ -105,152 +95,6 @@ func Connect() {
 
 	// }
 	// SetupCars()
-}
-
-func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]interface{}, error) {
-	// Replace with your OSRM server URL
-	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
-		startLng, startLat, endLng, endLat)
-	fmt.Println(osrmURL)
-	resp, err := http.Get(osrmURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-// extractDistanceFromOSRMResponse extracts distance in kilometers from OSRM response
-func extractDistanceFromOSRMResponse(response map[string]interface{}) (float64, error) {
-	routes, ok := response["routes"].([]interface{})
-	if !ok || len(routes) == 0 {
-		return 0, fmt.Errorf("no routes found in OSRM response")
-	}
-
-	route, ok := routes[0].(map[string]interface{})
-	if !ok {
-		return 0, fmt.Errorf("invalid route format in OSRM response")
-	}
-
-	distance, ok := route["distance"].(float64)
-	if !ok {
-		return 0, fmt.Errorf("distance not found in OSRM response")
-	}
-
-	// Convert from meters to kilometers
-	return distance / 1000.0, nil
-}
-
-// updateWatanyaOSRMDistancesBatch updates OSRM distances for Watanya fee mappings using batch processing
-func updateWatanyaOSRMDistancesBatch(db *gorm.DB, batchSize int, rateLimitDelay time.Duration) error {
-	// Count total Watanya records
-	var totalCount int64
-	if err := db.Model(&FeeMapping{}).Where("company = ?", "Watanya").Count(&totalCount).Error; err != nil {
-		return fmt.Errorf("failed to count Watanya fee mappings: %w", err)
-	}
-
-	if totalCount == 0 {
-		fmt.Println("No Watanya fee mappings found")
-		return nil
-	}
-
-	fmt.Printf("Processing %d Watanya fee mappings in batches of %d\n", totalCount, batchSize)
-
-	// Get all terminals for coordinate lookups
-	var terminals []Terminal
-	if err := db.Find(&terminals).Error; err != nil {
-		return fmt.Errorf("failed to fetch terminals: %w", err)
-	}
-
-	// Create terminal lookup map
-	terminalMap := make(map[string]Terminal)
-	for _, terminal := range terminals {
-		terminalMap[terminal.Name] = terminal
-	}
-
-	successCount := 0
-	errorCount := 0
-	offset := 0
-
-	// Process in batches
-	for offset < int(totalCount) {
-		var feeMappings []FeeMapping
-		if err := db.Where("company = ?", "Watanya").
-			Offset(offset).
-			Limit(batchSize).
-			Find(&feeMappings).Error; err != nil {
-			return fmt.Errorf("failed to fetch Watanya batch: %w", err)
-		}
-
-		fmt.Printf("\nProcessing Watanya batch: %d-%d of %d\n", offset+1, offset+len(feeMappings), int(totalCount))
-
-		// Process each item in the batch
-		for i, feeMapping := range feeMappings {
-			fmt.Printf("  Processing %d/%d in batch: Terminal: %s -> DropOff: %s\n",
-				i+1, len(feeMappings), feeMapping.Terminal, feeMapping.DropOffPoint)
-
-			// Get terminal coordinates
-			terminal, exists := terminalMap[feeMapping.Terminal]
-			if !exists {
-				fmt.Printf("  Warning: Terminal '%s' not found, skipping\n", feeMapping.Terminal)
-				errorCount++
-				continue
-			}
-
-			// Check if drop-off coordinates are available
-			if feeMapping.Latitude == 0 && feeMapping.Longitude == 0 {
-				fmt.Printf("  Warning: Drop-off coordinates not set for '%s', skipping\n", feeMapping.DropOffPoint)
-				errorCount++
-				continue
-			}
-
-			// Get route from OSRM
-			response, err := getRouteFromOSRM(
-				terminal.Latitude, terminal.Longitude,
-				feeMapping.Latitude, feeMapping.Longitude,
-			)
-			if err != nil {
-				fmt.Printf("  Error getting OSRM route: %v\n", err)
-				errorCount++
-				continue
-			}
-
-			// Extract distance from response
-			distance, err := extractDistanceFromOSRMResponse(response)
-			if err != nil {
-				fmt.Printf("  Error extracting distance from OSRM response: %v\n", err)
-				errorCount++
-				continue
-			}
-
-			// Update the fee mapping with OSRM distance
-			feeMapping.OSRMDistance = distance
-			if err := db.Save(&feeMapping).Error; err != nil {
-				fmt.Printf("  Error saving Watanya fee mapping: %v\n", err)
-				errorCount++
-				continue
-			}
-
-			fmt.Printf("  Updated OSRM distance: %.2f km\n", distance)
-			successCount++
-
-			// Rate limiting to avoid overwhelming OSRM server
-			if rateLimitDelay > 0 {
-				time.Sleep(rateLimitDelay)
-			}
-		}
-
-		offset += len(feeMappings)
-	}
-
-	fmt.Printf("\nWatanya OSRM distance update completed. Success: %d, Errors: %d\n", successCount, errorCount)
-	return nil
 }
 
 func CreateDefaultPositions(db *gorm.DB, truckID uint) error {
