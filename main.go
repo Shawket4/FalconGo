@@ -3,7 +3,6 @@ package main
 import (
 	"Falcon/FiberConfig"
 	"Falcon/Models"
-	"Falcon/PetroApp"
 	"Falcon/Scrapper"
 	"log"
 	"os"
@@ -42,11 +41,11 @@ func main() {
 		// 	log.Fatal("Failed to initialize Firebase:", err)
 		// }
 		for {
-			PetroApp.FetchPetroAppRecords()
-			// Sync PetroApp records to FuelEvents
-			if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
-				log.Printf("Error syncing PetroApp records: %v", err)
-			}
+			// PetroApp.FetchPetroAppRecords()
+			// // Sync PetroApp records to FuelEvents
+			// if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
+			// 	log.Printf("Error syncing PetroApp records: %v", err)
+			// }
 			Scrapper.GetVehicleData()
 			// time.Sleep(time.Second * 10)
 			// Scrapper.CalculateDistanceWorker()

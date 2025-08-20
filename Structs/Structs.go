@@ -58,6 +58,16 @@ type Coordinate struct {
 	DateTime  string
 }
 
+type Stop struct {
+	Longitude string `json:"lon"`
+	Latitude  string `json:"lat"`
+	ID        string `json:"id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Duration  string `json:"duration"`
+	Address   string `json:"address"`
+}
+
 type HistoryQueryData struct {
 	VehicleID string
 }

@@ -197,6 +197,7 @@ func GetVehicleData() {
 	// Set isLoaded flag if we have vehicle status data
 	if VehicleStatusList != nil {
 		isLoaded = true
+		fmt.Println(VehicleStatusList)
 	}
 	for _, vehicle := range VehicleStatusList {
 		address, err := getAddressFromCoords(vehicle.Latitude, vehicle.Longitude)
