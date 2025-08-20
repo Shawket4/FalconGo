@@ -181,7 +181,7 @@ func updateWatanyaOSRMDistancesBatch(db *gorm.DB, batchSize int, rateLimitDelay 
 	// Process in batches
 	for offset < int(totalCount) {
 		var feeMappings []FeeMapping
-		if err := db.
+		if err := db.Where("company = ?", "Petrol Arrows").
 			Offset(offset).
 			Limit(batchSize).
 			Find(&feeMappings).Error; err != nil {
