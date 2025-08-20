@@ -18830,3 +18830,43 @@
 2025/08/20 00:28:43 Collector successfully authenticated
 2025/08/20 00:28:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Tue%2C+19+Aug+2025+00%3A00%3A00+GMT&to=Tue%2C+19+Aug+2025+21%3A28%3A39+GMT
 2025/08/20 00:28:46 UNIQUE constraint failed: speed_alerts.hash
+2025/08/20 02:44:09 Starting PetroApp records fetch operation
+2025/08/20 02:44:09 Fetching records from 2025/08/19 to 2025/08/20
+2025/08/20 02:44:09 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/19-2025/08/20&limit=1000&page=1
+2025/08/20 02:44:11 PetroApp API response status: 200 200 OK
+2025/08/20 02:44:11 Successfully fetched 2 records from PetroApp API
+2025/08/20 02:44:11 Validated 2 out of 2 records
+2025/08/20 02:44:11 Processing 2 PetroApp records for storage
+2025/08/20 02:44:11 PetroApp record ID 4017913 already exists, skipping
+2025/08/20 02:44:11 PetroApp record ID 4016107 already exists, skipping
+2025/08/20 02:44:11 Storage complete: 0 new records stored, 2 existing records skipped
+2025/08/20 02:44:11 Starting PetroApp to FuelEvent synchronization
+2025/08/20 02:44:11 No unsynced PetroApp records found
+2025/08/20 02:44:13 HTTP client successfully authenticated
+2025/08/20 02:44:14 Collector successfully authenticated
+2025/08/20 02:44:30 Starting PetroApp records fetch operation
+2025/08/20 02:44:30 Fetching records from 2025/08/19 to 2025/08/20
+2025/08/20 02:44:30 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/19-2025/08/20&limit=1000&page=1
+2025/08/20 02:44:30 Successfully updated Watanya coordinates
+2025/08/20 02:44:31 PetroApp API response status: 200 200 OK
+2025/08/20 02:44:31 Successfully fetched 2 records from PetroApp API
+2025/08/20 02:44:31 Validated 2 out of 2 records
+2025/08/20 02:44:31 Processing 2 PetroApp records for storage
+2025/08/20 02:44:31 PetroApp record ID 4017913 already exists, skipping
+2025/08/20 02:44:31 PetroApp record ID 4016107 already exists, skipping
+2025/08/20 02:44:31 Storage complete: 0 new records stored, 2 existing records skipped
+2025/08/20 02:44:31 Starting PetroApp to FuelEvent synchronization
+2025/08/20 02:44:31 No unsynced PetroApp records found
+2025/08/20 03:42:13 Starting PetroApp records fetch operation
+2025/08/20 03:42:13 Fetching records from 2025/08/19 to 2025/08/20
+2025/08/20 03:42:13 Request URL: https://app.petroappeg.com/dashboard_api/bills?dates=2025/08/19-2025/08/20&limit=1000&page=1
+2025/08/20 03:42:13 Successfully updated Watanya OSRM distances
+2025/08/20 03:42:14 PetroApp API response status: 200 200 OK
+2025/08/20 03:42:14 Successfully fetched 2 records from PetroApp API
+2025/08/20 03:42:14 Validated 2 out of 2 records
+2025/08/20 03:42:14 Processing 2 PetroApp records for storage
+2025/08/20 03:42:14 PetroApp record ID 4017913 already exists, skipping
+2025/08/20 03:42:14 PetroApp record ID 4016107 already exists, skipping
+2025/08/20 03:42:14 Storage complete: 0 new records stored, 2 existing records skipped
+2025/08/20 03:42:14 Starting PetroApp to FuelEvent synchronization
+2025/08/20 03:42:14 No unsynced PetroApp records found
