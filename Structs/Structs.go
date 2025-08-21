@@ -52,6 +52,24 @@ type TimeLineStruct struct {
 	HistoryWO []interface{} `json:"HistoryWO"`
 }
 
+type TripSummary struct {
+	TotalMileage          string `json:"TotalMileage"`
+	TotalActiveTime       string `json:"TotalActiveTime"`
+	TotalPassiveTime      string `json:"TotalPassiveTime"`
+	TotalIdleTime         string `json:"TotalIdleTime"`
+	DriverName            string `json:"DriverName"`
+	NumberofStops         string `json:"NumberofStops"`
+	TotalDisConnectedTime string `json:"TotalDisConnectedTime"`
+	TotalFuelConsumption  string `json:"TotalFuelConsumption"`
+	DataFound             string `json:"DataFound"`
+	Sensor1               string `json:"Sensor1"`
+	Sensor2               string `json:"Sensor2"`
+}
+
+type TripSummaryResponse struct {
+	TripSummary []TripSummary `json:"TripSummary"`
+}
+
 type Coordinate struct {
 	Latitude  string
 	Longitude string

@@ -40,6 +40,27 @@ func (TripStruct) TableName() string {
 	return "trips"
 }
 
+type ETITTripRoute struct {
+	gorm.Model
+	TripID               uint   `json:"trip_id"`
+	CarID                uint   `json:"car_id"`
+	EtitCarID            string `json:"etit_car_id"`
+	FromTime             string `json:"from_time"`
+	ToTime               string `json:"to_time"`
+	Coordinates          string `json:"coordinates"`  // JSON string of coordinates
+	Stops                string `json:"stops"`        // JSON string of stops
+	TripSummary          string `json:"trip_summary"` // JSON string of trip summary
+	TotalPoints          int    `json:"total_points"`
+	TotalStops           int    `json:"total_stops"`
+	TotalMileage         string `json:"total_mileage"`
+	TotalActiveTime      string `json:"total_active_time"`
+	TotalPassiveTime     string `json:"total_passive_time"`
+	TotalIdleTime        string `json:"total_idle_time"`
+	TotalFuelConsumption string `json:"total_fuel_consumption"`
+	DriverName           string `json:"driver_name"`
+	NumberofStops        string `json:"number_of_stops"`
+}
+
 // FeeMapping represents a mapping between terminals, drop-off points, distance, and fee
 type FeeMapping struct {
 	gorm.Model

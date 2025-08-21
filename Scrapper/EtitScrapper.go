@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	// "time"
 
@@ -63,17 +64,29 @@ func (app *App) getToken() AuthenticityToken {
 type RouteData struct {
 	Coordinates []Structs.Coordinate `json:"coordinates"`
 	Stops       []Structs.Stop       `json:"stops"`
+	TripSummary *Structs.TripSummary `json:"trip_summary,omitempty"`
 }
 
 func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*RouteData, error) {
-	// Create the URL
-	url := fmt.Sprintf(
+	// Create the URL for history data
+	historyURL := fmt.Sprintf(
 		"https://fms-gps.etit-eg.com/WebPages/GetAllHistoryData.aspx?id=%s&time=6&from=%s&to=%s",
 		VehicleID,
 		from,
 		to,
 	)
-	fmt.Println(url)
+
+	// Create the URL for trip summary
+	summaryURL := fmt.Sprintf(
+		"https://fms-gps.etit-eg.com/WebPages/GetHistoryTripSummary.ashx?id=%s&time=6&from=%s&to=%s&t=%d",
+		VehicleID,
+		from,
+		to,
+		time.Now().UnixMilli(),
+	)
+
+	fmt.Println("History URL:", historyURL)
+	fmt.Println("Summary URL:", summaryURL)
 
 	// Get authenticated clients
 	clients, err := GetClients(username, password)
@@ -81,7 +94,7 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 		return nil, fmt.Errorf("login failed: %w", err)
 	}
 
-	log.Printf("Fetching history data from: %s", url)
+	log.Printf("Fetching history data from: %s", historyURL)
 
 	// Visit the domain first to ensure cookies are set properly
 	preReq, err := clients.HttpClient.Get("https://fms-gps.etit-eg.com/WebPages/maps.aspx")
@@ -90,10 +103,10 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 	}
 	preReq.Body.Close()
 
-	// Make the actual request
-	req, err := http.NewRequest("GET", url, nil)
+	// Fetch history data (existing code)
+	req, err := http.NewRequest("GET", historyURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("error creating history request: %w", err)
 	}
 
 	// Add headers to match browser behavior
@@ -103,7 +116,7 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 	req.Header.Add("Referer", "https://fms-gps.etit-eg.com/WebPages/Maps.aspx")
 	req.Header.Add("Content-Type", "text/html; charset=utf-8")
 
-	// Make the request with authenticated client
+	// Make the history request
 	resp, err := clients.HttpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching history data: %w", err)
@@ -116,14 +129,14 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	// Read the response body
+	// Read the history response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
+		return nil, fmt.Errorf("error reading history response body: %w", err)
 	}
 
 	jsonString := string(body)
-	fmt.Println("Raw response:", jsonString)
+	fmt.Println("Raw history response:", jsonString)
 
 	// Check if response is HTML instead of JSON (error case)
 	if strings.Contains(jsonString, "<!DOCTYPE HTML") || strings.Contains(jsonString, "<html") {
@@ -146,26 +159,24 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 		return nil, fmt.Errorf("error parsing history data: %w, fixed JSON: %s", err, fixedJSON[:min(500, len(fixedJSON))])
 	}
 
-	// Convert to coordinate slice with validation
+	// Convert to coordinate slice with validation (existing code)
 	var coordinates []Structs.Coordinate
 	for i, historyPoint := range historyData.History {
-		// Validate that we have point data
+		// ... existing coordinate validation code ...
+		// [Keep all the existing coordinate processing code here]
 		if len(historyPoint.P) == 0 {
 			log.Printf("Warning: history point %d has no coordinate data", i)
 			continue
 		}
 
-		// Validate coordinate data
 		latStr := historyPoint.P[0].A
 		lonStr := historyPoint.P[0].O
 
-		// Validate that coordinates are not empty
 		if latStr == "" || lonStr == "" {
 			log.Printf("Warning: history point %d has empty coordinates", i)
 			continue
 		}
 
-		// Validate that coordinates are valid numbers
 		if lat, err := strconv.ParseFloat(latStr, 64); err != nil {
 			log.Printf("Warning: invalid latitude '%s' at point %d: %v", latStr, i, err)
 			continue
@@ -182,13 +193,11 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 			continue
 		}
 
-		// Validate datetime
 		if historyPoint.D == "" {
 			log.Printf("Warning: history point %d has empty datetime", i)
 			continue
 		}
 
-		// Create coordinate
 		coordinate := Structs.Coordinate{
 			Latitude:  latStr,
 			Longitude: lonStr,
@@ -197,16 +206,16 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 		coordinates = append(coordinates, coordinate)
 	}
 
-	// Parse stops with validation
+	// Parse stops with validation (existing code)
 	var stops []Structs.Stop
 	for i, stopPoint := range historyData.Stops {
-		// Validate stop data
+		// ... existing stop validation code ...
+		// [Keep all the existing stop processing code here]
 		if stopPoint.Lon == "" || stopPoint.Lat == "" {
 			log.Printf("Warning: stop %d has empty coordinates", i)
 			continue
 		}
 
-		// Validate that coordinates are valid numbers
 		if lat, err := strconv.ParseFloat(stopPoint.Lat, 64); err != nil {
 			log.Printf("Warning: invalid stop latitude '%s' at stop %d: %v", stopPoint.Lat, i, err)
 			continue
@@ -223,13 +232,11 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 			continue
 		}
 
-		// Validate datetime fields
 		if stopPoint.From == "" || stopPoint.To == "" {
 			log.Printf("Warning: stop %d has empty from/to datetime", i)
 			continue
 		}
 
-		// Create stop
 		stop := Structs.Stop{
 			Longitude: stopPoint.Lon,
 			Latitude:  stopPoint.Lat,
@@ -246,11 +253,69 @@ func (app *App) GetVehicleHistoryData(VehicleID string, from, to string) (*Route
 		return nil, fmt.Errorf("no valid coordinates found in response")
 	}
 
-	log.Printf("Successfully parsed %d coordinates and %d stops", len(coordinates), len(stops))
+	// Now fetch trip summary
+	log.Printf("Fetching trip summary from: %s", summaryURL)
+
+	summaryReq, err := http.NewRequest("GET", summaryURL, nil)
+	if err != nil {
+		log.Printf("Warning: error creating summary request: %v", err)
+		// Continue without summary
+		return &RouteData{
+			Coordinates: coordinates,
+			Stops:       stops,
+			TripSummary: nil,
+		}, nil
+	}
+
+	// Add headers for summary request
+	summaryReq.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	summaryReq.Header.Add("Accept", "application/json, text/plain, */*")
+	summaryReq.Header.Add("Referer", "https://fms-gps.etit-eg.com/WebPages/Maps.aspx")
+
+	summaryResp, err := clients.HttpClient.Do(summaryReq)
+	if err != nil {
+		log.Printf("Warning: error fetching trip summary: %v", err)
+		// Continue without summary
+		return &RouteData{
+			Coordinates: coordinates,
+			Stops:       stops,
+			TripSummary: nil,
+		}, nil
+	}
+	defer summaryResp.Body.Close()
+
+	var tripSummary *Structs.TripSummary = nil
+	if summaryResp.StatusCode == http.StatusOK {
+		summaryBody, err := io.ReadAll(summaryResp.Body)
+		if err != nil {
+			log.Printf("Warning: error reading summary response: %v", err)
+		} else {
+			summaryBodyStr := string(summaryBody)
+			fmt.Println("Raw summary response:", summaryBodyStr)
+
+			// Fix malformed JSON for trip summary
+			fixedSummaryJSON := fixMalformedJSON(summaryBodyStr)
+			fmt.Println("Fixed summary JSON:", fixedSummaryJSON)
+
+			var summaryResponse Structs.TripSummaryResponse
+			if err := json.Unmarshal([]byte(fixedSummaryJSON), &summaryResponse); err != nil {
+				log.Printf("Warning: error parsing trip summary: %v", err)
+				fmt.Println("Failed to parse summary JSON:", fixedSummaryJSON)
+			} else if len(summaryResponse.TripSummary) > 0 {
+				tripSummary = &summaryResponse.TripSummary[0]
+				log.Printf("Successfully fetched trip summary: %+v", tripSummary)
+			}
+		}
+	} else {
+		log.Printf("Warning: trip summary API returned status %d", summaryResp.StatusCode)
+	}
+
+	log.Printf("Successfully parsed %d coordinates, %d stops, and trip summary", len(coordinates), len(stops))
 
 	return &RouteData{
 		Coordinates: coordinates,
 		Stops:       stops,
+		TripSummary: tripSummary,
 	}, nil
 }
 
@@ -259,6 +324,16 @@ func fixMalformedJSON(jsonStr string) string {
 	// Remove any BOM or invisible characters
 	jsonStr = strings.TrimPrefix(jsonStr, "\ufeff")
 	jsonStr = strings.TrimSpace(jsonStr)
+
+	// Check if JSON starts with an unquoted property name (like TripSummary:)
+	// or a quoted property name but no opening brace
+	needsBraces := false
+	if !strings.HasPrefix(jsonStr, "{") {
+		// Check if it starts with a property name pattern
+		if strings.Contains(jsonStr, ":") {
+			needsBraces = true
+		}
+	}
 
 	// Define the property names that need quotes
 	propertyNames := []string{
@@ -274,6 +349,19 @@ func fixMalformedJSON(jsonStr string) string {
 		"lon", "lat", "id", "from", "to", "duration", "address",
 		// Sensor properties
 		"strtDate", "endDate", "SensorID", "typeName",
+		// Trip summary properties
+		"TripSummary",
+		"TotalMileage",
+		"TotalActiveTime",
+		"TotalPassiveTime",
+		"TotalIdleTime",
+		"DriverName",
+		"NumberofStops",
+		"TotalDisConnectedTime",
+		"TotalFuelConsumption",
+		"DataFound",
+		"Sensor1",
+		"Sensor2",
 	}
 
 	// Fix unquoted property names by adding quotes
@@ -283,6 +371,11 @@ func fixMalformedJSON(jsonStr string) string {
 		replacement := fmt.Sprintf(`"%s":`, prop)
 		re := regexp.MustCompile(pattern)
 		jsonStr = re.ReplaceAllString(jsonStr, replacement)
+	}
+
+	// Add braces if needed (after property name fixing)
+	if needsBraces {
+		jsonStr = "{" + jsonStr + "}"
 	}
 
 	// Additional fixes for common malformed JSON patterns
@@ -300,6 +393,228 @@ func fixMalformedJSON(jsonStr string) string {
 	jsonStr = re.ReplaceAllString(jsonStr, "\",\n\"")
 
 	return jsonStr
+}
+
+func StoreVehicleRouteData(c *fiber.Ctx) error {
+	// Get query parameters
+	tripIDStr := c.Query("trip_id")
+	from := c.Query("from")
+	to := c.Query("to")
+
+	// Validate required parameters
+	if tripIDStr == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "trip_id is required",
+		})
+	}
+
+	if from == "" || to == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "from and to date parameters are required",
+		})
+	}
+
+	tripID, err := strconv.ParseUint(tripIDStr, 10, 32)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid trip_id format",
+		})
+	}
+
+	// Find the trip and get associated car
+	var trip Models.TripStruct
+	var car Models.Car
+	if err := Models.DB.First(&trip, tripID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "Trip not found",
+		})
+	}
+
+	if err := Models.DB.First(&car, "id = ?", trip.CarID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "Car not found",
+		})
+	}
+
+	// Check if etit_car_id exists
+	if car.EtitCarID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Car does not have etit_car_id",
+		})
+	}
+
+	// Get vehicle history data from ETIT API
+	routeData, err := app.GetVehicleHistoryData(car.EtitCarID, from, to)
+	if err != nil {
+		log.Println(err)
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	// Convert coordinates, stops, and trip summary to JSON strings
+	coordinatesJSON, err := json.Marshal(routeData.Coordinates)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to marshal coordinates",
+		})
+	}
+
+	stopsJSON, err := json.Marshal(routeData.Stops)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to marshal stops",
+		})
+	}
+
+	tripSummaryJSON, err := json.Marshal(routeData.TripSummary)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to marshal trip summary",
+		})
+	}
+
+	// Check if route data already exists for this trip_id
+	var existingRoute Models.ETITTripRoute
+	err = Models.DB.Where("trip_id = ?", tripID).First(&existingRoute).Error
+
+	var message string
+	if err == nil {
+		// Update existing route
+		existingRoute.CarID = car.ID
+		existingRoute.EtitCarID = car.EtitCarID
+		existingRoute.FromTime = from
+		existingRoute.ToTime = to
+		existingRoute.Coordinates = string(coordinatesJSON)
+		existingRoute.Stops = string(stopsJSON)
+		existingRoute.TripSummary = string(tripSummaryJSON)
+		existingRoute.TotalPoints = len(routeData.Coordinates)
+		existingRoute.TotalStops = len(routeData.Stops)
+
+		// Update individual trip summary fields if available
+		if routeData.TripSummary != nil {
+			existingRoute.TotalMileage = routeData.TripSummary.TotalMileage
+			existingRoute.TotalActiveTime = routeData.TripSummary.TotalActiveTime
+			existingRoute.TotalPassiveTime = routeData.TripSummary.TotalPassiveTime
+			existingRoute.TotalIdleTime = routeData.TripSummary.TotalIdleTime
+			existingRoute.TotalFuelConsumption = routeData.TripSummary.TotalFuelConsumption
+			existingRoute.DriverName = routeData.TripSummary.DriverName
+			existingRoute.NumberofStops = routeData.TripSummary.NumberofStops
+		}
+
+		if err := Models.DB.Save(&existingRoute).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "Failed to update route data",
+			})
+		}
+		message = "Route data updated successfully"
+	} else {
+		// Create new route record
+		tripRoute := Models.ETITTripRoute{
+			TripID:      uint(tripID),
+			CarID:       car.ID,
+			EtitCarID:   car.EtitCarID,
+			FromTime:    from,
+			ToTime:      to,
+			Coordinates: string(coordinatesJSON),
+			Stops:       string(stopsJSON),
+			TripSummary: string(tripSummaryJSON),
+			TotalPoints: len(routeData.Coordinates),
+			TotalStops:  len(routeData.Stops),
+		}
+
+		// Add trip summary data if available
+		if routeData.TripSummary != nil {
+			tripRoute.TotalMileage = routeData.TripSummary.TotalMileage
+			tripRoute.TotalActiveTime = routeData.TripSummary.TotalActiveTime
+			tripRoute.TotalPassiveTime = routeData.TripSummary.TotalPassiveTime
+			tripRoute.TotalIdleTime = routeData.TripSummary.TotalIdleTime
+			tripRoute.TotalFuelConsumption = routeData.TripSummary.TotalFuelConsumption
+			tripRoute.DriverName = routeData.TripSummary.DriverName
+			tripRoute.NumberofStops = routeData.TripSummary.NumberofStops
+		}
+
+		if err := Models.DB.Create(&tripRoute).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "Failed to save route data",
+			})
+		}
+		message = "Route data stored successfully"
+	}
+
+	return c.JSON(fiber.Map{
+		"success":      true,
+		"message":      message,
+		"trip_id":      tripID,
+		"car_id":       trip.CarID,
+		"etit_car_id":  car.EtitCarID,
+		"from":         from,
+		"to":           to,
+		"coordinates":  routeData.Coordinates,
+		"stops":        routeData.Stops,
+		"total_points": len(routeData.Coordinates),
+		"total_stops":  len(routeData.Stops),
+		"trip_summary": routeData.TripSummary,
+	})
+}
+
+func GetVehicleRouteByTrip(c *fiber.Ctx) error {
+	// Get query parameters
+	tripID := c.Query("trip_id")
+
+	// Validate required parameters
+	if tripID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "trip_id is required",
+		})
+	}
+
+	// Find stored route data for this trip
+	var tripRoute Models.ETITTripRoute
+	if err := Models.DB.Where("trip_id = ?", tripID).First(&tripRoute).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"error": "No route data found for this trip. Please fetch and store route data first.",
+		})
+	}
+
+	// Unmarshal coordinates and stops from JSON
+	var coordinates []Structs.Coordinate
+	if err := json.Unmarshal([]byte(tripRoute.Coordinates), &coordinates); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to parse coordinates data",
+		})
+	}
+
+	var stops []Structs.Stop
+	if err := json.Unmarshal([]byte(tripRoute.Stops), &stops); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to parse stops data",
+		})
+	}
+
+	var trimSummary *Structs.TripSummary
+	if err := json.Unmarshal([]byte(tripRoute.TripSummary), &trimSummary); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to parse summary data",
+		})
+	}
+
+	// Prepare response data
+	responseData := fiber.Map{
+		"success":      true,
+		"trip_id":      tripRoute.TripID,
+		"car_id":       tripRoute.CarID,
+		"etit_car_id":  tripRoute.EtitCarID,
+		"from":         tripRoute.FromTime,
+		"to":           tripRoute.ToTime,
+		"coordinates":  coordinates,
+		"stops":        stops,
+		"trip_summary": trimSummary,
+		"total_points": tripRoute.TotalPoints,
+		"total_stops":  tripRoute.TotalStops,
+	}
+
+	return c.JSON(responseData)
 }
 
 func GetVehicleRouteByDate(c *fiber.Ctx) error {
@@ -346,8 +661,8 @@ func GetVehicleRouteByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return the route data with both coordinates and stops
-	return c.JSON(fiber.Map{
+	// Prepare response data
+	responseData := fiber.Map{
 		"success":      true,
 		"car_id":       carID,
 		"etit_car_id":  car.EtitCarID,
@@ -357,7 +672,31 @@ func GetVehicleRouteByDate(c *fiber.Ctx) error {
 		"stops":        routeData.Stops,
 		"total_points": len(routeData.Coordinates),
 		"total_stops":  len(routeData.Stops),
-	})
+	}
+
+	// Add trip summary data if available
+	if routeData.TripSummary != nil {
+		responseData["trip_summary"] = routeData.TripSummary
+		responseData["total_distance"] = routeData.TripSummary.TotalMileage
+		responseData["total_active_time"] = routeData.TripSummary.TotalActiveTime
+		responseData["total_passive_time"] = routeData.TripSummary.TotalPassiveTime
+		responseData["total_idle_time"] = routeData.TripSummary.TotalIdleTime
+		responseData["total_fuel_consumption"] = routeData.TripSummary.TotalFuelConsumption
+		responseData["driver_name"] = routeData.TripSummary.DriverName
+		responseData["number_of_stops"] = routeData.TripSummary.NumberofStops
+	} else {
+		responseData["trip_summary"] = nil
+		responseData["total_distance"] = nil
+		responseData["total_active_time"] = nil
+		responseData["total_passive_time"] = nil
+		responseData["total_idle_time"] = nil
+		responseData["total_fuel_consumption"] = nil
+		responseData["driver_name"] = nil
+		responseData["number_of_stops"] = nil
+	}
+
+	// Return the route data with coordinates, stops, and trip summary
+	return c.JSON(responseData)
 }
 
 func (app *App) Login() (*colly.Collector, error) {
