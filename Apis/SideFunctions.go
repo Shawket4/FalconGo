@@ -2,6 +2,7 @@ package Apis
 
 import (
 	"Falcon/Models"
+	"Falcon/PetroApp"
 	"fmt"
 	"log"
 	"sort"
@@ -364,6 +365,7 @@ func AddFuelEvent(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
+	PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
 	return c.JSON(inputJson)
 }
 
@@ -397,6 +399,13 @@ func EditFuelEvent(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
+	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", car.ID).UpdateColumn("last_fuel_odometer", inputJson.OdometerAfter).Error; err != nil {
+		log.Println(err.Error())
+		return c.JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
 
 	return c.JSON(inputJson)
 }

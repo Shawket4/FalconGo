@@ -5,6 +5,7 @@ import (
 	"Falcon/Models"
 	"Falcon/Whatsapp"
 	"Falcon/email"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,17 +18,61 @@ import (
 )
 
 // Plate number conversion map - maps PetroApp format to Arabic format
-var PlateNumberMap = map[string]string{
-	"C E F-4 3 8 1": "ف ع ص 4381",
-	"C Q F-4 2 5 3": "ف ق ص 4253",
-	"R Y F-9 1 5 6": "ف ى ر 9156",
-	"N A F-5 1 3 9": "ف أ ن 5139",
-	"S M F-9 2 4 7": "ف م س 9247",
-	"S R F-4 5 9 3": "ف ر س 4593",
-	"N A F-7 4 2 1": "ف ا ن 7421",
-	"Y D F-6 5 8 4": "ف د ى 6584",
-	"Y D F-6 8 3 4": "ف د ى 6834",
+type PlateNumberObj struct {
+	PlateNumberDB     string `json:"plate_number_db"`
+	PetroAppVehicleID uint   `json:"petro_app_vehicle_id"`
 }
+
+var PlateNumberMap = map[string]PlateNumberObj{
+	"C E F-4 3 8 1": PlateNumberObj{
+		PlateNumberDB:     "ف ع ص 4381",
+		PetroAppVehicleID: 53008,
+	},
+	"C Q F-4 2 5 3": PlateNumberObj{
+		PlateNumberDB:     "ف ق ص 4253",
+		PetroAppVehicleID: 53005,
+	},
+	"R Y F-9 1 5 6": PlateNumberObj{
+		PlateNumberDB:     "ف ى ر 9156",
+		PetroAppVehicleID: 53004,
+	},
+	"N A F-5 1 3 9": PlateNumberObj{
+		PlateNumberDB:     "ف أ ن 5139",
+		PetroAppVehicleID: 53007,
+	},
+	"S M F-9 2 4 7": PlateNumberObj{
+		PlateNumberDB:     "ف م س 9247",
+		PetroAppVehicleID: 53010,
+	},
+	"S R F-4 5 9 3": PlateNumberObj{
+		PlateNumberDB:     "ف ر س 4593",
+		PetroAppVehicleID: 53012,
+	},
+	"Y D F-6 5 8 4": PlateNumberObj{
+		PlateNumberDB:     "ف د ى 6584",
+		PetroAppVehicleID: 53006,
+	},
+	"Y D F-6 8 3 4": PlateNumberObj{
+		PlateNumberDB:     "ف د ى 6834",
+		PetroAppVehicleID: 53011,
+	},
+	"N A F-7 4 2 1": PlateNumberObj{
+		PlateNumberDB:     "ف ا ن 7421",
+		PetroAppVehicleID: 53009,
+	},
+}
+
+// var PlateNumberMap = map[string]string{
+// 	"C E F-4 3 8 1": "ف ع ص 4381",
+// 	"C Q F-4 2 5 3": "ف ق ص 4253",
+// 	"R Y F-9 1 5 6": "ف ى ر 9156",
+// 	"N A F-5 1 3 9": "ف أ ن 5139",
+// 	"S M F-9 2 4 7": "ف م س 9247",
+// 	"S R F-4 5 9 3": "ف ر س 4593",
+// 	"N A F-7 4 2 1": "ف ا ن 7421",
+// 	"Y D F-6 5 8 4": "ف د ى 6584",
+// 	"Y D F-6 8 3 4": "ف د ى 6834",
+// }
 
 // API response structure
 type PetroAppAPIResponse struct {
@@ -50,7 +95,7 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 	endDate := now.Format("2006/01/02")
 
 	params := fmt.Sprintf("?dates=%s-%s&limit=1000&page=1", startDate, endDate)
-	url := baseUrl + params
+	url := baseUrl + "/bills" + params
 
 	log.Printf("Fetching records from %s to %s", startDate, endDate)
 	log.Printf("Request URL: %s", url)
@@ -622,11 +667,97 @@ func convertPlateNumber(petroAppPlate string) string {
 	}
 
 	if converted, exists := PlateNumberMap[trimmedPlate]; exists {
-		return converted
+		return converted.PlateNumberDB
 	}
 
 	log.Printf("Warning: No plate mapping found for '%s', using original format", trimmedPlate)
 	return trimmedPlate
+}
+
+func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int) {
+	var PlateObj PlateNumberObj
+	for _, v := range PlateNumberMap {
+		if v.PlateNumberDB == plateNumber {
+			PlateObj = v
+		}
+
+	}
+	url := baseUrl + "/edit_odometer"
+
+	log.Printf("Request URL: %s", url)
+
+	// Create HTTP request with proper timeout
+	reqBodyStr := fmt.Sprintf("{vehicle_id: %v, odometer: %v}", PlateObj.PetroAppVehicleID, odometer)
+	reqBody := bytes.NewBuffer([]byte(reqBodyStr))
+	req, err := http.NewRequest("POST", url, reqBody)
+	if err != nil {
+		log.Printf("Error creating HTTP request: %v", err)
+
+	}
+
+	// Set required headers - validate they're not empty
+	if token == "" {
+
+	}
+	if cookie == "" {
+		log.Println("Warning: cookie is empty, this might cause authentication issues")
+	}
+
+	req.Header.Set("Authorization", token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Falcon-PetroApp-Sync/1.0")
+
+	// Create HTTP client with appropriate timeout
+	client := &http.Client{
+		Timeout: 60 * time.Second, // Increased timeout for large datasets
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error executing HTTP request: %v", err)
+
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Error closing response body: %v", closeErr)
+		}
+	}()
+
+	log.Printf("PetroApp API response status: %d %s", resp.StatusCode, resp.Status)
+
+	// Handle different HTTP status codes
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// Continue processing
+	case http.StatusUnauthorized:
+
+	case http.StatusForbidden:
+
+	case http.StatusTooManyRequests:
+
+	default:
+
+	}
+
+	// Decode response with size limit to prevent memory issues
+	decoder := json.NewDecoder(resp.Body)
+	var result PetroAppAPIResponse
+
+	if err := decoder.Decode(&result); err != nil {
+		log.Printf("Error decoding API response: %v", err)
+
+	}
+
+	// Validate response structure
+	if !result.Status {
+		log.Println("API returned status: false")
+
+	}
+
+	log.Printf("Successfully fetched %d records from PetroApp API", len(result.Data))
+
 }
 
 // parsePetroAppDate parses PetroApp date format to required format

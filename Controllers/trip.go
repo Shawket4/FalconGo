@@ -2877,11 +2877,18 @@ func (h *TripHandler) GetTrip(c *fiber.Ctx) error {
 	})
 }
 
-func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]interface{}, error) {
-	// Replace with your OSRM server URL
-	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
+type RouteResult struct {
+	OSRMData      map[string]interface{} `json:"osrm_data"`
+	GoogleMapsURL string                 `json:"googe_maps_url"`
+}
+
+func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
+	// Get route from OSRM
+	osrmURL := fmt.Sprintf("http://localhost:5001/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
 		startLng, startLat, endLng, endLat)
-	fmt.Println(osrmURL)
+
+	fmt.Println("OSRM URL:", osrmURL)
+
 	resp, err := http.Get(osrmURL)
 	if err != nil {
 		return nil, err
@@ -2893,7 +2900,166 @@ func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (map[string]in
 		return nil, err
 	}
 
-	return result, nil
+	// Generate Waze URL from OSRM data
+	googleMapsURL := generateGoogleMapsURLFromOSRM(result)
+
+	return &RouteResult{
+		OSRMData:      result,
+		GoogleMapsURL: googleMapsURL,
+	}, nil
+}
+
+func decodePolyline(encoded string) [][]float64 {
+	var coordinates [][]float64
+	index := 0
+	length := len(encoded)
+	lat := 0
+	lng := 0
+	for index < length {
+		// Decode latitude
+		b := 0
+		shift := 0
+		result := 0
+		for {
+			if index >= length {
+				break
+			}
+			b = int(encoded[index]) - 63
+			index++
+			result |= (b & 0x1f) << shift
+			shift += 5
+			if b < 0x20 {
+				break
+			}
+		}
+
+		var dlat int
+		if (result & 1) != 0 {
+			dlat = ^(result >> 1)
+		} else {
+			dlat = result >> 1
+		}
+		lat += dlat
+		// Decode longitude
+		shift = 0
+		result = 0
+		for {
+			if index >= length {
+				break
+			}
+			b = int(encoded[index]) - 63
+			index++
+			result |= (b & 0x1f) << shift
+			shift += 5
+			if b < 0x20 {
+				break
+			}
+		}
+
+		var dlng int
+		if (result & 1) != 0 {
+			dlng = ^(result >> 1)
+		} else {
+			dlng = result >> 1
+		}
+		lng += dlng
+		coordinates = append(coordinates, []float64{
+			float64(lat) / 1e5,
+			float64(lng) / 1e5,
+		})
+	}
+	return coordinates
+}
+
+func generateGoogleMapsURLFromOSRM(osrmData map[string]interface{}) string {
+	routes, ok := osrmData["routes"].([]interface{})
+	if !ok || len(routes) == 0 {
+		return ""
+	}
+
+	route := routes[0].(map[string]interface{})
+	geometry, ok := route["geometry"].(string)
+	if !ok || geometry == "" {
+		return ""
+	}
+
+	coordinates := decodePolyline(geometry)
+	if len(coordinates) < 2 {
+		return ""
+	}
+
+	start := coordinates[0]
+	destination := coordinates[len(coordinates)-1]
+
+	// Use strategic waypoints (fewer, better spaced)
+	waypoints := sampleStrategicWaypoints(coordinates, 15) // Use 15 instead of 23
+
+	// Build Google Maps URL
+	gmapsURL := fmt.Sprintf("https://www.google.com/maps/dir/%f,%f", start[0], start[1])
+
+	for _, waypoint := range waypoints {
+		gmapsURL += fmt.Sprintf("/%f,%f", waypoint[0], waypoint[1])
+	}
+
+	gmapsURL += fmt.Sprintf("/%f,%f", destination[0], destination[1])
+
+	return gmapsURL
+}
+
+func sampleStrategicWaypoints(coordinates [][]float64, maxWaypoints int) [][]float64 {
+	if len(coordinates) <= 2 {
+		return [][]float64{}
+	}
+
+	intermediateCoords := coordinates[1 : len(coordinates)-1]
+
+	// Use fewer waypoints (10-15) for cleaner routing
+	targetWaypoints := maxWaypoints
+	if maxWaypoints > 15 {
+		targetWaypoints = 15 // Reduce to 15 for cleaner routing
+	}
+
+	if len(intermediateCoords) <= targetWaypoints {
+		return filterWaypoints(intermediateCoords)
+	}
+
+	// Sample waypoints with larger intervals
+	var waypoints [][]float64
+	step := len(intermediateCoords) / targetWaypoints
+
+	for i := 0; i < targetWaypoints; i++ {
+		index := i * step
+		if index < len(intermediateCoords) {
+			waypoints = append(waypoints, intermediateCoords[index])
+		}
+	}
+
+	return filterWaypoints(waypoints)
+}
+
+func filterWaypoints(waypoints [][]float64) [][]float64 {
+	if len(waypoints) == 0 {
+		return waypoints
+	}
+
+	filtered := [][]float64{waypoints[0]}
+	minDistance := 0.002 // ~200 meters minimum distance between waypoints
+
+	for i := 1; i < len(waypoints); i++ {
+		lastWaypoint := filtered[len(filtered)-1]
+		currentWaypoint := waypoints[i]
+
+		// Calculate distance between waypoints
+		latDiff := currentWaypoint[0] - lastWaypoint[0]
+		lngDiff := currentWaypoint[1] - lastWaypoint[1]
+		distance := latDiff*latDiff + lngDiff*lngDiff // Simple distance squared
+
+		if distance > minDistance*minDistance {
+			filtered = append(filtered, currentWaypoint)
+		}
+	}
+
+	return filtered
 }
 
 func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
@@ -2979,12 +3145,13 @@ func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
 				}
 			}
 
-			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+			if routes, ok := osrmData.OSRMData["routes"].([]interface{}); ok && len(routes) > 0 {
 				route := routes[0].(map[string]interface{})
 				return map[string]interface{}{
-					"distance": route["distance"].(float64) / 1000, // Convert to km
-					"duration": route["duration"].(float64),        // Already in seconds
-					"geometry": route["geometry"],
+					"distance":        route["distance"].(float64) / 1000, // Convert to km
+					"duration":        route["duration"].(float64),        // Already in seconds
+					"geometry":        route["geometry"],
+					"google_maps_url": osrmData.GoogleMapsURL,
 				}
 			}
 
@@ -3093,7 +3260,7 @@ func (h *TripHandler) CreateTrip(c *fiber.Ctx) error {
 				}
 			}
 
-			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+			if routes, ok := osrmData.OSRMData["routes"].([]interface{}); ok && len(routes) > 0 {
 				route := routes[0].(map[string]interface{})
 				return map[string]interface{}{
 					"distance": route["distance"].(float64) / 1000, // Convert to km
@@ -3315,7 +3482,7 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 				}
 			}
 
-			if routes, ok := osrmData["routes"].([]interface{}); ok && len(routes) > 0 {
+			if routes, ok := osrmData.OSRMData["routes"].([]interface{}); ok && len(routes) > 0 {
 				route := routes[0].(map[string]interface{})
 				return map[string]interface{}{
 					"distance": route["distance"].(float64) / 1000, // Convert to km
