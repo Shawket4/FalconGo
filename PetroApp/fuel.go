@@ -682,12 +682,13 @@ func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int)
 		}
 
 	}
+	fmt.Println(PlateObj)
 	url := baseUrl + "/edit_odometer"
 
-	log.Printf("Request URL: %s", url)
+	fmt.Printf("Request URL: %s", url)
 
 	// Create HTTP request with proper timeout
-	reqBodyStr := fmt.Sprintf("{vehicle_id: %v, odometer: %v}", PlateObj.PetroAppVehicleID, odometer)
+	reqBodyStr := fmt.Sprintf(`{"vehicle_id": %d, "odometer": %d}`, PlateObj.PetroAppVehicleID, odometer)
 	reqBody := bytes.NewBuffer([]byte(reqBodyStr))
 	req, err := http.NewRequest("POST", url, reqBody)
 	if err != nil {
@@ -725,7 +726,7 @@ func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int)
 		}
 	}()
 
-	log.Printf("PetroApp API response status: %d %s", resp.StatusCode, resp.Status)
+	fmt.Printf("PetroApp API response status: %d %s", resp.StatusCode, resp.Status)
 
 	// Handle different HTTP status codes
 	switch resp.StatusCode {
