@@ -263,7 +263,7 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 			if route.Terminal == "Alex" {
 				ratePerKm = 40.7
 			} else if route.Terminal == "Suez" {
-				ratePerKm = 38.2
+				ratePerKm = 40.7
 			} else {
 				ratePerKm = 0 // Default if unknown terminal
 			}
@@ -805,7 +805,7 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						COALESCE(SUM(
 							CASE 
 								WHEN t.terminal = 'Alex' THEN fm.distance * 40.7
-								WHEN t.terminal = 'Suez' THEN fm.distance * 38.2
+								WHEN t.terminal = 'Suez' THEN fm.distance * 40.7
 								ELSE 0
 							END
 						), 0) as base_revenue
@@ -1331,7 +1331,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				if stat.Terminal == "Alex" {
 					ratePerKm = 40.7
 				} else if stat.Terminal == "Suez" {
-					ratePerKm = 38.2
+					ratePerKm = 40.7
 				} else {
 					ratePerKm = 0 // Default if unknown terminal
 				}
