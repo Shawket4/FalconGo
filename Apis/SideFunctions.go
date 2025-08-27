@@ -405,8 +405,16 @@ func EditFuelEvent(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
-	PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
+	var lastFuelEvent Models.FuelEvent
+	if err := Models.DB.Model(&Models.FuelEvent{}).Where("car_no_plate = ?", inputJson.CarNoPlate).Order("created_at desc").Limit(1).Find(&lastFuelEvent).Error; err != nil {
+		log.Println(err.Error())
+		return err
+	}
 
+	if lastFuelEvent.ID == inputJson.ID {
+		// If the edited fuel event is the last fuel event, call the PetroApp function
+		PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
+	}
 	return c.JSON(inputJson)
 }
 
