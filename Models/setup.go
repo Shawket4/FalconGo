@@ -66,6 +66,8 @@ func Connect() {
 		&FuelEvent{},  // Depends on Car info
 		&Service{},    // Depends on Car info
 		&OilChange{},  // Depends on Car info
+		&InspectionItem{},
+		&ServiceInvoice{},
 	)
 
 	DB.AutoMigrate(&Vendor{}, &VendorTransaction{})

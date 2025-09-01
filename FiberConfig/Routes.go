@@ -241,7 +241,7 @@ func FiberConfig() {
 
 	app.Post("/UpdateTireList", Apis.UpdateTireList)
 
-	api := app.Group("/api")
+	api := app.Group("/api", middleware.Verify(1))
 
 	// Truck routes
 	api.Get("/trucks", Controllers.GetAllTrucks)
@@ -263,7 +263,14 @@ func FiberConfig() {
 	api.Get("/trucks/:id/positions", Controllers.GetTruckPositions)
 	api.Post("/positions/assign", Controllers.AssignTireToPosition)
 	api.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
-	app.Post("/get-closest-stations", PetroApp.GetClosestStations)
+	app.Post("/get-closest-stations", PetroApp.GetClosestStations, middleware.Verify(1))
+
+	app.Post("/api/service-invoices", Controllers.CreateServiceInvoice, middleware.Verify(1))
+	app.Get("/api/service-invoices/:id", Controllers.GetServiceInvoice, middleware.Verify(1))
+	app.Get("/api/service-invoices", Controllers.GetAllServiceInvoices, middleware.Verify(1))
+	app.Get("/api/cars/:carId/service-invoices", Controllers.GetServiceInvoicesByCarID, middleware.Verify(1))
+	app.Put("/api/service-invoices/:id", Controllers.UpdateServiceInvoice, middleware.Verify(1))
+	app.Delete("/api/service-invoices/:id", Controllers.DeleteServiceInvoice, middleware.Verify(1))
 	// WebSocket
 	// app.Use("/ws", func(c *fiber.Ctx) error {
 	// 	// IsWebSocketUpgrade returns true if the client

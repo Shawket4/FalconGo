@@ -1478,7 +1478,7 @@ func CreateServiceEvent(c *fiber.Ctx) error {
 				return err
 			}
 			input.CarNoPlate = car.CarNoPlate
-			input.Transporter = Controllers.CurrentUser.Name
+
 			// proofFile, err := c.FormFile("ProofFile")
 			// if err != nil {
 			// 	log.Println(err.Error())
