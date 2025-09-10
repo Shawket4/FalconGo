@@ -43,6 +43,7 @@ func main() {
 		// }
 		for {
 			PetroApp.FetchPetroAppRecords()
+			time.Sleep(time.Minute)
 			// Sync PetroApp records to FuelEvents
 			if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
 				log.Printf("Error syncing PetroApp records: %v", err)
