@@ -1,6 +1,8 @@
 package Models
 
 import (
+	"time"
+
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -36,4 +38,9 @@ type Car struct {
 	Driver                          Driver           `json:"driver" gorm:"foreignKey:DriverID"`
 	EtitCarID                       string           `json:"etit_car_id"`
 	ServiceInvoices                 []ServiceInvoice `json:"service_invoices,omitempty" gorm:"foreignKey:CarID"`
+	OperatingCompany                string           `json:"operating_company"`
+	OperatingArea                   string           `json:"operating_area"`
+	GeoFence                        string           `json:"geo_fence"`
+	SlackStatus                     string           `json:"slack_status"`
+	LastUpdatedSlackStatus          time.Time        `json:"last_updated_slack_status"`
 }

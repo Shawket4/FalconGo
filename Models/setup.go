@@ -31,7 +31,7 @@ func Connect() {
 	// dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", DbHost, DbUser, DbPassword, DbName, DbPort)
 	// connection, err := gorm.Open(postgres.Open("snap:Snapsnap@2@tcp(92.205.60.182:3306)/Falcon?parseTime=true"), &gorm.Config{})
 	// connection, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	connection, err := gorm.Open(sqlite.Open("database.db"))
+	connection, err := gorm.Open(sqlite.Open("database_old.db"))
 	DB = connection
 	DB.AutoMigrate(&SpeedAlert{})
 	DB.AutoMigrate(&PetroAppRecord{})
