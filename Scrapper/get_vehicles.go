@@ -191,7 +191,7 @@ type GeoFence struct {
 	Latitude  float64
 	Longitude float64
 	Radius    float64 // in kilometers
-	Type      string  // "garage" or "terminal"
+	Type      string  // "garage", "terminal", or "dropoff"
 }
 
 // Define all geofences
@@ -281,14 +281,46 @@ func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
 }
 
 // checkGeofences checks which geofence the vehicle is in (if any)
-func checkGeofences(lat, lng float64) (string, string, bool) {
+func checkGeofences(lat, lng float64, car *Models.Car) (string, string, bool) {
+	// First check static geofences (garage and terminals)
 	for _, geofence := range AllGeoFences {
 		distance := calculateDistance(lat, lng, geofence.Latitude, geofence.Longitude)
 		if distance <= geofence.Radius {
 			return geofence.Name, geofence.Type, true
 		}
 	}
+
+	// Then check drop-off point geofences from database
+	// Only check if vehicle is stopped (speed <= 5)
+	if car.Speed <= 5 {
+		dropoffName, found := checkDropOffPoints(lat, lng, car.OperatingCompany)
+		if found {
+			return dropoffName, "dropoff", true
+		}
+	}
+
 	return "", "", false
+}
+
+// checkDropOffPoints checks if vehicle is at any drop-off point
+func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
+	var feeMappings []Models.FeeMapping
+
+	// Get all fee mappings for this company
+	if err := Models.DB.Where("company = ?", company).Find(&feeMappings).Error; err != nil {
+		log.Printf("Error fetching fee mappings: %v", err)
+		return "", false
+	}
+
+	// Check each drop-off point (500m radius)
+	for _, mapping := range feeMappings {
+		distance := calculateDistance(lat, lng, mapping.Latitude, mapping.Longitude)
+		if distance <= 0.5 { // 500 meters radius
+			return mapping.DropOffPoint, true
+		}
+	}
+
+	return "", false
 }
 
 // updateCarGeofence updates car's geofence based on current location
@@ -307,27 +339,26 @@ func updateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 		return false
 	}
 
-	// Check all geofences
-	geofenceName, geofenceType, inGeofence := checkGeofences(lat, lng)
+	// Check all geofences (including drop-off points)
+	geofenceName, geofenceType, inGeofence := checkGeofences(lat, lng, car)
 
 	if inGeofence {
 		car.GeoFence = geofenceName
-		if geofenceType == "garage" {
+		switch geofenceType {
+		case "garage":
 			car.SlackStatus = "Parked"
-		} else if geofenceType == "terminal" {
-			if car.EngineStatus == "Ignition On" && car.Speed > 5 {
-				car.SlackStatus = "Loading"
-			} else {
-				car.SlackStatus = "At Terminal"
-			}
+		case "terminal":
+			car.SlackStatus = "At Terminal"
+		case "dropoff":
+			car.SlackStatus = "At Delivery"
 		}
 	} else {
 		car.GeoFence = ""
 		// Determine slack status from engine status and speed
-		if car.EngineStatus == "Ignition Off" {
-			car.SlackStatus = "Available & Off"
-		} else {
+		if car.EngineStatus == "Ignition On" {
 			car.SlackStatus = "Available & On"
+		} else {
+			car.SlackStatus = "Available & Off"
 		}
 	}
 
@@ -357,7 +388,7 @@ func generateSlackMessage(cars []Models.Car, company string) string {
 		// Determine location to display
 		displayLocation := car.Location
 		if car.GeoFence != "" {
-			// Check if it's a terminal or garage
+			// Check if it's a terminal, garage, or drop-off point
 			for _, geofence := range AllGeoFences {
 				if geofence.Name == car.GeoFence {
 					if geofence.Type == "garage" {
@@ -367,6 +398,10 @@ func generateSlackMessage(cars []Models.Car, company string) string {
 					}
 					break
 				}
+			}
+			// If not found in static geofences, it might be a drop-off point
+			if displayLocation == car.Location {
+				displayLocation = fmt.Sprintf("%s - Drop Off Point", car.GeoFence)
 			}
 		}
 
@@ -411,7 +446,7 @@ func generateSlackMessage(cars []Models.Car, company string) string {
 	message.WriteString("🟡 **At Terminal** - At fuel terminal  \n")
 	message.WriteString("🔵 **Loading** - Loading fuel at terminal  \n")
 	message.WriteString("🔴 **En Route** - Traveling to destination  \n")
-	message.WriteString("🟠 **At Delivery** - Unloading/At delivery point  \n")
+	message.WriteString("🟠 **At Delivery** - Unloading at drop-off point  \n")
 	message.WriteString("🅿️ **Parked** - At garage/depot  \n")
 	message.WriteString("⚫ **Off Duty** - Driver break/end of shift\n\n")
 
