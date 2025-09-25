@@ -735,6 +735,20 @@ var AllGeoFences = []GeoFence{
 		Radius:    0.5,
 		Type:      "terminal",
 	},
+	{
+		Name:      "TAQA Suez Terminal",
+		Latitude:  29.964054,
+		Longitude: 32.515200,
+		Radius:    0.5,
+		Type:      "terminal",
+	},
+	{
+		Name:      "TAQA Alex Terminal",
+		Latitude:  31.149223,
+		Longitude: 29.853037,
+		Radius:    0.5,
+		Type:      "terminal",
+	},
 }
 
 // GeoFence represents a geographical boundary

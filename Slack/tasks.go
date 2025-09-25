@@ -26,7 +26,7 @@ func ValidateOilChangeTask() (bool, string, []string) {
 	today := time.Now().Format("2006-01-02")
 
 	var activeCars []Models.Car
-	if err := Models.DB.Find(&activeCars).Error; err != nil {
+	if err := Models.DB.Where("id != ?", 15).Find(&activeCars).Error; err != nil {
 		log.Printf("Error fetching active cars: %v", err)
 		return false, "Error fetching vehicle records from database", nil
 	}

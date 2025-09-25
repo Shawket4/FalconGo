@@ -3,9 +3,11 @@ package main
 import (
 	"Falcon/FiberConfig"
 	"Falcon/Models"
+	"Falcon/Scrapper"
 	"Falcon/Slack"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -32,23 +34,23 @@ func main() {
 	// 		time.Sleep(time.Hour)
 	// 	}
 	// }()
-	// go func() {
-	// 	// if err := Alerts.InitFirebase(); err != nil {
-	// 	// 	log.Fatal("Failed to initialize Firebase:", err)
-	// 	// }
-	// 	for {
-	// 		// PetroApp.FetchPetroAppRecords()
-	// 		// time.Sleep(time.Minute)
-	// 		// // Sync PetroApp records to FuelEvents
-	// 		// if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
-	// 		// 	log.Printf("Error syncing PetroApp records: %v", err)
-	// 		// }
-	// 		Scrapper.GetVehicleData()
-	// 		// time.Sleep(time.Second * 10)
-	// 		// Scrapper.CalculateDistanceWorker()
-	// 		time.Sleep(time.Minute * 5)
-	// 	}
-	// }()
+	go func() {
+		// if err := Alerts.InitFirebase(); err != nil {
+		// 	log.Fatal("Failed to initialize Firebase:", err)
+		// }
+		for {
+			// PetroApp.FetchPetroAppRecords()
+			// time.Sleep(time.Minute)
+			// // Sync PetroApp records to FuelEvents
+			// if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
+			// 	log.Printf("Error syncing PetroApp records: %v", err)
+			// }
+			Scrapper.GetVehicleData()
+			// time.Sleep(time.Second * 10)
+			// Scrapper.CalculateDistanceWorker()
+			time.Sleep(time.Minute * 5)
+		}
+	}()
 	// go func() {
 	// 	time.Sleep(time.Second * 30)
 	// 	for {
@@ -59,7 +61,7 @@ func main() {
 	// 	}
 	// }()
 
-	// setupLogging()
+	setupLogging()
 	// Setup routes
 	Models.Connect()
 	// PetroApp.MigrateStations()
