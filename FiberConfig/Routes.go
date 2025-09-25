@@ -11,6 +11,7 @@ import (
 	"Falcon/PetroApp"
 	"Falcon/PreviewData"
 	"Falcon/Scrapper"
+	"Falcon/Slack"
 	"Falcon/middleware"
 	"fmt"
 	"time"
@@ -271,6 +272,7 @@ func FiberConfig() {
 	app.Get("/api/cars/:carId/service-invoices", Controllers.GetServiceInvoicesByCarID, middleware.Verify(1))
 	app.Put("/api/service-invoices/:id", Controllers.UpdateServiceInvoice, middleware.Verify(1))
 	app.Delete("/api/service-invoices/:id", Controllers.DeleteServiceInvoice, middleware.Verify(1))
+	Slack.RegisterSlackRoutes(app, middleware.Verify(1))
 	// WebSocket
 	// app.Use("/ws", func(c *fiber.Ctx) error {
 	// 	// IsWebSocketUpgrade returns true if the client

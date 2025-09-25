@@ -420,7 +420,7 @@ func SendDailyTasksToSlack() error {
 	client := NewSlackClient(slackToken)
 	message := GenerateSlackTaskMessage()
 
-	return client.SendAndPinWithCleanup(TASK_CHANNEL_ID, message)
+	return client.SendAndPinWithCleanupTasks(TASK_CHANNEL_ID, message)
 }
 
 // CreateDailyTasks creates all daily tasks
@@ -638,7 +638,7 @@ func StartSlackTaskListener() error {
 									updatedMessage := GenerateSlackTaskMessage()
 
 									slackClient := NewSlackClient(botToken)
-									if err := slackClient.SendAndPinWithCleanup(TASK_CHANNEL_ID, updatedMessage); err != nil {
+									if err := slackClient.SendAndPinWithCleanupTasks(TASK_CHANNEL_ID, updatedMessage); err != nil {
 										log.Printf("Error updating pinned message: %v", err)
 									}
 								}
