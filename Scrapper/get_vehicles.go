@@ -7,15 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gocolly/colly"
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -185,349 +182,11 @@ func GetAllVehicleData() []VehicleStatusStruct {
 	return VehicleStatusList
 }
 
-// GeoFence represents a geographical boundary
-type GeoFence struct {
-	Name      string
-	Latitude  float64
-	Longitude float64
-	Radius    float64 // in kilometers
-	Type      string  // "garage", "terminal", or "dropoff"
-}
-
-// Define all geofences
-var AllGeoFences = []GeoFence{
-	// Garage
-	{
-		Name:      "garage",
-		Latitude:  30.128955,
-		Longitude: 31.298539,
-		Radius:    0.4, // 400 meters radius
-		Type:      "garage",
-	},
-	// Terminals
-	{
-		Name:      "Badr Terminal",
-		Latitude:  30.1020583,
-		Longitude: 31.81396,
-		Radius:    0.5, // 500 meters radius
-		Type:      "terminal",
-	},
-	{
-		Name:      "CPC Mostorod Terminal",
-		Latitude:  30.144197,
-		Longitude: 31.296322,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Fayoum Terminal",
-		Latitude:  29.3391616,
-		Longitude: 30.9257033,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Misr Petroleum Bor Saed Terminal",
-		Latitude:  31.235575,
-		Longitude: 32.301198,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Mobil Bor Saed Terminal",
-		Latitude:  31.23365,
-		Longitude: 32.298082,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Haykstep Terminal",
-		Latitude:  30.12486,
-		Longitude: 31.3580633,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Somed Terminal",
-		Latitude:  29.594416,
-		Longitude: 32.329073,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-	{
-		Name:      "Agroud Terminal",
-		Latitude:  30.071958,
-		Longitude: 32.381296,
-		Radius:    0.5,
-		Type:      "terminal",
-	},
-}
-
-// calculateDistance calculates distance between two coordinates using Haversine formula
-func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	const R = 6371 // Earth's radius in kilometers
-
-	dLat := (lat2 - lat1) * math.Pi / 180
-	dLon := (lon2 - lon1) * math.Pi / 180
-
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180)*math.Cos(lat2*math.Pi/180)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
-
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	distance := R * c
-
-	return distance
-}
-
-// checkGeofences checks which geofence the vehicle is in (if any)
-func checkGeofences(lat, lng float64, car *Models.Car) (string, string, bool) {
-	// First check static geofences (garage and terminals)
-	for _, geofence := range AllGeoFences {
-		distance := calculateDistance(lat, lng, geofence.Latitude, geofence.Longitude)
-		if distance <= geofence.Radius {
-			return geofence.Name, geofence.Type, true
-		}
-	}
-
-	// Then check drop-off point geofences from database
-	// Only check if vehicle is stopped (speed <= 5)
-	if car.Speed <= 5 {
-		dropoffName, found := checkDropOffPoints(lat, lng, car.OperatingCompany)
-		if found {
-			return dropoffName, "dropoff", true
-		}
-	}
-
-	return "", "", false
-}
-
 // checkDropOffPoints checks if vehicle is at any drop-off point
-func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
-	var feeMappings []Models.FeeMapping
-
-	// Get all fee mappings for this company
-	if err := Models.DB.Where("company = ?", company).Find(&feeMappings).Error; err != nil {
-		log.Printf("Error fetching fee mappings: %v", err)
-		return "", false
-	}
-
-	// Check each drop-off point (500m radius)
-	for _, mapping := range feeMappings {
-		distance := calculateDistance(lat, lng, mapping.Latitude, mapping.Longitude)
-		if distance <= 0.5 { // 500 meters radius
-			return mapping.DropOffPoint, true
-		}
-	}
-
-	return "", false
-}
-
-// updateCarGeofence updates car's geofence based on current location
-func updateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool {
-	// Parse the timestamp from VehicleStatusStruct
-	newTimestamp, err := time.Parse("2006-01-02 15:04:05", timestamp)
-	if err != nil {
-		log.Printf("Error parsing timestamp %s for car %s: %v", timestamp, car.CarNoPlate, err)
-		return false
-	}
-
-	// Check if new timestamp is after last updated slack status
-	if !car.LastUpdatedSlackStatus.IsZero() && !newTimestamp.After(car.LastUpdatedSlackStatus) {
-		log.Printf("Skipping update for car %s - timestamp %s is not newer than last update %s",
-			car.CarNoPlate, timestamp, car.LastUpdatedSlackStatus.Format("2006-01-02 15:04:05"))
-		return false
-	}
-
-	// Check all geofences (including drop-off points)
-	geofenceName, geofenceType, inGeofence := checkGeofences(lat, lng, car)
-
-	if inGeofence {
-		car.GeoFence = geofenceName
-		switch geofenceType {
-		case "garage":
-			car.SlackStatus = "Parked"
-		case "terminal":
-			car.SlackStatus = "At Terminal"
-		case "dropoff":
-			car.SlackStatus = "At Delivery"
-		}
-	} else {
-		car.GeoFence = ""
-		// Determine slack status from engine status and speed
-		if car.EngineStatus == "Ignition On" {
-			car.SlackStatus = "Available & On"
-		} else {
-			car.SlackStatus = "Available & Off"
-		}
-	}
-
-	// Update the last updated timestamp
-	car.LastUpdatedSlackStatus = newTimestamp
-
-	return true // Indicates update was performed
-}
-
-// generateSlackMessage generates formatted slack message for a company
-func generateSlackMessage(cars []Models.Car, company string) string {
-	var message strings.Builder
-
-	// Header
-	message.WriteString(fmt.Sprintf("# %s FLEET STATUS\n", strings.ToUpper(company)))
-	message.WriteString(fmt.Sprintf("*Last Updated: %s*\n\n", time.Now().Format("January 2, 2006 - 15:04:05 MST")))
-	message.WriteString("---\n\n")
-
-	// Vehicle details
-	for _, car := range cars {
-		// Get driver name
-		driverName := "Unknown Driver"
-		if car.Driver.Name != "" {
-			driverName = car.Driver.Name
-		}
-
-		// Determine location to display
-		displayLocation := car.Location
-		if car.GeoFence != "" {
-			// Check if it's a terminal, garage, or drop-off point
-			for _, geofence := range AllGeoFences {
-				if geofence.Name == car.GeoFence {
-					if geofence.Type == "garage" {
-						displayLocation = "Garage - Parked"
-					} else if geofence.Type == "terminal" {
-						displayLocation = fmt.Sprintf("%s", geofence.Name)
-					}
-					break
-				}
-			}
-			// If not found in static geofences, it might be a drop-off point
-			if displayLocation == car.Location {
-				displayLocation = fmt.Sprintf("%s - Drop Off Point", car.GeoFence)
-			}
-		}
-
-		// Get status emoji
-		statusEmoji := getStatusEmoji(car.SlackStatus)
-
-		// Generate Google Maps link
-		mapsLink := ""
-		if car.Latitude != "" && car.Longitude != "" {
-			mapsLink = fmt.Sprintf("https://maps.google.com/?q=%s,%s", car.Latitude, car.Longitude)
-		}
-
-		message.WriteString(fmt.Sprintf("## **%s**\n", car.CarNoPlate))
-		message.WriteString(fmt.Sprintf("**Driver:** %s  \n", driverName))
-		message.WriteString(fmt.Sprintf("**Area:** %s  \n", car.OperatingArea))
-		message.WriteString(fmt.Sprintf("**Status:** %s %s  \n", car.SlackStatus, statusEmoji))
-		message.WriteString(fmt.Sprintf("**Location:** %s  \n", displayLocation))
-
-		// Add Google Maps link if coordinates are available
-		if mapsLink != "" {
-			message.WriteString(fmt.Sprintf("**Maps:** [View Location](%s)  \n", mapsLink))
-		}
-
-		// Parse and format timestamp
-		if car.LocationTimeStamp != "" {
-			if parsedTime, err := time.Parse("2006-01-02 15:04:05", car.LocationTimeStamp); err == nil {
-				message.WriteString(fmt.Sprintf("**Last Update:** %s\n\n", parsedTime.Format("15:04")))
-			} else {
-				message.WriteString(fmt.Sprintf("**Last Update:** %s\n\n", car.LocationTimeStamp))
-			}
-		} else {
-			message.WriteString("**Last Update:** Unknown\n\n")
-		}
-
-		message.WriteString("---\n\n")
-	}
-
-	// Status legend
-	message.WriteString("### **Status Legend:**\n")
-	message.WriteString("🟢 **Available & On** - Ready for dispatch (engine on)  \n")
-	message.WriteString("🟢 **Available & Off** - Ready for dispatch (engine off)  \n")
-	message.WriteString("🟡 **At Terminal** - At fuel terminal  \n")
-	message.WriteString("🔵 **Loading** - Loading fuel at terminal  \n")
-	message.WriteString("🔴 **En Route** - Traveling to destination  \n")
-	message.WriteString("🟠 **At Delivery** - Unloading at drop-off point  \n")
-	message.WriteString("🅿️ **Parked** - At garage/depot  \n")
-	message.WriteString("⚫ **Off Duty** - Driver break/end of shift\n\n")
-
-	// Footer
-	message.WriteString("---\n")
-	message.WriteString("*Auto-updated by Apex Transport System*")
-
-	return message.String()
-}
-
-// getStatusEmoji returns appropriate emoji for status
-func getStatusEmoji(status string) string {
-	switch strings.ToLower(status) {
-	case "available & on":
-		return "🟢"
-	case "available & off":
-		return "🟢"
-	case "at terminal":
-		return "🟡"
-	case "loading":
-		return "🔵"
-	case "en route":
-		return "🔴"
-	case "at delivery":
-		return "🟠"
-	case "parked":
-		return "🅿️"
-	case "off duty":
-		return "⚫"
-	default:
-		return "❓"
-	}
-}
-
-// Company to Slack channel mapping
-var CompanyChannelMap = map[string]string{
-	"petrol_arrows": "C09GSBV2TSR",
-	"taqa":          "C09H1DFP21J",
-	"watanya":       "C09GW6QNT46",
-}
 
 // sendFleetUpdatesToSlack sends updates to appropriate Slack channels
-func sendFleetUpdatesToSlack(carsByCompany map[string][]Models.Car) error {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatalf("Error loading .env file")
-	}
-	slackToken := os.Getenv("SLACK_BOT_TOKEN")
-	if slackToken == "" {
-		return fmt.Errorf("SLACK_BOT_TOKEN not set")
-	}
 
-	client := Slack.NewSlackClient(slackToken)
-
-	for company, cars := range carsByCompany {
-		if len(cars) == 0 {
-			continue
-		}
-
-		// Get channel ID from mapping
-		channelID, exists := CompanyChannelMap[company]
-		if !exists {
-			log.Printf("No channel mapping found for company: %s", company)
-			continue
-		}
-
-		// Generate message
-		message := generateSlackMessage(cars, company)
-
-		log.Printf("Sending %s fleet status to channel %s (%d vehicles)", company, channelID, len(cars))
-
-		if err := client.SendAndPinWithCleanup(channelID, message); err != nil {
-			log.Printf("Error sending to channel %s: %v", channelID, err)
-		} else {
-			log.Printf("Successfully sent %s fleet status", company)
-		}
-	}
-
-	return nil
-}
-
-// GetVehicleData - enhanced version with multiple geofences
+// GetVehicleData - enhanced version with geofence-only updates and individual vehicle change detection
 func GetVehicleData() {
 	// Your existing vehicle data fetching logic
 	clients, err := GetClients(username, password)
@@ -562,6 +221,10 @@ func GetVehicleData() {
 		carsByEtitID[allCars[i].EtitCarID] = &allCars[i]
 	}
 
+	// Track which vehicles had status changes
+	var changedVehicles []string
+	var statusChanges bool = false
+
 	// Step 2: Process each vehicle status and update corresponding car
 	for _, vehicleStatus := range VehicleStatusList {
 		car, exists := carsByEtitID[vehicleStatus.ID]
@@ -582,7 +245,7 @@ func GetVehicleData() {
 			continue
 		}
 
-		// Update car with new location data
+		// Always update car with new location data for database
 		car.Latitude = vehicleStatus.Latitude
 		car.Longitude = vehicleStatus.Longitude
 		car.LocationTimeStamp = vehicleStatus.Timestamp
@@ -597,49 +260,76 @@ func GetVehicleData() {
 		}
 		car.Location = address
 
-		// Update geofence based on coordinates (only if timestamp is newer)
-		updated := updateCarGeofence(car, lat, lng, vehicleStatus.Timestamp)
-		if !updated {
-			continue // Skip saving if no update was made
+		// Update geofence ONLY if timestamp is newer AND vehicle has a geofence
+		// This returns true only if status actually changed
+		if Slack.UpdateCarGeofence(car, lat, lng, vehicleStatus.Timestamp) {
+			changedVehicles = append(changedVehicles, car.CarNoPlate)
+			statusChanges = true
 		}
 
-		// Save updated car to database
+		// Save updated car to database (always save location data)
 		if err := Models.DB.Save(car).Error; err != nil {
 			log.Printf("Error updating car %s: %v", car.CarNoPlate, err)
 		}
 	}
 
-	// Step 3: Group cars by operating company
-	carsByCompany := make(map[string][]Models.Car)
-	for _, car := range allCars {
-		// Skip cars without operating company or recent location data
-		if car.OperatingCompany == "" || car.LocationTimeStamp == "" {
-			continue
-		}
+	// Step 3: Only send Slack update if there were actual status changes
+	if statusChanges {
+		log.Printf("Status changes detected for vehicles: %v", changedVehicles)
 
-		// Check if location data is recent (within 24 hours)
-		if car.LocationTimeStamp != "" {
-			if parsedTime, err := time.Parse("2006-01-02 15:04:05", car.LocationTimeStamp); err == nil {
-				if time.Since(parsedTime) > 24*time.Hour {
-					continue // Skip cars with old location data
+		// Group cars by operating company
+		carsByCompany := make(map[string][]Models.Car)
+		for _, car := range allCars {
+			// Skip cars without operating company or recent location data
+			if car.OperatingCompany == "" || car.LocationTimeStamp == "" {
+				continue
+			}
+
+			// Check if location data is recent (within 24 hours)
+			if car.LocationTimeStamp != "" {
+				if parsedTime, err := time.Parse("2006-01-02 15:04:05", car.LocationTimeStamp); err == nil {
+					if time.Since(parsedTime) > 24*time.Hour {
+						continue // Skip cars with old location data
+					}
 				}
+			}
+
+			company := strings.ToLower(car.OperatingCompany)
+			if company == "petrol_arrows" || company == "taqa" || company == "watanya" {
+				carsByCompany[company] = append(carsByCompany[company], car)
 			}
 		}
 
-		company := strings.ToLower(car.OperatingCompany)
-		if company == "petrol_arrows" || company == "taqa" || company == "watanya" {
-			carsByCompany[company] = append(carsByCompany[company], car)
+		// Send fleet status to Slack
+		if err := Slack.SendFleetUpdatesToSlack(carsByCompany); err != nil {
+			log.Printf("Error sending fleet updates to Slack: %v", err)
 		}
-	}
-
-	// Step 4: Send fleet status to Slack
-	if err := sendFleetUpdatesToSlack(carsByCompany); err != nil {
-		log.Printf("Error sending fleet updates to Slack: %v", err)
+	} else {
+		log.Printf("No status changes detected, skipping Slack update")
 	}
 
 	// Your existing speed check
 	time.Sleep(time.Second * 20)
 	RunSpeedCheckJob(80, true)
 
-	log.Printf("Fleet status updated for %d companies", len(carsByCompany))
+	log.Printf("Fleet status updated - %d companies processed, status changes: %t", len(getAllCompanies(allCars)), statusChanges)
+}
+
+// Helper function to get unique companies
+func getAllCompanies(cars []Models.Car) []string {
+	companySet := make(map[string]bool)
+	for _, car := range cars {
+		if car.OperatingCompany != "" {
+			company := strings.ToLower(car.OperatingCompany)
+			if company == "petrol_arrows" || company == "taqa" || company == "watanya" {
+				companySet[company] = true
+			}
+		}
+	}
+
+	companies := make([]string, 0, len(companySet))
+	for company := range companySet {
+		companies = append(companies, company)
+	}
+	return companies
 }
