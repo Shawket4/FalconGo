@@ -171,7 +171,7 @@ func FiberConfig() {
 	app.Get("/api/GetAllServiceEvents", Apis.GetAllServiceEvents)
 	app.Post("/api/CreateOilChange", Apis.CreateOilChange)
 	app.Post("/api/EditOilChange", Apis.EditOilChange)
-	app.Post("/api/DeleteOilChange", middleware.Verify(1), Apis.DeleteOilChange)
+	app.Delete("/api/DeleteOilChange/:id", middleware.Verify(1), Apis.DeleteOilChange)
 	app.Get("/api/GetAllOilChanges", middleware.Verify(1), Apis.GetAllOilChanges)
 	app.Get("/api/GetOilChange/:oilChangeId", middleware.Verify(1), Apis.GetOilChange)
 	app.Use("/api/GetVehicleStatus", Apis.GetVehicleStatus)

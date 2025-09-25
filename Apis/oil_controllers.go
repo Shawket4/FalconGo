@@ -5,6 +5,7 @@ import (
 	"Falcon/Models"
 	"errors"
 	"log"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -110,29 +111,51 @@ func DeleteOilChange(c *fiber.Ctx) error {
 		if Controllers.CurrentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
-			var input struct {
-				ID uint `json:"ID"`
+			// Get ID from URL parameter instead of request body
+			idParam := c.Params("id")
+			if idParam == "" {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"message": "ID parameter is required",
+				})
 			}
-			if err := c.BodyParser(&input); err != nil {
-				log.Println(err.Error())
-				return err
+
+			// Convert string to uint
+			id, err := strconv.ParseUint(idParam, 10, 32)
+			if err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"message": "Invalid ID format",
+				})
 			}
+
 			var oilChange Models.OilChange
-			if err := Models.DB.Model(&Models.OilChange{}).Where("id = ?", input.ID).Find(&oilChange).Error; err != nil {
+			if err := Models.DB.Model(&Models.OilChange{}).Where("id = ?", uint(id)).Find(&oilChange).Error; err != nil {
 				log.Println(err.Error())
-				return err
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"message": "Error finding oil change record",
+				})
 			}
-			_, err := oilChange.Delete()
+
+			// Check if record exists
+			if oilChange.ID == 0 {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+					"message": "Oil change record not found",
+				})
+			}
+
+			_, err = oilChange.Delete()
 			if err != nil {
 				log.Println(err)
-				return err
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"message": "Error deleting oil change record",
+				})
 			}
+
 			return c.JSON(fiber.Map{
 				"message": "Oil Change Deleted Successfully",
 			})
 		}
 	} else {
-		return c.JSON(fiber.Map{
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Not Logged In.",
 		})
 	}
