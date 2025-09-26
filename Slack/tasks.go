@@ -657,16 +657,16 @@ func StartSlackTaskListener() error {
 // InitializeSlackTaskSystem starts the complete Slack-integrated task system
 func InitializeSlackTaskSystem() error {
 	// Create today's tasks at startup if they don't exist
-	if err := CreateDailyTasks(); err != nil {
-		log.Printf("Warning: Could not create today's tasks: %v", err)
-	}
+	// if err := CreateDailyTasks(); err != nil {
+	// 	log.Printf("Warning: Could not create today's tasks: %v", err)
+	// }
 
-	// Send initial task list to Slack
-	if err := SendDailyTasksToSlack(); err != nil {
-		log.Printf("Warning: Could not send initial task list to Slack: %v", err)
-	} else {
-		log.Println("Initial task list sent to Slack")
-	}
+	// // Send initial task list to Slack
+	// if err := SendDailyTasksToSlack(); err != nil {
+	// 	log.Printf("Warning: Could not send initial task list to Slack: %v", err)
+	// } else {
+	// 	log.Println("Initial task list sent to Slack")
+	// }
 
 	// Start daily scheduler
 	go ScheduleTaskCreationAndSlack()
