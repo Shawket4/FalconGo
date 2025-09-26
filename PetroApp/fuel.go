@@ -4,8 +4,8 @@ import (
 	"Falcon/Constants"
 	"Falcon/Models"
 	"Falcon/Whatsapp"
-	"Falcon/email"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -62,18 +62,6 @@ var PlateNumberMap = map[string]PlateNumberObj{
 	},
 }
 
-// var PlateNumberMap = map[string]string{
-// 	"C E F-4 3 8 1": "ف ع ص 4381",
-// 	"C Q F-4 2 5 3": "ف ق ص 4253",
-// 	"R Y F-9 1 5 6": "ف ى ر 9156",
-// 	"N A F-5 1 3 9": "ف أ ن 5139",
-// 	"S M F-9 2 4 7": "ف م س 9247",
-// 	"S R F-4 5 9 3": "ف ر س 4593",
-// 	"N A F-7 4 2 1": "ف ا ن 7421",
-// 	"Y D F-6 5 8 4": "ف د ى 6584",
-// 	"Y D F-6 8 3 4": "ف د ى 6834",
-// }
-
 // API response structure
 type PetroAppAPIResponse struct {
 	Data   []Models.PetroAppRecord `json:"data"`
@@ -85,7 +73,7 @@ type PetroAppAPIResponse struct {
 	} `json:"meta"`
 }
 
-// FetchPetroAppRecords fetches records from PetroApp API for the last month
+// FetchPetroAppRecords fetches records from PetroApp API for the last day
 func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 	log.Println("Starting PetroApp records fetch operation")
 
@@ -100,7 +88,7 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 	log.Printf("Fetching records from %s to %s", startDate, endDate)
 	log.Printf("Request URL: %s", url)
 
-	// Create HTTP request with proper timeout
+	// Create HTTP request with shorter timeout to prevent hangs
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Error creating HTTP request: %v", err)
@@ -121,9 +109,9 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Falcon-PetroApp-Sync/1.0")
 
-	// Create HTTP client with appropriate timeout
+	// Reduced timeout to prevent hanging - fail fast
 	client := &http.Client{
-		Timeout: 60 * time.Second, // Increased timeout for large datasets
+		Timeout: 30 * time.Second,
 	}
 
 	resp, err := client.Do(req)
@@ -153,7 +141,7 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, resp.Status)
 	}
 
-	// Decode response with size limit to prevent memory issues
+	// Decode response
 	decoder := json.NewDecoder(resp.Body)
 	var result PetroAppAPIResponse
 
@@ -251,8 +239,12 @@ func StoreUniquePetroAppRecords(records []Models.PetroAppRecord) error {
 	stored := 0
 	skipped := 0
 
-	// Use transaction for better performance and consistency
-	tx := Models.DB.Begin()
+	// Use shorter transaction timeout to prevent hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Use context-aware transaction
+	tx := Models.DB.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
 	}
@@ -264,29 +256,46 @@ func StoreUniquePetroAppRecords(records []Models.PetroAppRecord) error {
 		}
 	}()
 
-	for _, record := range records {
-		var existing Models.PetroAppRecord
-		err := tx.Where("id = ?", record.ID).First(&existing).Error
+	// Batch check for existing records to reduce DB queries
+	var existingIDs []uint
+	recordIDs := make([]uint, len(records))
+	for i, record := range records {
+		recordIDs[i] = record.ID
+	}
 
-		if err != nil {
-			if err == gorm.ErrRecordNotFound {
-				// Record doesn't exist, create it
-				if err := tx.Create(&record).Error; err != nil {
-					tx.Rollback()
-					log.Printf("Error creating PetroApp record ID %d: %v", record.ID, err)
-					return fmt.Errorf("failed to create record ID %d: %w", record.ID, err)
-				}
-				stored++
-				log.Printf("Created new PetroApp record ID %d for vehicle %s", record.ID, record.Vehicle)
-			} else {
-				tx.Rollback()
-				log.Printf("Database error checking record ID %d: %v", record.ID, err)
-				return fmt.Errorf("database error for record ID %d: %w", record.ID, err)
-			}
+	if err := tx.Model(&Models.PetroAppRecord{}).
+		Where("id IN ?", recordIDs).
+		Pluck("id", &existingIDs).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to check existing records: %w", err)
+	}
+
+	// Create map for faster lookup
+	existingMap := make(map[uint]bool)
+	for _, id := range existingIDs {
+		existingMap[id] = true
+	}
+
+	// Only insert non-existing records
+	var newRecords []Models.PetroAppRecord
+	for _, record := range records {
+		if !existingMap[record.ID] {
+			newRecords = append(newRecords, record)
 		} else {
 			skipped++
 			log.Printf("PetroApp record ID %d already exists, skipping", record.ID)
 		}
+	}
+
+	// Batch insert new records
+	if len(newRecords) > 0 {
+		if err := tx.CreateInBatches(newRecords, 100).Error; err != nil {
+			tx.Rollback()
+			log.Printf("Error batch creating PetroApp records: %v", err)
+			return fmt.Errorf("failed to batch create records: %w", err)
+		}
+		stored = len(newRecords)
+		log.Printf("Batch created %d new PetroApp records", stored)
 	}
 
 	// Commit the transaction
@@ -303,12 +312,16 @@ func StoreUniquePetroAppRecords(records []Models.PetroAppRecord) error {
 func SyncPetroAppRecordsToFuelEvents() error {
 	log.Println("Starting PetroApp to FuelEvent synchronization")
 
+	// Use context with timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	var unsyncedRecords []Models.PetroAppRecord
 
-	// Get all unsynced records with reasonable limit to prevent memory issues
-	if err := Models.DB.Where("is_synced = ?", false).
-		Order("date ASC"). // Process oldest first
-		Limit(1000).       // Process in batches
+	// Get all unsynced records with timeout and reasonable limit
+	if err := Models.DB.WithContext(ctx).Where("is_synced = ?", false).
+		Order("date ASC").
+		Limit(100).
 		Find(&unsyncedRecords).Error; err != nil {
 		log.Printf("Error fetching unsynced records: %v", err)
 		return fmt.Errorf("failed to fetch unsynced records: %w", err)
@@ -322,11 +335,34 @@ func SyncPetroAppRecordsToFuelEvents() error {
 	log.Printf("Found %d unsynced PetroApp records to process", len(unsyncedRecords))
 
 	synced := 0
-	duplicatesSkipped := 0
 	errors := 0
 
-	// Process in transaction for consistency
-	tx := Models.DB.Begin()
+	// Process each record individually to prevent long-running transactions
+	for _, record := range unsyncedRecords {
+		if err := syncSingleRecord(record); err != nil {
+			log.Printf("Error syncing record ID %d: %v", record.ID, err)
+			errors++
+			continue
+		}
+		synced++
+	}
+
+	log.Printf("Synchronization complete: %d synced, %d errors", synced, errors)
+
+	if errors > 0 {
+		log.Printf("Warning: synchronization completed with %d errors", errors)
+	}
+
+	return nil
+}
+
+// syncSingleRecord syncs a single PetroApp record to avoid transaction hangs
+func syncSingleRecord(record Models.PetroAppRecord) error {
+	// Use short timeout for each individual record
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	tx := Models.DB.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
 	}
@@ -334,82 +370,81 @@ func SyncPetroAppRecordsToFuelEvents() error {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			log.Printf("Sync transaction rolled back due to panic: %v", r)
+			log.Printf("Single record sync rolled back due to panic: %v", r)
 		}
 	}()
 
-	for _, record := range unsyncedRecords {
-		// Convert PetroApp record to FuelEvent
-		fuelEvent, err := convertPetroAppToFuelEvent(record)
-		if err != nil {
-			log.Printf("Error converting PetroApp record ID %d: %v", record.ID, err)
-			errors++
-			continue
-		}
-
-		// Check if this FuelEvent already exists
-		if fuelEventExistsInTx(tx, *fuelEvent) {
-			log.Printf("FuelEvent already exists for PetroApp record ID %d (vehicle: %s, date: %s, odometer: %d-%d), skipping creation and marking as synced",
-				record.ID, record.Vehicle, record.Date, fuelEvent.OdometerBefore, fuelEvent.OdometerAfter)
-			duplicatesSkipped++
-
-			// Mark as synced but DON'T create the FuelEvent
-			if err := tx.Model(&record).Update("is_synced", true).Error; err != nil {
-				log.Printf("Error updating sync status for duplicate record ID %d: %v", record.ID, err)
-				errors++
-			} else {
-				log.Printf("Successfully marked duplicate PetroApp record ID %d as synced", record.ID)
-			}
-			continue
-		}
-
-		// Create the FuelEvent only if it doesn't exist
-		if err := tx.Create(fuelEvent).Error; err != nil {
-			log.Printf("Error creating FuelEvent for PetroApp record ID %d: %v", record.ID, err)
-			errors++
-			continue
-		}
-
-		// Update the car's last_fuel_odometer with the current odometer reading
-		if err := tx.Model(&Models.Car{}).
-			Where("car_no_plate = ?", fuelEvent.CarNoPlate).
-			Update("last_fuel_odometer", fuelEvent.OdometerAfter).Error; err != nil {
-			log.Printf("Error updating car's last_fuel_odometer for vehicle %s: %v", fuelEvent.CarNoPlate, err)
-			// Don't fail the entire sync for this error, just log it
-		} else {
-			log.Printf("Updated car's last_fuel_odometer to %d for vehicle %s", fuelEvent.OdometerAfter, fuelEvent.CarNoPlate)
-		}
-
-		// Mark PetroApp record as synced after successful creation
-		if err := tx.Model(&record).Update("is_synced", true).Error; err != nil {
-			log.Printf("Error updating sync status for PetroApp record ID %d: %v", record.ID, err)
-			errors++
-			continue
-		}
-
-		synced++
-		log.Printf("Successfully synced PetroApp record ID %d to new FuelEvent ID %d (vehicle: %s, fuel rate: %.3f km/L)",
-			record.ID, fuelEvent.ID, fuelEvent.CarNoPlate, fuelEvent.FuelRate)
-	}
-
-	// Commit or rollback based on error count
-	if errors > len(unsyncedRecords)/2 { // If more than 50% failed
+	// Convert PetroApp record to FuelEvent
+	fuelEvent, err := convertPetroAppToFuelEvent(record)
+	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("too many errors during synchronization (%d/%d), transaction rolled back", errors, len(unsyncedRecords))
+		return fmt.Errorf("error converting record: %w", err)
 	}
 
+	// Check if this FuelEvent already exists
+	if fuelEventExistsInTx(tx, *fuelEvent) {
+		log.Printf("FuelEvent already exists for PetroApp record ID %d, marking as synced", record.ID)
+
+		// Mark as synced but DON'T create the FuelEvent
+		if err := tx.Model(&record).Update("is_synced", true).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("error updating sync status for duplicate: %w", err)
+		}
+
+		if err := tx.Commit().Error; err != nil {
+			return fmt.Errorf("error committing duplicate sync: %w", err)
+		}
+		return nil
+	}
+
+	// Create the FuelEvent in database FIRST
+	if err := tx.Create(fuelEvent).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("error creating FuelEvent: %w", err)
+	}
+
+	// Update the car's last_fuel_odometer
+	if err := tx.Model(&Models.Car{}).
+		Where("car_no_plate = ?", fuelEvent.CarNoPlate).
+		Update("last_fuel_odometer", fuelEvent.OdometerAfter).Error; err != nil {
+		log.Printf("Warning: Error updating car's last_fuel_odometer for vehicle %s: %v", fuelEvent.CarNoPlate, err)
+	}
+
+	// Mark PetroApp record as synced
+	if err := tx.Model(&record).Update("is_synced", true).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("error updating sync status: %w", err)
+	}
+
+	// Commit transaction BEFORE sending messages
 	if err := tx.Commit().Error; err != nil {
-		log.Printf("Error committing sync transaction: %v", err)
-		return fmt.Errorf("failed to commit sync transaction: %w", err)
+		return fmt.Errorf("error committing transaction: %w", err)
 	}
 
-	log.Printf("Synchronization complete: %d new FuelEvents created, %d duplicates skipped, %d errors", synced, duplicatesSkipped, errors)
+	// Send notifications AFTER database commit to ensure consistency
+	sendNotificationsAsync(*fuelEvent, record.ID)
 
-	if errors > 0 {
-		log.Printf("Warning: synchronization completed with %d errors", errors)
-	}
-
+	log.Printf("Successfully synced PetroApp record ID %d to FuelEvent ID %d", record.ID, fuelEvent.ID)
 	return nil
+}
+
+// sendNotificationsAsync sends WhatsApp notifications asynchronously
+func sendNotificationsAsync(fuelEvent Models.FuelEvent, recordID uint) {
+	go func() {
+		// Send WhatsApp message
+		whatsappMessage := createWhatsAppMessage(fuelEvent)
+		if err := Whatsapp.SendMessage(Constants.WhatsAppGPIDFuel, whatsappMessage); err != nil {
+			log.Printf("Error sending WhatsApp message for record ID %d: %v", recordID, err)
+		} else {
+			log.Printf("WhatsApp notification sent for vehicle %s (record ID %d)", fuelEvent.CarNoPlate, recordID)
+		}
+
+		// Log anomalies
+		if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
+			log.Printf("Fuel rate anomaly detected for vehicle %s: %.3f km/L (record ID %d)",
+				fuelEvent.CarNoPlate, fuelEvent.FuelRate, recordID)
+		}
+	}()
 }
 
 func createWhatsAppMessage(fuelEvent Models.FuelEvent) string {
@@ -497,10 +532,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		return nil, fmt.Errorf("liters must be positive, got: %.3f", liters)
 	}
 
-	// Calculate price per liter with validation
-	if liters == 0 {
-		return nil, fmt.Errorf("cannot calculate price per liter: liters is zero")
-	}
+	// Calculate price per liter
 	pricePerLiter := cost / liters
 
 	// Convert plate number using mapping
@@ -516,7 +548,7 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 	}
 
 	// Validate date is not in future
-	if parsedTime, _ := time.Parse("2006-01-02", parsedDate); parsedTime.After(time.Now().AddDate(0, 0, 1)) {
+	if parsedTimeObj, _ := time.Parse("2006-01-02", parsedDate); parsedTimeObj.After(time.Now().AddDate(0, 0, 1)) {
 		return nil, fmt.Errorf("date is in the future: %s", parsedDate)
 	}
 
@@ -531,28 +563,32 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 	// Calculate fuel rate from actual distance traveled
 	fuelRate := calculateFuelRate(odometerBefore, record.Odo, liters)
 
-	// Validate essential fields are not empty
+	// Get driver name with timeout to prevent hanging
 	var driverID uint
 	var driverName string
-	if err := Models.DB.Model(&Models.Car{}).Where("car_no_plate = ?", convertedPlate).Select("driver_id", &driverID).Error; err != nil {
-		log.Println(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := Models.DB.WithContext(ctx).Model(&Models.Car{}).Where("car_no_plate = ?", convertedPlate).Select("driver_id").Scan(&driverID).Error; err != nil {
+		log.Printf("Warning: Error getting driver ID for vehicle %s: %v", convertedPlate, err)
 	}
+
 	if driverID != 0 {
-		if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", driverID).Select("name", &driverName).Error; err != nil {
-			log.Println(err)
+		if err := Models.DB.WithContext(ctx).Model(&Models.Driver{}).Where("id = ?", driverID).Select("name").Scan(&driverName).Error; err != nil {
+			log.Printf("Warning: Error getting driver name for ID %d: %v", driverID, err)
 		}
 	}
 
 	if driverName == "" {
 		driverName = strings.TrimSpace(record.DelegateName)
 		if driverName == "" {
-			driverName = "PetroApp Unknown Driver" // Provide default
+			driverName = "PetroApp Unknown Driver"
 		}
 	}
 
 	transporter := strings.TrimSpace(record.Station)
 	if transporter == "" {
-		transporter = "Unknown PetroApp Station" // Provide default
+		transporter = "Unknown PetroApp Station"
 	}
 
 	fuelEvent := &Models.FuelEvent{
@@ -568,91 +604,6 @@ func convertPetroAppToFuelEvent(record Models.PetroAppRecord) (*Models.FuelEvent
 		OdometerAfter:  record.Odo,
 		Time:           parsedTime,
 		Method:         "PetroApp",
-	}
-
-	whatsappMessage := createWhatsAppMessage(*fuelEvent)
-	Whatsapp.SendMessage(Constants.WhatsAppGPIDFuel, whatsappMessage)
-	if fuelEvent.FuelRate > 2.8 || fuelEvent.FuelRate < 1.9 {
-		emailSubject := fmt.Sprintf("⚠️ Fuel Rate Anomaly Alert - Vehicle %s", fuelEvent.CarNoPlate)
-
-		emailBody := fmt.Sprintf(`FUEL RATE ANOMALY DETECTED
-	
-	Vehicle Details:
-	- Plate Number: %s
-	- Driver: %s
-	- Date: %s
-	
-	Fuel Transaction Details:
-	- Fuel Rate: %.3f km/L (ANOMALY DETECTED)
-	- Distance Traveled: %d km (from %d to %d)
-	- Fuel Consumed: %.3f liters
-	- Cost: %.2f EGP
-	- Price per Liter: %.2f EGP/L
-	- Station: %s
-	
-	Alert Reason:
-	- Normal fuel efficiency range: 1.9 - 2.8 km/L
-	- Current fuel efficiency: %.3f km/L
-	- This is %s the normal range
-	
-	Possible Causes:
-	%s
-	
-	Action Required:
-	- Verify odometer readings for accuracy
-	- Check if fuel tank was already partially full
-	- Investigate potential fuel theft or leakage
-	- Confirm driver behavior and route efficiency
-	
-	PetroApp Record ID: %d
-	Generated: %s
-	
-	This is an automated alert from the Falcon Fleet Management System.
-	Please investigate this anomaly and take appropriate action.`,
-			fuelEvent.CarNoPlate,
-			fuelEvent.DriverName,
-			fuelEvent.Date,
-			fuelEvent.FuelRate,
-			fuelEvent.OdometerAfter-fuelEvent.OdometerBefore,
-			fuelEvent.OdometerBefore,
-			fuelEvent.OdometerAfter,
-			fuelEvent.Liters,
-			fuelEvent.Price,
-			fuelEvent.PricePerLiter,
-			fuelEvent.Transporter,
-			fuelEvent.FuelRate,
-			func() string {
-				if fuelEvent.FuelRate > 2.8 {
-					return "ABOVE"
-				}
-				return "BELOW"
-			}(),
-			func() string {
-				if fuelEvent.FuelRate > 2.8 {
-					return `- Partial refueling (tank was already partially full)
-	- Incorrect odometer reading
-	- Vehicle was driven between fuel stops without recording
-	- Data entry error in distance calculation`
-				}
-				return `- Fuel theft or unauthorized siphoning
-	- Fuel leakage from tank or fuel lines
-	- Heavy traffic or inefficient driving
-	- Vehicle mechanical issues (engine, transmission)
-	- Incorrect fuel amount recording
-	- Multiple vehicles sharing same fuel transaction`
-			}(),
-			record.ID,
-			time.Now().Format("2006-01-02 15:04:05"))
-
-		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-			To:      []string{"shawketibrahim7@gmail.com"},
-			Subject: emailSubject,
-			Body:    emailBody,
-			IsHTML:  false,
-		})
-
-		log.Printf("Fuel rate anomaly email sent for vehicle %s (rate: %.3f km/L)",
-			fuelEvent.CarNoPlate, fuelEvent.FuelRate)
 	}
 
 	return fuelEvent, nil
@@ -674,31 +625,41 @@ func convertPlateNumber(petroAppPlate string) string {
 	return trimmedPlate
 }
 
-func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int) {
+// UpdatePetroAppOdometerFromManualFuelEvent updates odometer in PetroApp system
+func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int) error {
 	var PlateObj PlateNumberObj
+	found := false
 	for _, v := range PlateNumberMap {
 		if v.PlateNumberDB == plateNumber {
 			PlateObj = v
+			found = true
+			break
 		}
-
 	}
-	fmt.Println(PlateObj)
+
+	if !found {
+		return fmt.Errorf("no PetroApp vehicle mapping found for plate %s", plateNumber)
+	}
+
+	log.Printf("Updating PetroApp odometer for vehicle ID %d to %d", PlateObj.PetroAppVehicleID, odometer)
+
 	url := baseUrl + "/edit_odometer"
+	log.Printf("Request URL: %s", url)
 
-	fmt.Printf("Request URL: %s", url)
-
-	// Create HTTP request with proper timeout
+	// Create request body
 	reqBodyStr := fmt.Sprintf(`{"vehicle_id": %d, "odometer": %d}`, PlateObj.PetroAppVehicleID, odometer)
 	reqBody := bytes.NewBuffer([]byte(reqBodyStr))
+
+	// Create HTTP request with timeout
 	req, err := http.NewRequest("POST", url, reqBody)
 	if err != nil {
 		log.Printf("Error creating HTTP request: %v", err)
-
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set required headers - validate they're not empty
+	// Validate required headers
 	if token == "" {
-
+		return fmt.Errorf("authorization token is not set")
 	}
 	if cookie == "" {
 		log.Println("Warning: cookie is empty, this might cause authentication issues")
@@ -710,15 +671,15 @@ func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Falcon-PetroApp-Sync/1.0")
 
-	// Create HTTP client with appropriate timeout
+	// Create HTTP client with timeout to prevent hangs
 	client := &http.Client{
-		Timeout: 60 * time.Second, // Increased timeout for large datasets
+		Timeout: 30 * time.Second,
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("Error executing HTTP request: %v", err)
-
+		return fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -726,39 +687,22 @@ func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int)
 		}
 	}()
 
-	fmt.Printf("PetroApp API response status: %d %s", resp.StatusCode, resp.Status)
+	log.Printf("PetroApp API response status: %d %s", resp.StatusCode, resp.Status)
 
 	// Handle different HTTP status codes
 	switch resp.StatusCode {
 	case http.StatusOK:
-		// Continue processing
+		log.Printf("Successfully updated odometer for vehicle %s to %d", plateNumber, odometer)
+		return nil
 	case http.StatusUnauthorized:
-
+		return fmt.Errorf("authentication failed - check token and cookie")
 	case http.StatusForbidden:
-
+		return fmt.Errorf("access forbidden - insufficient permissions")
 	case http.StatusTooManyRequests:
-
+		return fmt.Errorf("rate limit exceeded - try again later")
 	default:
-
+		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, resp.Status)
 	}
-
-	// Decode response with size limit to prevent memory issues
-	decoder := json.NewDecoder(resp.Body)
-	var result PetroAppAPIResponse
-
-	if err := decoder.Decode(&result); err != nil {
-		log.Printf("Error decoding API response: %v", err)
-
-	}
-
-	// Validate response structure
-	if !result.Status {
-		log.Println("API returned status: false")
-
-	}
-
-	log.Printf("Successfully fetched %d records from PetroApp API", len(result.Data))
-
 }
 
 // parsePetroAppDate parses PetroApp date format to required format
@@ -774,7 +718,7 @@ func parsePetroAppDate(dateString string) (string, string, error) {
 		return "", "", fmt.Errorf("failed to parse date '%s': %w", trimmedDate, err)
 	}
 
-	// Validate date is reasonable (not too far in past or future)
+	// Validate date is reasonable
 	now := time.Now()
 	if t.Before(now.AddDate(-10, 0, 0)) {
 		return "", "", fmt.Errorf("date is too far in the past: %s", trimmedDate)
@@ -783,7 +727,7 @@ func parsePetroAppDate(dateString string) (string, string, error) {
 		return "", "", fmt.Errorf("date is in the future: %s", trimmedDate)
 	}
 
-	// Return date in FuelEvent format: "2006-01-02" and time as "3:04 PM"
+	// Return date in FuelEvent format
 	return t.Format("2006-01-02"), t.Format("3:04 PM"), nil
 }
 
@@ -794,10 +738,14 @@ func getPreviousOdometerReading(carNoPlate string, currentOdo int, currentDate s
 		return max(0, currentOdo-500)
 	}
 
+	// Use timeout to prevent database hangs
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	var lastFuelEvent Models.FuelEvent
 
 	// Get the most recent FuelEvent for this car BEFORE the current date
-	err := Models.DB.Where("car_no_plate = ? AND date < ?", carNoPlate, currentDate).
+	err := Models.DB.WithContext(ctx).Where("car_no_plate = ? AND date < ?", carNoPlate, currentDate).
 		Order("date DESC, odometer_after DESC").
 		First(&lastFuelEvent).Error
 
@@ -808,13 +756,12 @@ func getPreviousOdometerReading(carNoPlate string, currentOdo int, currentDate s
 
 			// Check if there are any records for this car at all
 			var anyFuelEvent Models.FuelEvent
-			err2 := Models.DB.Where("car_no_plate = ?", carNoPlate).
+			err2 := Models.DB.WithContext(ctx).Where("car_no_plate = ?", carNoPlate).
 				Order("date ASC, odometer_after ASC").
 				First(&anyFuelEvent).Error
 
 			if err2 == gorm.ErrRecordNotFound {
 				// This is the first record for this vehicle
-				// Use a conservative estimate: assume last fill-up was 500km ago
 				estimatedPrevious := max(0, currentOdo-500)
 				log.Printf("First record for vehicle %s, estimating previous odometer as %d", carNoPlate, estimatedPrevious)
 				return estimatedPrevious
@@ -832,7 +779,6 @@ func getPreviousOdometerReading(carNoPlate string, currentOdo int, currentDate s
 	if lastFuelEvent.OdometerAfter >= currentOdo {
 		log.Printf("Warning: Previous odometer (%d) >= current odometer (%d) for vehicle %s on %s",
 			lastFuelEvent.OdometerAfter, currentOdo, carNoPlate, currentDate)
-		// Use current odometer to avoid negative distance
 		return currentOdo
 	}
 

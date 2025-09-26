@@ -40,15 +40,23 @@ func main() {
 		// 	log.Fatal("Failed to initialize Firebase:", err)
 		// }
 		for {
-			PetroApp.FetchPetroAppRecords()
+			// Handle errors properly to prevent crashes
+			if records, err := PetroApp.FetchPetroAppRecords(); err != nil {
+				log.Printf("Error fetching PetroApp records: %v", err)
+				// Continue loop instead of crashing
+			} else {
+				log.Printf("Fetched %d PetroApp records", len(records))
+			}
+
 			time.Sleep(time.Minute)
+
 			// Sync PetroApp records to FuelEvents
 			if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
 				log.Printf("Error syncing PetroApp records: %v", err)
+				// Continue loop instead of crashing
 			}
+
 			Scrapper.GetVehicleData()
-			// time.Sleep(time.Second * 10)
-			// Scrapper.CalculateDistanceWorker()
 			time.Sleep(time.Minute * 5)
 		}
 	}()
