@@ -575,8 +575,12 @@ func ManualUpdateVehicleStatus(carID uint, newStatus, location, updatedBy string
 
 	// Store previous status for comparison
 	previousStatus := car.SlackStatus
+	previousGeoFence := car.GeoFence
+
+	// Update fields
 	car.Location = location
 	car.SlackStatus = newStatus
+	car.GeoFence = "" // Clear geofence field on manual update (assumes manual status means not in any geofence)
 	car.LastUpdatedSlackStatus = time.Now()
 
 	// Save to database
@@ -584,8 +588,8 @@ func ManualUpdateVehicleStatus(carID uint, newStatus, location, updatedBy string
 		return fmt.Errorf("error updating car: %v", err)
 	}
 
-	log.Printf("Manual status update: %s changed from '%s' to '%s' by %s",
-		car.CarNoPlate, previousStatus, newStatus, updatedBy)
+	log.Printf("Manual status update: %s changed from '%s' to '%s' by %s (geofence cleared: '%s' -> '')",
+		car.CarNoPlate, previousStatus, newStatus, updatedBy, previousGeoFence)
 
 	// Only trigger Slack update if status actually changed
 	if previousStatus != newStatus {
@@ -606,7 +610,7 @@ var CompanyChannelMap = map[string]string{
 
 // Special channels
 var SpecialChannels = map[string]string{
-	"stopped_vehicles": "C09H6LVMP6X",
+	"stopped_vehicles": "C09STOPPED123", // Replace with actual channel ID for stopped vehicles
 }
 
 // QueueSlackUpdate queues a Slack update for a specific company with batching
@@ -1189,7 +1193,7 @@ func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
 }
 
 // UpdateCarGeofence updates car's geofence based on current location
-// Modified to require 30-minute gap and handle "left" statuses
+// Only applies geofencing logic if GPS signal is at least 30 minutes after last status update
 func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool {
 	// Parse the timestamp from VehicleStatusStruct
 	newTimestamp, err := time.Parse("2006-01-02 15:04:05", timestamp)
@@ -1199,11 +1203,16 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 	}
 
 	// Check if new timestamp is at least 30 minutes after last updated slack status
+	// If not, don't apply any geofencing logic at all
 	if !car.LastUpdatedSlackStatus.IsZero() && newTimestamp.Sub(car.LastUpdatedSlackStatus) < 30*time.Minute {
-		log.Printf("Skipping update for car %s - timestamp %s is less than 30 minutes after last update %s",
+		log.Printf("Skipping geofencing update for car %s - timestamp %s is less than 30 minutes after last update %s",
 			car.CarNoPlate, timestamp, car.LastUpdatedSlackStatus.Format("2006-01-02 15:04:05"))
 		return false
 	}
+
+	// Only proceed with geofencing logic if the GPS signal is recent enough
+	log.Printf("Processing geofencing for car %s - timestamp %s is valid (last update: %s)",
+		car.CarNoPlate, timestamp, car.LastUpdatedSlackStatus.Format("2006-01-02 15:04:05"))
 
 	// Check all geofences (including drop-off points)
 	geofenceName, geofenceType, inGeofence := checkGeofences(lat, lng, car)
@@ -1224,6 +1233,7 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 			car.SlackStatus = "In Drop-Off"
 		}
 		car.LastUpdatedSlackStatus = newTimestamp
+		log.Printf("Car %s entered geofence: %s (type: %s)", car.CarNoPlate, geofenceName, geofenceType)
 	} else {
 		// Vehicle not in any geofence
 		if car.GeoFence != "" {
@@ -1251,6 +1261,7 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 				car.SlackStatus = "Left Drop-Off"
 			}
 
+			log.Printf("Car %s left geofence: %s (type: %s)", car.CarNoPlate, car.GeoFence, previousGeofenceType)
 			car.GeoFence = ""
 			car.LastUpdatedSlackStatus = newTimestamp
 		}

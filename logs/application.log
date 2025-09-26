@@ -676,3 +676,208 @@
 2025/09/25 16:39:59 Error getting address for car ف ر س 4593: Get "https://nominatim.openstreetmap.org/reverse?format=json&lat=30.1245444444444&lon=31.3578533333333&zoom=18&addressdetails=1": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
 2025/09/25 16:39:59 Car not found for ETIT ID: af56caf9-cf14-ea11-80ee-0025b500010d
 2025/09/25 16:40:09 Error getting address for car ف ا ن 7421: Get "https://nominatim.openstreetmap.org/reverse?format=json&lat=27.081916&lon=33.817863&zoom=18&addressdetails=1": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+2025/09/26 16:07:26 Task oil_change already exists for 2025-09-26
+2025/09/26 16:07:26 Task vehicle_status already exists for 2025-09-26
+2025/09/26 16:07:26 Task register_missing_trips already exists for 2025-09-26
+2025/09/26 16:07:26 Task register_new_trips already exists for 2025-09-26
+2025/09/26 16:07:26 Task watanya_report already exists for 2025-09-26
+2025/09/26 16:07:26 Task driver_shifts already exists for 2025-09-26
+2025/09/26 16:07:26 Task petrol_tracking already exists for 2025-09-26
+2025/09/26 16:07:26 Task service_events already exists for 2025-09-26
+2025/09/26 16:07:26 Starting oil change validation...
+2025/09/26 16:07:26 Starting oil change validation...
+2025/09/26 16:07:27 HTTP client successfully authenticated
+2025/09/26 16:07:27 Collector successfully authenticated
+2025/09/26 16:07:29 Initial task list sent to Slack
+2025/09/26 16:07:29 Slack task system initialized successfully
+2025/09/26 16:07:29 Task scheduler: Next task creation and Slack update at 2025-09-27 06:00:00
+2025/09/26 16:07:29 Starting Slack task listener...
+2025/09/26 16:07:29 Slack API routes registered:
+2025/09/26 16:07:29   POST /api/slack/vehicles/:id/status
+2025/09/26 16:07:29   POST /api/slack/vehicles/status
+2025/09/26 16:07:29   POST /api/slack/vehicles/status/bulk
+2025/09/26 16:07:29   POST /api/slack/vehicles/plate/:plate/status
+2025/09/26 16:07:29   GET  /api/slack/statuses
+2025/09/26 16:07:30 Skipping update for car ف ى ر 8427 - timestamp 2025-09-26 11:41:29 is less than 30 minutes after last update 2025-09-26 11:41:29
+2025/09/26 16:07:30 Car not found for ETIT ID: 76eca2d6-36f4-eb11-80f8-0025b500010d
+2025/09/26 16:07:31 Car ف ق ص 4253 status changed from 'In Terminal' to 'Left Terminal' (geofence: 'Haykstep Terminal' -> '')
+2025/09/26 16:07:31 Queued Slack update for company watanya (channel C09GW6QNT46), will send in 5s
+2025/09/26 16:07:31 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:32 Car not found for ETIT ID: af56caf9-cf14-ea11-80ee-0025b500010d
+2025/09/26 16:07:34 Car ف ى ر 9156 status changed from 'In Terminal' to 'Left Terminal' (geofence: 'Haykstep Terminal' -> '')
+2025/09/26 16:07:34 Queued Slack update for company watanya (channel C09GW6QNT46), will send in 5s
+2025/09/26 16:07:34 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:35 Car 5917 ف ج م status changed from 'In Terminal' to 'Left Terminal' (geofence: 'Somed Terminal' -> '')
+2025/09/26 16:07:35 Queued Slack update for company petrol_arrows (channel C09GSBV2TSR), will send in 5s
+2025/09/26 16:07:35 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:36 Skipping update for car ف د ى 6738 - timestamp 2025-09-22 12:25:34 is less than 30 minutes after last update 2025-09-22 12:25:34
+2025/09/26 16:07:38 Skipping update for car ف د ى 6584 - timestamp 2025-08-17 19:41:01 is less than 30 minutes after last update 2025-08-17 19:41:01
+2025/09/26 16:07:40 Skipping update for car ف أ ن 5139 - timestamp 2025-09-26 07:20:30 is less than 30 minutes after last update 2025-09-26 10:25:02
+2025/09/26 16:07:42 Successfully sent stopped vehicles update (4 vehicles)
+2025/09/26 16:07:42 Successfully sent batched update for watanya (5 vehicles)
+2025/09/26 16:07:42 Successfully sent batched update for petrol_arrows (6 vehicles)
+2025/09/26 16:07:42 Car ف ر ص 6359 status changed from 'In Garage' to 'Left Garage' (geofence: 'garage' -> '')
+2025/09/26 16:07:42 Queued Slack update for company watanya (channel C09GW6QNT46), will send in 5s
+2025/09/26 16:07:42 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:43 Car ف ر ص 8461 status changed from 'In Terminal' to 'Left Terminal' (geofence: 'Somed Terminal' -> '')
+2025/09/26 16:07:43 Queued Slack update for company petrol_arrows (channel C09GSBV2TSR), will send in 5s
+2025/09/26 16:07:43 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:45 Car 5918 ف ج م status changed from 'In Terminal' to 'Left Terminal' (geofence: 'Somed Terminal' -> '')
+2025/09/26 16:07:45 Queued Slack update for company petrol_arrows (channel C09GSBV2TSR), will send in 5s
+2025/09/26 16:07:45 Queued Slack update for stopped vehicles channel (C09H6LVMP6X), will send in 5s
+2025/09/26 16:07:45 Status changes detected for vehicles: [ف ق ص 4253 ف ى ر 9156 5917 ف ج م ف ر ص 6359 ف ر ص 8461 5918 ف ج م]
+2025/09/26 16:07:50 Successfully sent stopped vehicles update (3 vehicles)
+2025/09/26 16:07:50 Successfully sent batched update for watanya (5 vehicles)
+2025/09/26 16:07:52 Successfully sent stopped vehicles update (3 vehicles)
+2025/09/26 16:07:52 Successfully sent batched update for petrol_arrows (6 vehicles)
+2025/09/26 16:08:11 HTTP client successfully authenticated
+2025/09/26 16:08:11 Collector successfully authenticated
+2025/09/26 16:08:11 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/09/26 16:08:12 HTTP client successfully authenticated
+2025/09/26 16:08:12 Collector successfully authenticated
+2025/09/26 16:08:12 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A08%3A11+GMT
+2025/09/26 16:08:13 Found 9 speed alerts for vehicle ف ج م 8567
+2025/09/26 16:08:14 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/09/26 16:08:17 HTTP client successfully authenticated
+2025/09/26 16:08:17 Collector successfully authenticated
+2025/09/26 16:08:17 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A08%3A14+GMT
+2025/09/26 16:08:18 Error checking vehicle ف ى ر 8427: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:08:18 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/09/26 16:08:25 HTTP client successfully authenticated
+2025/09/26 16:08:25 Collector successfully authenticated
+2025/09/26 16:08:25 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A08%3A18+GMT
+2025/09/26 16:08:26 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:08:26 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/09/26 16:08:48 Task oil_change already exists for 2025-09-26
+2025/09/26 16:08:48 Task vehicle_status already exists for 2025-09-26
+2025/09/26 16:08:48 Task register_missing_trips already exists for 2025-09-26
+2025/09/26 16:08:48 Task register_new_trips already exists for 2025-09-26
+2025/09/26 16:08:48 Task watanya_report already exists for 2025-09-26
+2025/09/26 16:08:48 Task driver_shifts already exists for 2025-09-26
+2025/09/26 16:08:48 Task petrol_tracking already exists for 2025-09-26
+2025/09/26 16:08:48 Task service_events already exists for 2025-09-26
+2025/09/26 16:08:49 HTTP client successfully authenticated
+2025/09/26 16:08:49 Collector successfully authenticated
+2025/09/26 16:08:51 Initial task list sent to Slack
+2025/09/26 16:08:51 Slack task system initialized successfully
+2025/09/26 16:08:51 Task scheduler: Next task creation and Slack update at 2025-09-27 06:00:00
+2025/09/26 16:08:51 Starting Slack task listener...
+2025/09/26 16:08:51 Slack API routes registered:
+2025/09/26 16:08:51   POST /api/slack/vehicles/:id/status
+2025/09/26 16:08:51   POST /api/slack/vehicles/status
+2025/09/26 16:08:51   POST /api/slack/vehicles/status/bulk
+2025/09/26 16:08:51   POST /api/slack/vehicles/plate/:plate/status
+2025/09/26 16:08:51   GET  /api/slack/statuses
+2025/09/26 16:08:52 Skipping update for car ف ى ر 8427 - timestamp 2025-09-26 11:41:29 is less than 30 minutes after last update 2025-09-26 11:41:29
+2025/09/26 16:08:52 Car not found for ETIT ID: 76eca2d6-36f4-eb11-80f8-0025b500010d
+2025/09/26 16:08:54 Skipping update for car ف ر س 4593 - timestamp 2025-09-26 15:33:01 is less than 30 minutes after last update 2025-09-26 15:33:01
+2025/09/26 16:08:54 Car not found for ETIT ID: af56caf9-cf14-ea11-80ee-0025b500010d
+2025/09/26 16:08:58 Skipping update for car ف د ى 6738 - timestamp 2025-09-22 12:25:34 is less than 30 minutes after last update 2025-09-22 12:25:34
+2025/09/26 16:09:00 Skipping update for car ف د ى 6584 - timestamp 2025-08-17 19:41:01 is less than 30 minutes after last update 2025-09-26 15:43:46
+2025/09/26 16:09:03 Skipping update for car ف أ ن 5139 - timestamp 2025-09-26 07:20:30 is less than 30 minutes after last update 2025-09-26 10:25:02
+2025/09/26 16:09:03 Skipping update for car ف ر ص 6359 - timestamp 2025-09-26 16:08:08 is less than 30 minutes after last update 2025-09-26 15:57:41
+2025/09/26 16:09:04 Skipping update for car ف ر ص 8461 - timestamp 2025-09-26 16:08:21 is less than 30 minutes after last update 2025-09-26 16:01:21
+2025/09/26 16:09:05 Skipping update for car ف د ى 6834 - timestamp 2025-09-26 15:58:51 is less than 30 minutes after last update 2025-09-26 15:43:54
+2025/09/26 16:09:08 Skipping update for car 5918 ف ج م - timestamp 2025-09-26 16:03:35 is less than 30 minutes after last update 2025-09-26 15:37:58
+2025/09/26 16:09:08 No status changes detected, skipping Slack update
+2025/09/26 16:09:28 HTTP client successfully authenticated
+2025/09/26 16:09:29 Collector successfully authenticated
+2025/09/26 16:09:29 Checking vehicle ف ج م 8567 (ID: 0ed629a4-5a5d-f011-8113-0025b500010d) for speed alerts
+2025/09/26 16:09:30 HTTP client successfully authenticated
+2025/09/26 16:09:30 Collector successfully authenticated
+2025/09/26 16:09:30 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=0ed629a4-5a5d-f011-8113-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A29+GMT
+2025/09/26 16:09:31 Found 9 speed alerts for vehicle ف ج م 8567
+2025/09/26 16:09:32 Checking vehicle ف ى ر 8427 (ID: 46ab06c4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/09/26 16:09:32 HTTP client successfully authenticated
+2025/09/26 16:09:33 Collector successfully authenticated
+2025/09/26 16:09:33 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=46ab06c4-5fb4-e911-80ed-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A32+GMT
+2025/09/26 16:09:34 Error checking vehicle ف ى ر 8427: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:09:34 Checking vehicle ف ق ص 5138 (ID: 76eca2d6-36f4-eb11-80f8-0025b500010d) for speed alerts
+2025/09/26 16:09:35 HTTP client successfully authenticated
+2025/09/26 16:09:35 Collector successfully authenticated
+2025/09/26 16:09:35 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=76eca2d6-36f4-eb11-80f8-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A34+GMT
+2025/09/26 16:09:36 Error checking vehicle ف ق ص 5138: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:09:36 Checking vehicle ف ق ص 4253 (ID: 927b57f5-6edd-eb11-80f8-0025b500010d) for speed alerts
+2025/09/26 16:09:37 HTTP client successfully authenticated
+2025/09/26 16:09:37 Collector successfully authenticated
+2025/09/26 16:09:37 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=927b57f5-6edd-eb11-80f8-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A36+GMT
+2025/09/26 16:09:39 Checking vehicle ف ر س 4593 (ID: 5b22173f-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/09/26 16:09:39 HTTP client successfully authenticated
+2025/09/26 16:09:40 Collector successfully authenticated
+2025/09/26 16:09:40 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=5b22173f-6ba0-e811-80de-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A39+GMT
+2025/09/26 16:09:41 Found 1 speed alerts for vehicle ف ر س 4593
+2025/09/26 16:09:41 Checking vehicle ف ر ص 5783 (ID: af56caf9-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/09/26 16:09:42 HTTP client successfully authenticated
+2025/09/26 16:09:43 Collector successfully authenticated
+2025/09/26 16:09:43 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=af56caf9-cf14-ea11-80ee-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A41+GMT
+2025/09/26 16:09:44 Error checking vehicle ف ر ص 5783: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:09:44 Checking vehicle ف ا ن 7421 (ID: 7d1f3531-8e91-ed11-8103-0025b500010d) for speed alerts
+2025/09/26 16:09:50 HTTP client successfully authenticated
+2025/09/26 16:09:50 Collector successfully authenticated
+2025/09/26 16:09:50 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=7d1f3531-8e91-ed11-8103-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A44+GMT
+2025/09/26 16:09:51 Found 7 speed alerts for vehicle ف ا ن 7421
+2025/09/26 16:09:51 Checking vehicle ف ى ر 9156 (ID: 19419bf3-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/09/26 16:09:53 HTTP client successfully authenticated
+2025/09/26 16:09:54 Collector successfully authenticated
+2025/09/26 16:09:54 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19419bf3-6aa0-e811-80de-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A51+GMT
+2025/09/26 16:09:55 Checking vehicle ف ج م 5917 (ID: d7e4419f-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/09/26 16:09:56 HTTP client successfully authenticated
+2025/09/26 16:09:56 Collector successfully authenticated
+2025/09/26 16:09:56 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d7e4419f-cff8-ef11-810e-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A55+GMT
+2025/09/26 16:09:57 Found 5 speed alerts for vehicle ف ج م 5917
+2025/09/26 16:09:58 Checking vehicle ف د ى 6738 (ID: d23c85a1-6aa0-e811-80de-0025b500010d) for speed alerts
+2025/09/26 16:09:59 HTTP client successfully authenticated
+2025/09/26 16:09:59 Collector successfully authenticated
+2025/09/26 16:09:59 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=d23c85a1-6aa0-e811-80de-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A09%3A58+GMT
+2025/09/26 16:10:00 Error checking vehicle ف د ى 6738: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:10:00 Checking vehicle ف م س 9247 (ID: 8a77baf4-5fb4-e911-80ed-0025b500010d) for speed alerts
+2025/09/26 16:10:01 HTTP client successfully authenticated
+2025/09/26 16:10:01 Collector successfully authenticated
+2025/09/26 16:10:01 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=8a77baf4-5fb4-e911-80ed-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A00+GMT
+2025/09/26 16:10:02 Found 8 speed alerts for vehicle ف م س 9247
+2025/09/26 16:10:03 Checking vehicle ف د ى 6584 (ID: 98a0fe16-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/09/26 16:10:03 HTTP client successfully authenticated
+2025/09/26 16:10:04 Collector successfully authenticated
+2025/09/26 16:10:04 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=98a0fe16-6ba0-e811-80de-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A03+GMT
+2025/09/26 16:10:05 Error checking vehicle ف د ى 6584: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:10:05 Checking vehicle ف ع ص 4381 (ID: cd482774-6ba0-e811-80de-0025b500010d) for speed alerts
+2025/09/26 16:10:06 HTTP client successfully authenticated
+2025/09/26 16:10:07 Collector successfully authenticated
+2025/09/26 16:10:07 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=cd482774-6ba0-e811-80de-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A05+GMT
+2025/09/26 16:10:09 Checking vehicle ف أ ن 5139 (ID: 2782a30d-0143-ed11-8100-0025b500010d) for speed alerts
+2025/09/26 16:10:10 HTTP client successfully authenticated
+2025/09/26 16:10:10 Collector successfully authenticated
+2025/09/26 16:10:10 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=2782a30d-0143-ed11-8100-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A09+GMT
+2025/09/26 16:10:12 Checking vehicle ف ر ص 6359 (ID: ca53d5de-cf14-ea11-80ee-0025b500010d) for speed alerts
+2025/09/26 16:10:12 HTTP client successfully authenticated
+2025/09/26 16:10:13 Collector successfully authenticated
+2025/09/26 16:10:13 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=ca53d5de-cf14-ea11-80ee-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A12+GMT
+2025/09/26 16:10:14 Checking vehicle ف ر ص 8461 (ID: 19cdd2ad-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/09/26 16:10:15 HTTP client successfully authenticated
+2025/09/26 16:10:15 Collector successfully authenticated
+2025/09/26 16:10:15 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=19cdd2ad-aaba-ea11-80f4-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A14+GMT
+2025/09/26 16:10:16 Found 2 speed alerts for vehicle ف ر ص 8461
+2025/09/26 16:10:17 Checking vehicle ف د ى 6834 (ID: edddb58e-aaba-ea11-80f4-0025b500010d) for speed alerts
+2025/09/26 16:10:18 HTTP client successfully authenticated
+2025/09/26 16:10:18 Collector successfully authenticated
+2025/09/26 16:10:18 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=edddb58e-aaba-ea11-80f4-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A17+GMT
+2025/09/26 16:10:19 Error checking vehicle ف د ى 6834: error parsing speed data: unexpected end of JSON input
+2025/09/26 16:10:19 Checking vehicle ف ج م 5918 (ID: 524e35bb-cff8-ef11-810e-0025b500010d) for speed alerts
+2025/09/26 16:10:20 HTTP client successfully authenticated
+2025/09/26 16:10:20 Collector successfully authenticated
+2025/09/26 16:10:20 Fetching speed data from: https://fms-gps.etit-eg.com/WebPages/GetSpeedData.aspx?_=1752264215278&id=524e35bb-cff8-ef11-810e-0025b500010d&time=6&from=Fri%2C+26+Sep+2025+00%3A00%3A00+GMT&to=Fri%2C+26+Sep+2025+13%3A10%3A19+GMT
+2025/09/26 16:10:22 UNIQUE constraint failed: speed_alerts.hash
+2025/09/26 16:10:22 Fleet status updated - 3 companies processed, status changes: false
+2025/09/26 16:15:23 HTTP client successfully authenticated
+2025/09/26 16:15:23 Collector successfully authenticated
+2025/09/26 16:15:25 Skipping update for car ف ى ر 8427 - timestamp 2025-09-26 11:41:29 is less than 30 minutes after last update 2025-09-26 11:41:29
+2025/09/26 16:15:25 Car not found for ETIT ID: 76eca2d6-36f4-eb11-80f8-0025b500010d
+2025/09/26 16:15:27 Skipping update for car ف ر س 4593 - timestamp 2025-09-26 15:33:01 is less than 30 minutes after last update 2025-09-26 15:33:01
+2025/09/26 16:15:27 Car not found for ETIT ID: af56caf9-cf14-ea11-80ee-0025b500010d
+2025/09/26 16:15:31 Skipping update for car ف د ى 6738 - timestamp 2025-09-22 12:25:34 is less than 30 minutes after last update 2025-09-22 12:25:34
+2025/09/26 16:15:33 Skipping update for car ف د ى 6584 - timestamp 2025-08-17 19:41:01 is less than 30 minutes after last update 2025-09-26 15:43:46
+2025/09/26 16:15:35 Skipping update for car ف أ ن 5139 - timestamp 2025-09-26 07:20:30 is less than 30 minutes after last update 2025-09-26 10:25:02
+2025/09/26 16:15:36 Skipping update for car ف ر ص 6359 - timestamp 2025-09-26 16:14:56 is less than 30 minutes after last update 2025-09-26 15:57:41
+2025/09/26 16:15:37 Skipping update for car ف ر ص 8461 - timestamp 2025-09-26 16:14:18 is less than 30 minutes after last update 2025-09-26 16:01:21
+2025/09/26 16:15:38 Skipping update for car ف د ى 6834 - timestamp 2025-09-26 15:58:51 is less than 30 minutes after last update 2025-09-26 15:43:54
+2025/09/26 16:15:39 No status changes detected, skipping Slack update
