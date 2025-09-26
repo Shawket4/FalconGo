@@ -604,6 +604,11 @@ var CompanyChannelMap = map[string]string{
 	"watanya":       "C09GW6QNT46",
 }
 
+// Special channels
+var SpecialChannels = map[string]string{
+	"stopped_vehicles": "C09H6LVMP6X",
+}
+
 // QueueSlackUpdate queues a Slack update for a specific company with batching
 func QueueSlackUpdate(company string) {
 	updateMutex.Lock()
@@ -633,9 +638,196 @@ func QueueSlackUpdate(company string) {
 	}
 
 	log.Printf("Queued Slack update for company %s (channel %s), will send in %v", company, channelID, batchDelay)
+
+	// Also queue update for stopped channel if status qualifies
+	QueueStoppedChannelUpdate()
 }
 
-// processBatchedUpdate processes a batched update for a company
+// QueueStoppedChannelUpdate queues an update for the stopped vehicles channel
+func QueueStoppedChannelUpdate() {
+	stoppedChannelKey := "stopped_vehicles"
+	channelID, exists := SpecialChannels[stoppedChannelKey]
+	if !exists {
+		log.Printf("No channel mapping found for stopped vehicles channel")
+		return
+	}
+
+	// If there's already a pending update for stopped channel, cancel the old timer
+	if existing, exists := pendingUpdates[stoppedChannelKey]; exists {
+		if existing.Timer != nil {
+			existing.Timer.Stop()
+		}
+	}
+
+	// Create new pending update with timer
+	pendingUpdates[stoppedChannelKey] = &PendingUpdate{
+		Company:   stoppedChannelKey,
+		ChannelID: channelID,
+		Timer: time.AfterFunc(batchDelay, func() {
+			processStoppedChannelUpdate()
+		}),
+	}
+
+	log.Printf("Queued Slack update for stopped vehicles channel (%s), will send in %v", channelID, batchDelay)
+}
+
+// processStoppedChannelUpdate processes updates for the stopped vehicles channel
+func processStoppedChannelUpdate() {
+	updateMutex.Lock()
+	stoppedChannelKey := "stopped_vehicles"
+	update, exists := pendingUpdates[stoppedChannelKey]
+	if !exists {
+		updateMutex.Unlock()
+		return
+	}
+	delete(pendingUpdates, stoppedChannelKey)
+	updateMutex.Unlock()
+
+	// Get all cars with stopped statuses from all companies
+	var stoppedCars []Models.Car
+	stoppedStatuses := []string{"Driver Resting", "Stopped for Maintenance", "In Garage"}
+
+	if err := Models.DB.Preload("Driver").Where("slack_status IN ?", stoppedStatuses).Find(&stoppedCars).Error; err != nil {
+		log.Printf("Error fetching stopped cars: %v", err)
+		return
+	}
+
+	if len(stoppedCars) == 0 {
+		log.Printf("No stopped cars found, skipping stopped channel update")
+		return
+	}
+
+	// Send update to Slack
+	if err := sendStoppedVehiclesUpdate(update.ChannelID, stoppedCars); err != nil {
+		log.Printf("Error sending stopped vehicles update: %v", err)
+	} else {
+		log.Printf("Successfully sent stopped vehicles update (%d vehicles)", len(stoppedCars))
+	}
+}
+
+// sendStoppedVehiclesUpdate sends an update to the stopped vehicles channel
+func sendStoppedVehiclesUpdate(channelID string, cars []Models.Car) error {
+	if err := godotenv.Load(".env"); err != nil {
+		return fmt.Errorf("error loading .env file: %v", err)
+	}
+
+	slackToken := os.Getenv("SLACK_BOT_TOKEN")
+	if slackToken == "" {
+		return fmt.Errorf("SLACK_BOT_TOKEN not set")
+	}
+
+	client := NewSlackClient(slackToken)
+	message := generateStoppedVehiclesMessage(cars)
+
+	return client.SendAndPinWithCleanup(channelID, message, cars)
+}
+
+// generateStoppedVehiclesMessage generates the Slack message for stopped vehicles
+func generateStoppedVehiclesMessage(cars []Models.Car) string {
+	var message strings.Builder
+
+	// Header
+	message.WriteString("# STOPPED VEHICLES STATUS\n")
+	message.WriteString(fmt.Sprintf("*Last Updated: %s*\n\n", time.Now().Format("January 2, 2006 - 15:04:05 MST")))
+	message.WriteString("*Vehicles currently resting, in maintenance, or in garage*\n\n")
+	message.WriteString("---\n\n")
+
+	// Group vehicles by status for better organization
+	statusGroups := make(map[string][]Models.Car)
+	for _, car := range cars {
+		statusGroups[car.SlackStatus] = append(statusGroups[car.SlackStatus], car)
+	}
+
+	// Display vehicles by status groups
+	statusOrder := []string{"In Garage", "Stopped for Maintenance", "Driver Resting"}
+
+	for _, status := range statusOrder {
+		if carsInStatus, exists := statusGroups[status]; exists && len(carsInStatus) > 0 {
+			statusEmoji := getStatusEmoji(status)
+			message.WriteString(fmt.Sprintf("## %s %s (%d vehicles)\n\n", status, statusEmoji, len(carsInStatus)))
+
+			for _, car := range carsInStatus {
+				// Get driver name
+				driverName := "Unknown Driver"
+				if car.Driver.Name != "" {
+					driverName = car.Driver.Name
+				}
+
+				// Determine location to display
+				displayLocation := car.Location
+				if car.GeoFence != "" {
+					// Check if it's a terminal, garage, or drop-off point
+					for _, geofence := range AllGeoFences {
+						if geofence.Name == car.GeoFence {
+							if geofence.Type == "garage" {
+								displayLocation = "Garage"
+							} else if geofence.Type == "terminal" {
+								// Don't add "Terminal" suffix if it already exists in the name
+								if strings.Contains(strings.ToLower(geofence.Name), "terminal") {
+									displayLocation = geofence.Name
+								} else {
+									displayLocation = fmt.Sprintf("%s Terminal", geofence.Name)
+								}
+							}
+							break
+						}
+					}
+					// If not found in static geofences, it might be a drop-off point
+					if displayLocation == car.Location && car.GeoFence != "" {
+						displayLocation = fmt.Sprintf("%s Drop-Off Point", car.GeoFence)
+					}
+				}
+
+				// Generate Google Maps link with coordinate validation
+				mapsLink := ""
+				if car.Latitude != "" && car.Longitude != "" {
+					if lat, latErr := strconv.ParseFloat(car.Latitude, 64); latErr == nil {
+						if lng, lngErr := strconv.ParseFloat(car.Longitude, 64); lngErr == nil {
+							if isValidCoordinate(lat, lng) {
+								mapsLink = fmt.Sprintf("https://maps.google.com/?q=%s,%s", car.Latitude, car.Longitude)
+							}
+						}
+					}
+				}
+
+				message.WriteString(fmt.Sprintf("### **%s** (%s)\n", car.CarNoPlate, strings.ToUpper(car.OperatingCompany)))
+				message.WriteString(fmt.Sprintf("**Driver:** %s  \n", driverName))
+				message.WriteString(fmt.Sprintf("**Area:** %s  \n", car.OperatingArea))
+				message.WriteString(fmt.Sprintf("**Location:** %s  \n", displayLocation))
+
+				// Add Google Maps link if coordinates are valid
+				if mapsLink != "" {
+					message.WriteString(fmt.Sprintf("**Maps:** [View Location](%s)  \n", mapsLink))
+				}
+
+				// Parse and format timestamp
+				if car.LocationTimeStamp != "" {
+					if parsedTime, err := time.Parse("2006-01-02 15:04:05", car.LocationTimeStamp); err == nil {
+						message.WriteString(fmt.Sprintf("**Last Update:** %s\n\n", parsedTime.Format("15:04")))
+					} else {
+						message.WriteString(fmt.Sprintf("**Last Update:** %s\n\n", car.LocationTimeStamp))
+					}
+				} else {
+					message.WriteString("**Last Update:** Unknown\n\n")
+				}
+			}
+
+			message.WriteString("---\n\n")
+		}
+	}
+
+	// Status legend
+	message.WriteString("### **Status Legend:**\n")
+	message.WriteString("🅿️ **In Garage** - At garage/depot  \n")
+	message.WriteString("🔧 **Stopped for Maintenance** - Under repair/maintenance  \n")
+	message.WriteString("💤 **Driver Resting** - Driver break/rest period\n\n")
+
+	// Footer
+	message.WriteString("---\n")
+	message.WriteString("*Auto-updated by Apex Transport System*")
+
+	return message.String()
+}
 func processBatchedUpdate(companyKey string) {
 	updateMutex.Lock()
 	update, exists := pendingUpdates[companyKey]
@@ -646,35 +838,23 @@ func processBatchedUpdate(companyKey string) {
 	delete(pendingUpdates, companyKey)
 	updateMutex.Unlock()
 
-	// Get all recent cars for this company
+	// Get all cars for this company (removed 24-hour filter)
 	var allCars []Models.Car
 	if err := Models.DB.Preload("Driver").Where("LOWER(operating_company) = ?", companyKey).Find(&allCars).Error; err != nil {
 		log.Printf("Error fetching cars for company %s: %v", companyKey, err)
 		return
 	}
 
-	// Filter recent cars (24 hour activity)
-	var recentCars []Models.Car
-	for _, car := range allCars {
-		if car.LocationTimeStamp != "" {
-			if parsedTime, err := time.Parse("2006-01-02 15:04:05", car.LocationTimeStamp); err == nil {
-				if time.Since(parsedTime) <= 24*time.Hour {
-					recentCars = append(recentCars, car)
-				}
-			}
-		}
-	}
-
-	if len(recentCars) == 0 {
-		log.Printf("No recent cars found for company %s, skipping update", companyKey)
+	if len(allCars) == 0 {
+		log.Printf("No cars found for company %s, skipping update", companyKey)
 		return
 	}
 
 	// Send update to Slack
-	if err := sendFleetUpdateToChannel(update.ChannelID, recentCars, companyKey); err != nil {
+	if err := sendFleetUpdateToChannel(update.ChannelID, allCars, companyKey); err != nil {
 		log.Printf("Error sending batched update for company %s: %v", companyKey, err)
 	} else {
-		log.Printf("Successfully sent batched update for %s (%d vehicles)", companyKey, len(recentCars))
+		log.Printf("Successfully sent batched update for %s (%d vehicles)", companyKey, len(allCars))
 	}
 }
 
@@ -695,7 +875,7 @@ func sendFleetUpdateToChannel(channelID string, cars []Models.Car, company strin
 	return client.SendAndPinWithCleanup(channelID, message, cars)
 }
 
-// SendFleetUpdatesToSlack sends updates to all channels (for backwards compatibility)
+// SendFleetUpdatesToSlack sends updates to specific channels only (modified for single company updates)
 func SendFleetUpdatesToSlack(carsByCompany map[string][]Models.Car) error {
 	for company, cars := range carsByCompany {
 		if len(cars) == 0 {
@@ -713,7 +893,41 @@ func SendFleetUpdatesToSlack(carsByCompany map[string][]Models.Car) error {
 		}
 	}
 
+	// Also update the stopped vehicles channel
+	UpdateStoppedVehiclesChannel()
+
 	return nil
+}
+
+// UpdateStoppedVehiclesChannel manually triggers an update for the stopped vehicles channel
+func UpdateStoppedVehiclesChannel() {
+	// Get stopped channel info
+	channelID, exists := SpecialChannels["stopped_vehicles"]
+	if !exists {
+		log.Printf("No channel mapping found for stopped vehicles channel")
+		return
+	}
+
+	// Get all cars with stopped statuses from all companies
+	var stoppedCars []Models.Car
+	stoppedStatuses := []string{"Driver Resting", "Stopped for Maintenance", "In Garage"}
+
+	if err := Models.DB.Preload("Driver").Where("slack_status IN ?", stoppedStatuses).Find(&stoppedCars).Error; err != nil {
+		log.Printf("Error fetching stopped cars: %v", err)
+		return
+	}
+
+	if len(stoppedCars) == 0 {
+		log.Printf("No stopped cars found, skipping stopped channel update")
+		return
+	}
+
+	// Send update to Slack
+	if err := sendStoppedVehiclesUpdate(channelID, stoppedCars); err != nil {
+		log.Printf("Error sending stopped vehicles update: %v", err)
+	} else {
+		log.Printf("Successfully sent stopped vehicles update (%d vehicles)", len(stoppedCars))
+	}
 }
 
 func generateSlackMessage(cars []Models.Car, company string) string {
@@ -741,7 +955,12 @@ func generateSlackMessage(cars []Models.Car, company string) string {
 					if geofence.Type == "garage" {
 						displayLocation = "Garage"
 					} else if geofence.Type == "terminal" {
-						displayLocation = fmt.Sprintf("%s Terminal", geofence.Name)
+						// Don't add "Terminal" suffix if it already exists in the name
+						if strings.Contains(strings.ToLower(geofence.Name), "terminal") {
+							displayLocation = geofence.Name
+						} else {
+							displayLocation = fmt.Sprintf("%s Terminal", geofence.Name)
+						}
 					}
 					break
 				}
@@ -800,7 +1019,10 @@ func generateSlackMessage(cars []Models.Car, company string) string {
 	message.WriteString("🔧 **Stopped for Maintenance** - Under repair/maintenance  \n")
 	message.WriteString("🟡 **On Route to Terminal** - Traveling to fuel terminal  \n")
 	message.WriteString("🔴 **On Route to Drop-Off** - Traveling to delivery location  \n")
-	message.WriteString("💤 **Driver Resting** - Driver break/rest period\n\n")
+	message.WriteString("💤 **Driver Resting** - Driver break/rest period  \n")
+	message.WriteString("🚫 **Left Terminal** - Recently left fuel terminal  \n")
+	message.WriteString("🚫 **Left Garage** - Recently left garage/depot  \n")
+	message.WriteString("🚫 **Left Drop-Off** - Recently left delivery location\n\n")
 
 	// Footer
 	message.WriteString("---\n")
@@ -967,7 +1189,7 @@ func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
 }
 
 // UpdateCarGeofence updates car's geofence based on current location
-// Only updates automatically if vehicle enters/exits a geofence
+// Modified to require 30-minute gap and handle "left" statuses
 func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool {
 	// Parse the timestamp from VehicleStatusStruct
 	newTimestamp, err := time.Parse("2006-01-02 15:04:05", timestamp)
@@ -976,9 +1198,9 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 		return false
 	}
 
-	// Check if new timestamp is after last updated slack status (allow equal timestamps for same-time different locations)
-	if !car.LastUpdatedSlackStatus.IsZero() && newTimestamp.Before(car.LastUpdatedSlackStatus) {
-		log.Printf("Skipping update for car %s - timestamp %s is older than last update %s",
+	// Check if new timestamp is at least 30 minutes after last updated slack status
+	if !car.LastUpdatedSlackStatus.IsZero() && newTimestamp.Sub(car.LastUpdatedSlackStatus) < 30*time.Minute {
+		log.Printf("Skipping update for car %s - timestamp %s is less than 30 minutes after last update %s",
 			car.CarNoPlate, timestamp, car.LastUpdatedSlackStatus.Format("2006-01-02 15:04:05"))
 		return false
 	}
@@ -990,7 +1212,6 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 	previousStatus := car.SlackStatus
 	previousGeoFence := car.GeoFence
 
-	// Only update status automatically when entering/exiting geofences
 	if inGeofence {
 		// Vehicle entered a geofence - update status based on geofence type
 		car.GeoFence = geofenceName
@@ -1002,15 +1223,35 @@ func UpdateCarGeofence(car *Models.Car, lat, lng float64, timestamp string) bool
 		case "dropoff":
 			car.SlackStatus = "In Drop-Off"
 		}
-
-		// Update the last updated timestamp
 		car.LastUpdatedSlackStatus = newTimestamp
 	} else {
-		// Vehicle not in any geofence - only update if it was previously in a geofence
+		// Vehicle not in any geofence
 		if car.GeoFence != "" {
+			// Vehicle left a geofence - set "Left" status based on previous geofence type
+			previousGeofenceType := ""
+			for _, geofence := range AllGeoFences {
+				if geofence.Name == car.GeoFence {
+					previousGeofenceType = geofence.Type
+					break
+				}
+			}
+
+			// If not found in static geofences, check if it was a drop-off point
+			if previousGeofenceType == "" && car.GeoFence != "" {
+				previousGeofenceType = "dropoff"
+			}
+
+			// Set appropriate "Left" status
+			switch previousGeofenceType {
+			case "garage":
+				car.SlackStatus = "Left Garage"
+			case "terminal":
+				car.SlackStatus = "Left Terminal"
+			case "dropoff":
+				car.SlackStatus = "Left Drop-Off"
+			}
+
 			car.GeoFence = ""
-			// Don't automatically set status when leaving geofence
-			// Status must be set manually using ManualUpdateVehicleStatus
 			car.LastUpdatedSlackStatus = newTimestamp
 		}
 	}
@@ -1046,6 +1287,8 @@ func getStatusEmoji(status string) string {
 		return "🔴"
 	case "driver resting":
 		return "💤"
+	case "left terminal", "left garage", "left drop-off":
+		return "🚫"
 	default:
 		return "❓"
 	}
