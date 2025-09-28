@@ -2884,7 +2884,7 @@ type RouteResult struct {
 
 func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
 	// Get route from OSRM
-	osrmURL := fmt.Sprintf("http://localhost:5001/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
+	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
 		startLng, startLat, endLng, endLat)
 
 	fmt.Println("OSRM URL:", osrmURL)
