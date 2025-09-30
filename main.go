@@ -3,12 +3,8 @@ package main
 import (
 	"Falcon/FiberConfig"
 	"Falcon/Models"
-	"Falcon/PetroApp"
-	"Falcon/Scrapper"
-	"Falcon/Slack"
 	"log"
 	"os"
-	"time"
 )
 
 func main() {
@@ -35,31 +31,31 @@ func main() {
 	// 		time.Sleep(time.Hour)
 	// 	}
 	// }()
-	go func() {
-		// if err := Alerts.InitFirebase(); err != nil {
-		// 	log.Fatal("Failed to initialize Firebase:", err)
-		// }
-		for {
-			// Handle errors properly to prevent crashes
-			if records, err := PetroApp.FetchPetroAppRecords(); err != nil {
-				log.Printf("Error fetching PetroApp records: %v", err)
-				// Continue loop instead of crashing
-			} else {
-				log.Printf("Fetched %d PetroApp records", len(records))
-			}
+	// go func() {
+	// 	// if err := Alerts.InitFirebase(); err != nil {
+	// 	// 	log.Fatal("Failed to initialize Firebase:", err)
+	// 	// }
+	// 	for {
+	// 		// Handle errors properly to prevent crashes
+	// 		if records, err := PetroApp.FetchPetroAppRecords(); err != nil {
+	// 			log.Printf("Error fetching PetroApp records: %v", err)
+	// 			// Continue loop instead of crashing
+	// 		} else {
+	// 			log.Printf("Fetched %d PetroApp records", len(records))
+	// 		}
 
-			time.Sleep(time.Minute)
+	// 		time.Sleep(time.Minute)
 
-			// Sync PetroApp records to FuelEvents
-			if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
-				log.Printf("Error syncing PetroApp records: %v", err)
-				// Continue loop instead of crashing
-			}
+	// 		// Sync PetroApp records to FuelEvents
+	// 		if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
+	// 			log.Printf("Error syncing PetroApp records: %v", err)
+	// 			// Continue loop instead of crashing
+	// 		}
 
-			Scrapper.GetVehicleData()
-			time.Sleep(time.Minute * 5)
-		}
-	}()
+	// 		Scrapper.GetVehicleData()
+	// 		time.Sleep(time.Minute * 5)
+	// 	}
+	// }()
 	// go func() {
 	// 	time.Sleep(time.Second * 30)
 	// 	for {
@@ -70,14 +66,14 @@ func main() {
 	// 	}
 	// }()
 
-	setupLogging()
+	// setupLogging()
 	// Setup routes
 	Models.Connect()
 	// PetroApp.MigrateStations()
 	// Scrapper.SetupLandMarks()
-	if err := Slack.InitializeSlackTaskSystem(); err != nil {
-		log.Fatal("Failed to initialize Slack task system:", err)
-	}
+	// if err := Slack.InitializeSlackTaskSystem(); err != nil {
+	// 	log.Fatal("Failed to initialize Slack task system:", err)
+	// }
 	FiberConfig.FiberConfig()
 
 }

@@ -4,9 +4,31 @@ import (
 	"gorm.io/gorm"
 )
 
+type ParentTrip struct {
+	gorm.Model
+	CarID        uint   `json:"car_id"`
+	DriverID     uint   `json:"driver_id"`
+	CarNoPlate   string `json:"car_no_plate"`
+	DriverName   string `json:"driver_name"`
+	Transporter  string `json:"transporter"`
+	TankCapacity int    `json:"tank_capacity"`
+
+	Company  string `json:"company"`
+	Terminal string `json:"terminal"`
+	Date     string `json:"date"`
+
+	// Relationships
+	ContainerTrips []TripStruct `json:"container_trips" gorm:"foreignKey:ParentTripID"`
+
+	// Calculated/Aggregated fields
+	TotalRevenue    float64 `json:"total_revenue" gorm:"-"`
+	TotalContainers int     `json:"total_containers" gorm:"-"`
+}
+
 // TripStruct represents a trip record with additional fields for terminal and drop-off points
 type TripStruct struct {
 	gorm.Model
+	ParentTripID *uint  `json:"parent_trip_id" gorm:"index"` // Nullable for existing data
 	CarID        uint   `json:"car_id"`
 	DriverID     uint   `json:"driver_id"`
 	CarNoPlate   string `json:"car_no_plate"`

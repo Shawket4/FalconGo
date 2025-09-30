@@ -94,6 +94,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Get("/:id/details", tripHandler.GetTripDetails)
 	trips.Delete("/:id", tripHandler.DeleteTrip)
 
+	trips.Post("/multi-container", tripHandler.CreateMultiContainerTrip)
+	trips.Get("/parent/:parent_id/containers", tripHandler.GetContainersByParent)
+	trips.Put("/parent/:parent_id", tripHandler.UpdateParentTrip)
+	trips.Delete("/parent/:parent_id", tripHandler.DeleteParentTrip)
+
 	// Additional trip routes for filtering and stats
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
 	trips.Post("/watanya/export_report", middleware.Verify(3), tripHandler.GetWatanyaTripsReport)

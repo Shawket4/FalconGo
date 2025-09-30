@@ -69,6 +69,7 @@ func Connect() {
 		&InspectionItem{},
 		&ServiceInvoice{},
 		&DailyTask{},
+		&ParentTrip{},
 	)
 
 	DB.AutoMigrate(&Vendor{}, &VendorTransaction{})

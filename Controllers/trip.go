@@ -3666,3 +3666,612 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// CreateMultiContainerTrip creates a parent trip with multiple container trips
+func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
+	var input struct {
+		ParentTrip Models.ParentTrip   `json:"parent_trip"`
+		Containers []Models.TripStruct `json:"containers"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	// Validation
+	if len(input.Containers) == 0 || len(input.Containers) > 4 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Must have between 1 and 4 containers",
+		})
+	}
+
+	if input.ParentTrip.Company == "" || input.ParentTrip.Terminal == "" || input.ParentTrip.Date == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Parent trip must have company, terminal, and date",
+		})
+	}
+
+	// Validate all containers and get their mappings
+	for i, container := range input.Containers {
+		if container.DropOffPoint == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Container %d missing drop_off_point", i+1),
+			})
+		}
+		if container.ReceiptNo == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Container %d missing receipt_no", i+1),
+			})
+		}
+		if container.TankCapacity == 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Container %d missing tank_capacity", i+1),
+			})
+		}
+
+		// Verify mapping exists
+		var mapping Models.FeeMapping
+		err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			input.ParentTrip.Company, input.ParentTrip.Terminal, container.DropOffPoint).
+			First(&mapping).Error
+
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"message": fmt.Sprintf("Invalid mapping for container %d: %s to %s",
+						i+1, input.ParentTrip.Terminal, container.DropOffPoint),
+				})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to validate mapping",
+				"error":   err.Error(),
+			})
+		}
+	}
+
+	// Begin transaction
+	tx := h.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Create parent trip
+	if err := tx.Create(&input.ParentTrip).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to create parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// Create each container trip
+	createdContainers := make([]Models.TripStruct, 0, len(input.Containers))
+	for i := range input.Containers {
+		// Copy common fields from parent
+		input.Containers[i].ParentTripID = &input.ParentTrip.ID
+		input.Containers[i].CarID = input.ParentTrip.CarID
+		input.Containers[i].DriverID = input.ParentTrip.DriverID
+		input.Containers[i].CarNoPlate = input.ParentTrip.CarNoPlate
+		input.Containers[i].DriverName = input.ParentTrip.DriverName
+		input.Containers[i].Transporter = input.ParentTrip.Transporter
+		input.Containers[i].Company = input.ParentTrip.Company
+		input.Containers[i].Terminal = input.ParentTrip.Terminal
+		input.Containers[i].Date = input.ParentTrip.Date
+
+		// Get fee mapping for this container
+		var mapping Models.FeeMapping
+		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			input.Containers[i].Company, input.Containers[i].Terminal, input.Containers[i].DropOffPoint).
+			First(&mapping)
+
+		// Set mileage and revenue from mapping
+		input.Containers[i].Mileage = mapping.Distance
+		input.Containers[i].Revenue = mapping.Fee
+
+		// Set calculated fields for response (not stored)
+		input.Containers[i].Distance = mapping.Distance
+		input.Containers[i].Fee = mapping.Fee
+
+		if err := tx.Create(&input.Containers[i]).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": fmt.Sprintf("Failed to create container %d", i+1),
+				"error":   err.Error(),
+			})
+		}
+
+		createdContainers = append(createdContainers, input.Containers[i])
+	}
+
+	// Update car's driver assignment
+	if err := tx.Model(&Models.Car{}).Where("id = ?", input.ParentTrip.CarID).
+		Update("driver_id", input.ParentTrip.DriverID).Error; err != nil {
+		log.Println("Warning: Failed to update car driver assignment:", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to commit transaction",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message":         "Multi-container trip created successfully",
+		"parent_trip":     input.ParentTrip,
+		"containers":      createdContainers,
+		"container_count": len(createdContainers),
+	})
+}
+
+// GetContainersByParent retrieves all container trips for a given parent trip
+func (h *TripHandler) GetContainersByParent(c *fiber.Ctx) error {
+	parentID := c.Params("parent_id")
+
+	if parentID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Parent trip ID is required",
+		})
+	}
+
+	// Convert to uint
+	id, err := strconv.ParseUint(parentID, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid parent trip ID",
+			"error":   err.Error(),
+		})
+	}
+
+	// Get parent trip
+	var parentTrip Models.ParentTrip
+	if err := h.DB.First(&parentTrip, uint(id)).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Parent trip not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// Get all container trips
+	var containers []Models.TripStruct
+	if err := h.DB.Where("parent_trip_id = ?", uint(id)).
+		Order("receipt_no ASC").
+		Find(&containers).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch container trips",
+			"error":   err.Error(),
+		})
+	}
+
+	// Enrich with fee mapping data
+	for i := range containers {
+		var mapping Models.FeeMapping
+		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			containers[i].Company, containers[i].Terminal, containers[i].DropOffPoint).
+			First(&mapping)
+
+		if mapping.ID > 0 {
+			containers[i].Distance = mapping.Distance
+			containers[i].Fee = mapping.Fee
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":         "Containers retrieved successfully",
+		"parent_trip":     parentTrip,
+		"containers":      containers,
+		"container_count": len(containers),
+	})
+}
+
+// UpdateParentTrip updates parent trip information and optionally its containers
+// UpdateParentTrip updates parent trip information and optionally its containers
+func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
+	parentID := c.Params("parent_id")
+
+	if parentID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Parent trip ID is required",
+		})
+	}
+
+	// Convert to uint
+	id, err := strconv.ParseUint(parentID, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid parent trip ID",
+			"error":   err.Error(),
+		})
+	}
+
+	var input struct {
+		ParentTrip       Models.ParentTrip   `json:"parent_trip"`
+		Containers       []Models.TripStruct `json:"containers,omitempty"`
+		UpdateContainers bool                `json:"update_containers"` // Flag to update container-specific fields
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	// Check if parent trip exists
+	var existingParent Models.ParentTrip
+	if err := h.DB.First(&existingParent, uint(id)).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Parent trip not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// Begin transaction
+	tx := h.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Track if any parent fields were updated
+	parentFieldsUpdated := false
+	terminalOrCompanyChanged := false
+
+	// Update parent trip fields
+	if input.ParentTrip.CarID != 0 {
+		existingParent.CarID = input.ParentTrip.CarID
+		parentFieldsUpdated = true
+	}
+	if input.ParentTrip.DriverID != 0 {
+		existingParent.DriverID = input.ParentTrip.DriverID
+		parentFieldsUpdated = true
+	}
+	if input.ParentTrip.CarNoPlate != "" {
+		existingParent.CarNoPlate = input.ParentTrip.CarNoPlate
+		parentFieldsUpdated = true
+	}
+	if input.ParentTrip.DriverName != "" {
+		existingParent.DriverName = input.ParentTrip.DriverName
+		parentFieldsUpdated = true
+	}
+	if input.ParentTrip.Company != "" && input.ParentTrip.Company != existingParent.Company {
+		existingParent.Company = input.ParentTrip.Company
+		parentFieldsUpdated = true
+		terminalOrCompanyChanged = true
+	}
+	if input.ParentTrip.Terminal != "" && input.ParentTrip.Terminal != existingParent.Terminal {
+		existingParent.Terminal = input.ParentTrip.Terminal
+		parentFieldsUpdated = true
+		terminalOrCompanyChanged = true
+	}
+	if input.ParentTrip.Date != "" {
+		existingParent.Date = input.ParentTrip.Date
+		parentFieldsUpdated = true
+	}
+
+	if err := tx.Save(&existingParent).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to update parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// ALWAYS update containers with parent data if parent fields were updated
+	if parentFieldsUpdated {
+		updateData := map[string]interface{}{
+			"car_id":       existingParent.CarID,
+			"driver_id":    existingParent.DriverID,
+			"car_no_plate": existingParent.CarNoPlate,
+			"driver_name":  existingParent.DriverName,
+			"company":      existingParent.Company,
+			"terminal":     existingParent.Terminal,
+			"date":         existingParent.Date,
+		}
+
+		if err := tx.Model(&Models.TripStruct{}).
+			Where("parent_trip_id = ?", uint(id)).
+			Updates(updateData).Error; err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to update container trips",
+				"error":   err.Error(),
+			})
+		}
+
+		// If terminal or company changed, recalculate fees and distances for all containers
+		if terminalOrCompanyChanged {
+			var containers []Models.TripStruct
+			if err := tx.Where("parent_trip_id = ?", uint(id)).Find(&containers).Error; err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"message": "Failed to fetch containers for recalculation",
+					"error":   err.Error(),
+				})
+			}
+
+			for _, container := range containers {
+				var mapping Models.FeeMapping
+				err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+					existingParent.Company, existingParent.Terminal, container.DropOffPoint).
+					First(&mapping).Error
+
+				if err != nil {
+					if err == gorm.ErrRecordNotFound {
+						tx.Rollback()
+						return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+							"message": fmt.Sprintf("No mapping found for %s -> %s (container ID: %d)",
+								existingParent.Terminal, container.DropOffPoint, container.ID),
+						})
+					}
+					tx.Rollback()
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"message": "Failed to fetch fee mapping",
+						"error":   err.Error(),
+					})
+				}
+
+				// Update mileage and revenue
+				if err := tx.Model(&Models.TripStruct{}).
+					Where("id = ?", container.ID).
+					Updates(map[string]interface{}{
+						"mileage": mapping.Distance,
+						"revenue": mapping.Fee,
+					}).Error; err != nil {
+					tx.Rollback()
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"message": fmt.Sprintf("Failed to update fees for container %d", container.ID),
+						"error":   err.Error(),
+					})
+				}
+			}
+		}
+	}
+
+	// Update or create specific containers if provided
+	if input.UpdateContainers && len(input.Containers) > 0 {
+		for _, container := range input.Containers {
+			if container.ID != 0 {
+				// Update existing container's specific fields
+				containerUpdate := map[string]interface{}{}
+
+				if container.DropOffPoint != "" {
+					containerUpdate["drop_off_point"] = container.DropOffPoint
+
+					// Recalculate fee and distance for this drop-off point
+					var mapping Models.FeeMapping
+					err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+						existingParent.Company, existingParent.Terminal, container.DropOffPoint).
+						First(&mapping).Error
+
+					if err != nil {
+						if err == gorm.ErrRecordNotFound {
+							tx.Rollback()
+							return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+								"message": fmt.Sprintf("No mapping found for %s -> %s",
+									existingParent.Terminal, container.DropOffPoint),
+							})
+						}
+						tx.Rollback()
+						return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+							"message": "Failed to fetch fee mapping",
+							"error":   err.Error(),
+						})
+					}
+
+					containerUpdate["mileage"] = mapping.Distance
+					containerUpdate["revenue"] = mapping.Fee
+				}
+
+				if container.TankCapacity != 0 {
+					containerUpdate["tank_capacity"] = container.TankCapacity
+				}
+				if container.GasType != "" {
+					containerUpdate["gas_type"] = container.GasType
+				}
+				if container.ReceiptNo != "" {
+					containerUpdate["receipt_no"] = container.ReceiptNo
+				}
+
+				if len(containerUpdate) > 0 {
+					if err := tx.Model(&Models.TripStruct{}).
+						Where("id = ? AND parent_trip_id = ?", container.ID, uint(id)).
+						Updates(containerUpdate).Error; err != nil {
+						tx.Rollback()
+						return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+							"message": fmt.Sprintf("Failed to update container %d", container.ID),
+							"error":   err.Error(),
+						})
+					}
+				}
+			} else {
+				// Validate new container has required fields
+				if container.DropOffPoint == "" {
+					tx.Rollback()
+					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"message": "New container missing drop_off_point",
+					})
+				}
+				if container.ReceiptNo == "" {
+					tx.Rollback()
+					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"message": "New container missing receipt_no",
+					})
+				}
+				if container.TankCapacity == 0 {
+					tx.Rollback()
+					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"message": "New container missing tank_capacity",
+					})
+				}
+
+				// Get fee mapping for new container
+				var mapping Models.FeeMapping
+				err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+					existingParent.Company, existingParent.Terminal, container.DropOffPoint).
+					First(&mapping).Error
+
+				if err != nil {
+					if err == gorm.ErrRecordNotFound {
+						tx.Rollback()
+						return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+							"message": fmt.Sprintf("No mapping found for %s -> %s",
+								existingParent.Terminal, container.DropOffPoint),
+						})
+					}
+					tx.Rollback()
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"message": "Failed to validate mapping",
+						"error":   err.Error(),
+					})
+				}
+
+				// Create new container with ALL fields (parent + specific + calculated)
+				parentID := uint(id)
+
+				newContainer := Models.TripStruct{
+					ParentTripID: &parentID,
+					// Parent fields
+					CarID:      existingParent.CarID,
+					DriverID:   existingParent.DriverID,
+					CarNoPlate: existingParent.CarNoPlate,
+					DriverName: existingParent.DriverName,
+					Company:    existingParent.Company,
+					Terminal:   existingParent.Terminal,
+					Date:       existingParent.Date,
+					// Container-specific fields
+					DropOffPoint: container.DropOffPoint,
+					TankCapacity: container.TankCapacity,
+					GasType:      container.GasType,
+					ReceiptNo:    container.ReceiptNo,
+					// Calculated fields from mapping
+					Mileage: mapping.Distance,
+					Revenue: mapping.Fee,
+				}
+
+				if err := tx.Create(&newContainer).Error; err != nil {
+					tx.Rollback()
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"message": "Failed to create new container",
+						"error":   err.Error(),
+					})
+				}
+			}
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to commit transaction",
+			"error":   err.Error(),
+		})
+	}
+
+	// Fetch updated containers
+	var updatedContainers []Models.TripStruct
+	h.DB.Where("parent_trip_id = ?", uint(id)).
+		Order("receipt_no ASC").
+		Find(&updatedContainers)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":     "Parent trip updated successfully",
+		"parent_trip": existingParent,
+		"containers":  updatedContainers,
+	})
+}
+
+// DeleteParentTrip deletes a parent trip and all its container trips
+func (h *TripHandler) DeleteParentTrip(c *fiber.Ctx) error {
+	parentID := c.Params("parent_id")
+
+	if parentID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Parent trip ID is required",
+		})
+	}
+
+	// Convert to uint
+	id, err := strconv.ParseUint(parentID, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid parent trip ID",
+			"error":   err.Error(),
+		})
+	}
+
+	// Check if parent trip exists
+	var parentTrip Models.ParentTrip
+	if err := h.DB.First(&parentTrip, uint(id)).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Parent trip not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// Begin transaction
+	tx := h.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Count containers before deletion
+	var containerCount int64
+	tx.Model(&Models.TripStruct{}).Where("parent_trip_id = ?", uint(id)).Count(&containerCount)
+
+	// Soft delete all container trips
+	if err := tx.Where("parent_trip_id = ?", uint(id)).Delete(&Models.TripStruct{}).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to delete container trips",
+			"error":   err.Error(),
+		})
+	}
+
+	// Soft delete parent trip
+	if err := tx.Delete(&parentTrip).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to delete parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to commit transaction",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message":            "Parent trip and containers deleted successfully",
+		"deleted_parent":     parentTrip.ID,
+		"deleted_containers": containerCount,
+	})
+}
