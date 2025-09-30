@@ -3712,6 +3712,10 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 			})
 		}
 
+		if container.DropOffPoint == "غير مسجل" {
+			continue
+		}
+
 		// Verify mapping exists
 		var mapping Models.FeeMapping
 		err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
@@ -4120,6 +4124,10 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 						"message": "New container missing tank_capacity",
 					})
+				}
+
+				if container.DropOffPoint == "غير مسجل" {
+					continue
 				}
 
 				// Get fee mapping for new container
