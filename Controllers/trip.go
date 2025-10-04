@@ -3520,18 +3520,40 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 	})
 }
 
-// Helper function to apply receipt status filter - FIXED
+// Helper function to apply receipt status filter - FIXED for any order
 func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
 	switch receiptStatus {
 	case "pending":
 		// Trips with no receipt steps at all
 		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
+
 	case "in_garage":
-		// Trips with at least one garage step (may also have office)
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
+		// Trips where the LATEST step is Garage
+		// This means either: only has garage, OR has both but garage is more recent
+		query = query.Where(`EXISTS (
+            SELECT 1 FROM receipt_steps rs1
+            WHERE rs1.trip_id = trips.id 
+            AND rs1.location = 'Garage'
+            AND NOT EXISTS (
+                SELECT 1 FROM receipt_steps rs2
+                WHERE rs2.trip_id = trips.id
+                AND rs2.received_at > rs1.received_at
+            )
+        )`)
+
 	case "in_office":
-		// Trips with at least one office step (may also have garage)
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
+		// Trips where the LATEST step is Office
+		// This means either: only has office, OR has both but office is more recent
+		query = query.Where(`EXISTS (
+            SELECT 1 FROM receipt_steps rs1
+            WHERE rs1.trip_id = trips.id 
+            AND rs1.location = 'Office'
+            AND NOT EXISTS (
+                SELECT 1 FROM receipt_steps rs2
+                WHERE rs2.trip_id = trips.id
+                AND rs2.received_at > rs1.received_at
+            )
+        )`)
 	}
 	return query
 }
