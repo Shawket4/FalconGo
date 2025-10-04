@@ -3520,8 +3520,23 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 	})
 }
 
-// Helper function to fetch trips with all their containers
-// Helper function to fetch trips with all their containers
+// Helper function to apply receipt status filter - FIXED
+func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
+	switch receiptStatus {
+	case "pending":
+		// Trips with no receipt steps at all
+		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
+	case "in_garage":
+		// Trips with at least one garage step (may also have office)
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
+	case "in_office":
+		// Trips with at least one office step (may also have garage)
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
+	}
+	return query
+}
+
+// Helper function to fetch trips with all their containers - FIXED
 func (h *TripHandler) fetchTripsWithContainers(query *gorm.DB, limit, offset int) ([]Models.TripStruct, error) {
 	// First, get the paginated trips
 	var paginatedTrips []Models.TripStruct
@@ -3537,13 +3552,12 @@ func (h *TripHandler) fetchTripsWithContainers(query *gorm.DB, limit, offset int
 	// Collect all parent IDs from containers in the paginated results
 	parentIDs := make(map[uint]bool)
 	for _, trip := range paginatedTrips {
-		// Fix: Dereference pointer and check for nil
 		if trip.ParentTripID != nil && *trip.ParentTripID > 0 {
 			parentIDs[*trip.ParentTripID] = true
 		}
 	}
 
-	// If we have containers, we need to fetch ALL siblings for those parents
+	// If we have containers, fetch ALL siblings for those parents
 	if len(parentIDs) > 0 {
 		parentIDList := make([]uint, 0, len(parentIDs))
 		for id := range parentIDs {
@@ -3579,19 +3593,17 @@ func (h *TripHandler) fetchTripsWithContainers(query *gorm.DB, limit, offset int
 	return paginatedTrips, nil
 }
 
-// GetAllTrips with missing data and receipt status filters
+// GetAllTrips - FIXED
 func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
-	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
-	// Get filter parameters
 	searchTerm := c.Query("search", "")
 	missingData := c.Query("missing_data", "")
 	receiptStatus := c.Query("receipt_status", "")
 
-	// Create a base query with proper sorting and preload
+	// Create base query with proper sorting and preload
 	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC").Preload("ReceiptSteps")
 
 	// Add search condition
@@ -3620,7 +3632,28 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 
 	// Count total records AFTER all filters are applied
 	var total int64
-	query.Count(&total)
+	countQuery := h.DB.Model(&Models.TripStruct{})
+
+	// Reapply all filters for counting
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		countQuery = countQuery.Where("car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+	if receiptStatus != "" {
+		countQuery = h.applyReceiptStatusFilter(countQuery, receiptStatus)
+	}
+	countQuery.Count(&total)
 
 	// Fetch trips with all their containers
 	trips, err := h.fetchTripsWithContainers(query, limit, offset)
@@ -3655,7 +3688,7 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	})
 }
 
-// GetTripsByCompany with filters
+// GetTripsByCompany - FIXED
 func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	company := c.Params("company")
 	if company == "" {
@@ -3672,23 +3705,19 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get filter parameters
 	searchTerm := c.Query("search", "")
 	missingData := c.Query("missing_data", "")
 	receiptStatus := c.Query("receipt_status", "")
 
-	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
-	// Create a base query
 	query := h.DB.Model(&Models.TripStruct{}).
 		Where("company = ?", company).
 		Preload("ReceiptSteps").
 		Order("date DESC, receipt_no DESC")
 
-	// Add search condition
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
@@ -3696,7 +3725,6 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
-	// Add missing data filter
 	if missingData != "" {
 		switch missingData {
 		case "driver":
@@ -3708,16 +3736,34 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		}
 	}
 
-	// Apply receipt status filter BEFORE counting and pagination
 	if receiptStatus != "" {
 		query = h.applyReceiptStatusFilter(query, receiptStatus)
 	}
 
-	// Count total records AFTER all filters
+	// Count with same filters
 	var total int64
-	query.Count(&total)
+	countQuery := h.DB.Model(&Models.TripStruct{}).Where("company = ?", company)
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		countQuery = countQuery.Where(
+			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+	if receiptStatus != "" {
+		countQuery = h.applyReceiptStatusFilter(countQuery, receiptStatus)
+	}
+	countQuery.Count(&total)
 
-	// Fetch trips with all their containers
 	trips, err := h.fetchTripsWithContainers(query, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -3726,7 +3772,6 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		})
 	}
 
-	// Enrich trip data
 	for i := range trips {
 		var mapping Models.FeeMapping
 		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
@@ -3752,7 +3797,7 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	})
 }
 
-// GetTripsByDate with filters
+// GetTripsByDate - FIXED
 func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
@@ -3763,7 +3808,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get filter parameters
 	searchTerm := c.Query("search", "")
 	company := c.Query("company")
 	missingData := c.Query("missing_data", "")
@@ -3777,23 +3821,19 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
 
-	// Base query
 	query := h.DB.Model(&Models.TripStruct{}).
 		Preload("ReceiptSteps").
 		Where("date >= ? AND date <= ?", startDate, endDate).
 		Order("date DESC, receipt_no DESC")
 
-	// Apply company filter
 	if company != "" {
 		query = query.Where("company = ?", company)
 	}
 
-	// Add search condition
 	if searchTerm != "" {
 		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
@@ -3801,7 +3841,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
-	// Add missing data filter
 	if missingData != "" {
 		switch missingData {
 		case "driver":
@@ -3813,16 +3852,37 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		}
 	}
 
-	// Apply receipt status filter BEFORE counting and pagination
 	if receiptStatus != "" {
 		query = h.applyReceiptStatusFilter(query, receiptStatus)
 	}
 
-	// Count total records AFTER all filters
+	// Count with same filters
 	var total int64
-	query.Count(&total)
+	countQuery := h.DB.Model(&Models.TripStruct{}).Where("date >= ? AND date <= ?", startDate, endDate)
+	if company != "" {
+		countQuery = countQuery.Where("company = ?", company)
+	}
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		countQuery = countQuery.Where(
+			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+	if receiptStatus != "" {
+		countQuery = h.applyReceiptStatusFilter(countQuery, receiptStatus)
+	}
+	countQuery.Count(&total)
 
-	// Fetch trips with all their containers
 	trips, err := h.fetchTripsWithContainers(query, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -3831,7 +3891,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Enrich trip data
 	for i := range trips {
 		var mapping Models.FeeMapping
 		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
@@ -3857,23 +3916,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"search":     searchTerm,
 		},
 	})
-}
-
-func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
-	switch receiptStatus {
-	case "pending":
-		// Trips with no receipt steps
-		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
-	case "in_garage":
-		// Trips with garage step but no office step
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')").
-			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
-	case "in_office":
-		// Trips with office step but no garage step
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')").
-			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
-	}
-	return query
 }
 
 // CreateMultiContainerTrip creates a parent trip with multiple container trips
