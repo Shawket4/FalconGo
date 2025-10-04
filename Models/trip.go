@@ -1,6 +1,8 @@
 package Models
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -53,8 +55,20 @@ type TripStruct struct {
 	ReceiptNo string  `json:"receipt_no"`
 
 	// Calculated fields
-	Distance float64 `json:"distance" gorm:"-"` // Distance from fee mapping, not stored
-	Fee      float64 `json:"fee" gorm:"-"`      // Fee from fee mapping, not stored
+	Distance     float64       `json:"distance" gorm:"-"` // Distance from fee mapping, not stored
+	Fee          float64       `json:"fee" gorm:"-"`      // Fee from fee mapping, not stored
+	ReceiptSteps []ReceiptStep `json:"receipt_steps" gorm:"foreignKey:TripID;constraint:OnDelete:CASCADE"`
+}
+
+type ReceiptStep struct {
+	gorm.Model
+	TripID     uint      `json:"trip_id" gorm:"index;not null"`
+	Location   string    `json:"location" gorm:"type:varchar(20);not null"` // "Garage" or "Office"
+	ReceivedBy string    `json:"received_by" gorm:"type:varchar(255);not null"`
+	ReceivedAt time.Time `json:"received_at" gorm:"not null"`
+	StepOrder  int       `json:"step_order" gorm:"not null"` // 1 for first step, 2 for second, etc.
+	Stamped    bool      `json:"stamped" gorm:"default:false"`
+	Notes      string    `json:"notes" gorm:"type:text"`
 }
 
 // TableName specifies the table name for the Trip model

@@ -130,11 +130,12 @@ type CarTotal struct {
 	Rent        float64 `json:"rent"`
 }
 
-// Add a new function to calculate revenue statistics by route
+// =============================================================================
+// GetTripStatsByTime - Daily statistics breakdown
+// =============================================================================
 func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter string, hasFinancialAccess bool) []TripRevenueDateResponse {
 	var output []TripRevenueDateResponse
 
-	// Base query - get ALL trips to find dates
 	query := h.DB.Model(&Models.TripStruct{})
 
 	if StartDate != "" && EndDate != "" {
@@ -181,17 +182,16 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 				Company: company,
 			}
 
-			// Count trips: unique parent_trip_id + standalone trips
+			// Count trips properly - standalone trips + count of distinct parent_trip_ids
 			var tripCount int64
 			h.DB.Raw(`
 				SELECT COUNT(*) FROM (
-					SELECT parent_trip_id 
+					SELECT DISTINCT parent_trip_id 
 					FROM trips 
 					WHERE company = ? AND date = ? AND deleted_at IS NULL
 					AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
-					GROUP BY parent_trip_id
 					UNION ALL
-					SELECT ID as parent_trip_id
+					SELECT ID
 					FROM trips
 					WHERE company = ? AND date = ? AND deleted_at IS NULL
 					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
@@ -258,24 +258,62 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						WHERE t.company = ? AND t.date = ? AND t.deleted_at IS NULL
 					`, company, date).Row().Scan(&baseRevenue)
 
-					// Count distinct cars from parent/standalone trips + unique parent_trip_ids
-					var carCount int64
-					h.DB.Raw(`
-						SELECT COUNT(DISTINCT car_id) FROM (
-							SELECT car_id FROM trips 
-							WHERE company = ? AND date = ? AND deleted_at IS NULL
-							AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
-							GROUP BY parent_trip_id, car_id
-							UNION
-							SELECT car_id FROM trips
-							WHERE company = ? AND date = ? AND deleted_at IS NULL
-							AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-						) AS unique_cars
-					`, company, date, company, date).Row().Scan(&carCount)
+					// CORRECTED: Calculate total rental for entire period, then prorate per day
+					var totalPeriodRental float64 = 0
 
-					carRentalFee := float64(carCount) * 1433.0
-					vat := (baseRevenue + carRentalFee) * 0.14
-					revenue = baseRevenue + carRentalFee + vat
+					// Get working days per car for the ENTIRE period
+					var carWorkingDays []struct {
+						CarNoPlate  string
+						WorkingDays int64
+					}
+
+					h.DB.Raw(`
+						SELECT 
+							car_no_plate,
+							COUNT(DISTINCT date) as working_days
+						FROM trips
+						WHERE company = ? 
+						AND deleted_at IS NULL
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						GROUP BY car_no_plate
+					`, company, StartDate, StartDate, EndDate, EndDate).Scan(&carWorkingDays)
+
+					// Calculate total rental for the period
+					for _, car := range carWorkingDays {
+						var carRental float64
+						if car.WorkingDays >= 28 {
+							carRental = 43000.0
+						} else {
+							carRental = 43000.0 - (float64(28-car.WorkingDays) * 1433.0)
+							if carRental < 0 {
+								carRental = 0
+							}
+						}
+						totalPeriodRental += carRental
+					}
+
+					// Count distinct days in the period
+					var distinctDaysInPeriod int64
+					h.DB.Raw(`
+						SELECT COUNT(DISTINCT date)
+						FROM trips
+						WHERE company = ? 
+						AND deleted_at IS NULL
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+					`, company, StartDate, StartDate, EndDate, EndDate).Row().Scan(&distinctDaysInPeriod)
+
+					// Prorate rental per day
+					var dailyRental float64 = 0
+					if distinctDaysInPeriod > 0 {
+						dailyRental = totalPeriodRental / float64(distinctDaysInPeriod)
+					}
+
+					// VAT applied AFTER adding base revenue and daily rental
+					vat := (baseRevenue + dailyRental) * 0.14
+					revenue = baseRevenue + dailyRental + vat
 
 				case "Petromin":
 					var dayTrips []Models.TripStruct
@@ -290,20 +328,13 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						baseRevenue += maxDistance * 42.5
 					}
 
-					// Count distinct cars from parent/standalone trips + unique parent_trip_ids
 					var carCount int64
 					h.DB.Raw(`
-						SELECT COUNT(DISTINCT car_no_plate) FROM (
-							SELECT car_no_plate FROM trips 
-							WHERE company = ? AND date = ? AND deleted_at IS NULL
-							AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
-							GROUP BY parent_trip_id, car_no_plate
-							UNION
-							SELECT car_no_plate FROM trips
-							WHERE company = ? AND date = ? AND deleted_at IS NULL
-							AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-						) AS unique_cars
-					`, company, date, company, date).Row().Scan(&carCount)
+						SELECT COUNT(DISTINCT car_no_plate)
+						FROM trips
+						WHERE company = ? AND date = ? AND deleted_at IS NULL
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					`, company, date).Row().Scan(&carCount)
 
 					carRentalFee := float64(carCount) * 2000.0
 					vat := (baseRevenue + carRentalFee) * 0.14
@@ -329,6 +360,21 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 						WHERE t.company = ? AND t.date = ? AND t.deleted_at IS NULL
 					`, company, date).Row().Scan(&revenue)
 					revenue *= 1.14
+
+				default:
+					// Calculate revenue for default companies using average fee
+					var avgFee float64
+					h.DB.Raw(`
+						SELECT COALESCE(AVG(fee), 0)
+						FROM fee_mappings
+						WHERE company = ?
+					`, company).Row().Scan(&avgFee)
+
+					if avgFee == 0 {
+						avgFee = 50
+					}
+
+					revenue = volume * avgFee
 				}
 
 				companyDetail.TotalRevenue = revenue
@@ -344,503 +390,98 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 	return output
 }
 
-func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, hasFinancialAccess bool) []RouteRevenueStats {
-	var routeStats []RouteRevenueStats
+func GetCarTotals(statistics []TripStatistics) []CarTotal {
+	carTotalsMap := make(map[string]*CarTotal)
 
-	switch company {
-	case "Petrol Arrows":
-		// Count parent/standalone trips, but sum all volumes/distances
-		var routeData []struct {
-			Terminal      string
-			DropOffPoint  string
-			TotalTrips    int64   // Only parent + standalone
-			TotalVolume   float64 // All trips including containers
-			TotalDistance float64 // All trips including containers
-			Fee           float64
-		}
+	for _, statistic := range statistics {
+		for _, routeDetail := range statistic.RouteDetails {
+			for _, car := range routeDetail.Cars {
+				carTotal, exists := carTotalsMap[car.CarNoPlate]
 
-		h.DB.Raw(`
-			SELECT 
-				t.terminal, 
-				t.drop_off_point, 
-				COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-				COALESCE(SUM(fm.distance), 0) as total_distance,
-				fm.fee
-			FROM trips t
-			LEFT JOIN fee_mappings fm 
-				ON t.company = fm.company 
-				AND t.terminal = fm.terminal 
-				AND t.drop_off_point = fm.drop_off_point
-			WHERE t.company = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY t.terminal, t.drop_off_point, fm.fee
-		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
-
-		for _, route := range routeData {
-			revenue := route.Fee * route.TotalVolume / 1000
-
-			routeStat := RouteRevenueStats{
-				RouteName:     fmt.Sprintf("%s to %s", route.Terminal, route.DropOffPoint),
-				Terminal:      route.Terminal,
-				DropOffPoint:  route.DropOffPoint,
-				RouteType:     "terminal-dropoff",
-				TotalTrips:    route.TotalTrips,
-				TotalVolume:   route.TotalVolume,
-				TotalDistance: route.TotalDistance,
-				Fee:           route.Fee,
-			}
-
-			if hasFinancialAccess {
-				routeStat.TotalRevenue = revenue
-				routeStat.TotalWithVAT = revenue
-			}
-
-			// Car stats - count parent/standalone trips per car
-			var carStats []CarStats
-			h.DB.Raw(`
-				SELECT 
-					t.car_no_plate,
-					COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-					COALESCE(SUM(fm.distance), 0) as total_distance,
-					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
-				FROM trips t
-				LEFT JOIN fee_mappings fm 
-					ON t.company = fm.company 
-					AND t.terminal = fm.terminal 
-					AND t.drop_off_point = fm.drop_off_point
-				WHERE t.company = ? AND t.deleted_at IS NULL
-				AND t.terminal = ? AND t.drop_off_point = ?
-				AND (t.date >= ? OR ? = '')
-				AND (t.date <= ? OR ? = '')
-				GROUP BY t.car_no_plate
-			`, company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate).Scan(&carStats)
-
-			for i := range carStats {
-				if hasFinancialAccess {
-					carStats[i].TotalRevenue = route.Fee * carStats[i].TotalVolume / 1000
-					carStats[i].TotalWithVAT = carStats[i].TotalRevenue
-				}
-			}
-
-			routeStat.Cars = carStats
-			routeStats = append(routeStats, routeStat)
-		}
-
-	case "TAQA":
-		var routeData []struct {
-			Terminal      string
-			TotalTrips    int64
-			TotalVolume   float64
-			TotalDistance float64
-			DistinctCars  int64
-		}
-
-		h.DB.Raw(`
-			SELECT 
-				t.terminal, 
-				COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-				COALESCE(SUM(fm.distance), 0) as total_distance,
-				COUNT(DISTINCT t.car_no_plate) as distinct_cars
-			FROM trips t
-			LEFT JOIN fee_mappings fm 
-				ON t.company = fm.company 
-				AND t.terminal = fm.terminal 
-				AND t.drop_off_point = fm.drop_off_point
-			WHERE t.company = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY t.terminal
-		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
-
-		for _, route := range routeData {
-			var ratePerKm float64
-			if route.Terminal == "Alex" || route.Terminal == "Suez" {
-				ratePerKm = 40.7
-			} else {
-				ratePerKm = 0
-			}
-
-			// Working days - only count parent/standalone trips
-			var terminalWorkingDays []struct {
-				CarNoPlate string
-				Date       string
-			}
-
-			h.DB.Raw(`
-				SELECT DISTINCT car_no_plate, date
-				FROM trips
-				WHERE company = ? AND deleted_at IS NULL
-				AND terminal = ?
-				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-				AND (date >= ? OR ? = '')
-				AND (date <= ? OR ? = '')
-				ORDER BY car_no_plate, date
-			`, company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
-
-			baseRevenue := route.TotalDistance * ratePerKm
-			carRentalFee := float64(len(terminalWorkingDays)) * 1433.0
-			vat := (baseRevenue + carRentalFee) * 0.14
-			totalRevenue := baseRevenue + carRentalFee + vat
-
-			routeStat := RouteRevenueStats{
-				RouteName:     route.Terminal,
-				Terminal:      route.Terminal,
-				RouteType:     "terminal",
-				TotalTrips:    route.TotalTrips,
-				TotalVolume:   route.TotalVolume,
-				TotalDistance: route.TotalDistance,
-				Fee:           ratePerKm,
-			}
-
-			if hasFinancialAccess {
-				routeStat.TotalRevenue = baseRevenue
-				routeStat.CarRental = carRentalFee
-				routeStat.VAT = vat
-				routeStat.TotalWithVAT = totalRevenue
-			}
-
-			// Car stats
-			var carStats []CarStats
-			h.DB.Raw(`
-				SELECT 
-					t.car_no_plate,
-					COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-					COALESCE(SUM(fm.distance), 0) as total_distance,
-					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
-				FROM trips t
-				LEFT JOIN fee_mappings fm 
-					ON t.company = fm.company 
-					AND t.terminal = fm.terminal 
-					AND t.drop_off_point = fm.drop_off_point
-				WHERE t.company = ? AND t.deleted_at IS NULL
-				AND t.terminal = ?
-				AND (t.date >= ? OR ? = '')
-				AND (t.date <= ? OR ? = '')
-				GROUP BY t.car_no_plate
-			`, company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&carStats)
-
-			for i := range carStats {
-				if hasFinancialAccess {
-					carBaseRevenue := carStats[i].TotalDistance * ratePerKm
-					carRental := float64(carStats[i].WorkingDays) * 1433.0
-					carVAT := (carBaseRevenue + carRental) * 0.14
-					carTotal := carBaseRevenue + carRental + carVAT
-
-					carStats[i].TotalRevenue = carBaseRevenue
-					carStats[i].CarRental = carRental
-					carStats[i].VAT = carVAT
-					carStats[i].TotalWithVAT = carTotal
-				}
-			}
-
-			routeStat.Cars = carStats
-			routeStats = append(routeStats, routeStat)
-		}
-
-	case "Petromin":
-		// Petromin uses grouping logic which already handles multi-container properly
-		// No changes needed here as groupPetrominTripsByCapacity handles it
-		groupedTrips := h.groupPetrominTripsByCapacity(company, startDate, endDate)
-
-		terminalGroups := make(map[string][][]Models.TripStruct)
-		for _, tripGroup := range groupedTrips {
-			if len(tripGroup) > 0 {
-				terminal := tripGroup[0].Terminal
-				terminalGroups[terminal] = append(terminalGroups[terminal], tripGroup)
-			}
-		}
-
-		for terminal, groups := range terminalGroups {
-			var totalTrips int64 = 0
-			var totalVolume float64 = 0
-			var revenueTotalDistance float64 = 0
-			var distinctCars = make(map[string]bool)
-			var workingDaysSet = make(map[string]bool)
-
-			for _, tripGroup := range groups {
-				groupTrips, groupVolume, maxDistance, _ := h.calculateGroupStats(tripGroup)
-				totalTrips += groupTrips
-				totalVolume += groupVolume
-				revenueTotalDistance += maxDistance
-
-				for _, trip := range tripGroup {
-					distinctCars[trip.CarNoPlate] = true
-					workingDaysSet[trip.Date] = true
-				}
-			}
-
-			var terminalWorkingDays []struct {
-				CarNoPlate string
-				Date       string
-			}
-
-			h.DB.Raw(`
-				SELECT DISTINCT car_no_plate, date
-				FROM trips
-				WHERE company = ? AND deleted_at IS NULL
-				AND terminal = ?
-				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-				AND (date >= ? OR ? = '')
-				AND (date <= ? OR ? = '')
-				ORDER BY car_no_plate, date
-			`, company, terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
-
-			ratePerKm := 42.5
-			baseRevenue := revenueTotalDistance * ratePerKm
-			carRentalFee := float64(len(terminalWorkingDays)) * 2000.0
-			vat := (baseRevenue + carRentalFee) * 0.14
-			totalRevenue := baseRevenue + carRentalFee + vat
-
-			routeStat := RouteRevenueStats{
-				RouteName:     terminal,
-				Terminal:      terminal,
-				RouteType:     "terminal",
-				TotalTrips:    totalTrips,
-				TotalVolume:   totalVolume,
-				TotalDistance: revenueTotalDistance,
-				Fee:           ratePerKm,
-			}
-
-			if hasFinancialAccess {
-				routeStat.TotalRevenue = baseRevenue
-				routeStat.CarRental = carRentalFee
-				routeStat.VAT = vat
-				routeStat.TotalWithVAT = totalRevenue
-			}
-
-			var carStats []CarStats
-			carStatsMap := make(map[string]*CarStats)
-
-			for _, tripGroup := range groups {
-				if len(tripGroup) == 0 {
-					continue
-				}
-
-				carPlate := tripGroup[0].CarNoPlate
-				groupTrips, groupVolume, maxDistance, groupWorkingDays := h.calculateGroupStats(tripGroup)
-
-				if carStatsMap[carPlate] == nil {
-					carStatsMap[carPlate] = &CarStats{
-						CarNoPlate: carPlate,
+				if !exists {
+					carTotal = &CarTotal{
+						CarNoPlate: car.CarNoPlate,
 					}
+					carTotalsMap[car.CarNoPlate] = carTotal
 				}
 
-				carStatsMap[carPlate].TotalTrips += groupTrips
-				carStatsMap[carPlate].TotalVolume += groupVolume
-				carStatsMap[carPlate].TotalDistance += maxDistance
-				carStatsMap[carPlate].WorkingDays += groupWorkingDays
+				carTotal.Liters += car.TotalVolume
+				carTotal.Distance += car.TotalDistance
+				carTotal.BaseRevenue += car.TotalRevenue
+				carTotal.VAT += car.VAT
+				carTotal.Rent += car.CarRental
 			}
-
-			for _, carStat := range carStatsMap {
-				if hasFinancialAccess {
-					carBaseRevenue := carStat.TotalDistance * ratePerKm
-					carRental := float64(carStat.WorkingDays) * 2000.0
-					carVAT := (carBaseRevenue + carRental) * 0.14
-					carTotal := carBaseRevenue + carRental + carVAT
-
-					carStat.TotalRevenue = carBaseRevenue
-					carStat.CarRental = carRental
-					carStat.VAT = carVAT
-					carStat.TotalWithVAT = carTotal
-				}
-
-				carStats = append(carStats, *carStat)
-			}
-
-			routeStat.Cars = carStats
-			routeStats = append(routeStats, routeStat)
-		}
-
-	case "Watanya":
-		var routeData []struct {
-			Fee           float64
-			TotalTrips    int64
-			TotalVolume   float64
-			TotalDistance float64
-		}
-
-		// Watanya counts all trips (containers are billed separately)
-		h.DB.Raw(`
-			SELECT 
-				f.fee, 
-				COUNT(*) as total_trips,
-				COALESCE(SUM(t.tank_capacity), 0) as total_volume, 
-				COALESCE(SUM(f.distance), 0) as total_distance
-			FROM trips t
-			LEFT JOIN fee_mappings f 
-				ON t.company = f.company 
-				AND t.terminal = f.terminal 
-				AND t.drop_off_point = f.drop_off_point
-			WHERE t.company = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY f.fee
-		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
-
-		for _, route := range routeData {
-			var ratePerVolume float64
-
-			switch int(route.Fee) {
-			case 1:
-				ratePerVolume = 82.5
-			case 2:
-				ratePerVolume = 104.5
-			case 3:
-				ratePerVolume = 126.5
-			case 4:
-				ratePerVolume = 148.5
-			case 5:
-				ratePerVolume = 170.5
-			default:
-				ratePerVolume = 0
-			}
-
-			baseRevenue := route.TotalVolume * ratePerVolume / 1000
-			vat := baseRevenue * 0.14
-			totalRevenue := baseRevenue + vat
-
-			routeStat := RouteRevenueStats{
-				RouteName:     fmt.Sprintf("Fee Category %d", int(route.Fee)),
-				RouteType:     "fee",
-				FeeCategory:   int(route.Fee),
-				TotalTrips:    route.TotalTrips,
-				TotalVolume:   route.TotalVolume,
-				TotalDistance: route.TotalDistance,
-				Fee:           route.Fee,
-			}
-
-			if hasFinancialAccess {
-				routeStat.TotalRevenue = baseRevenue
-				routeStat.VAT = vat
-				routeStat.TotalWithVAT = totalRevenue
-			}
-
-			var carStats []CarStats
-			h.DB.Raw(`
-				SELECT 
-					t.car_no_plate,
-					COUNT(*) as total_trips,
-					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-					COALESCE(SUM(f.distance), 0) as total_distance,
-					COUNT(DISTINCT t.date) as working_days
-				FROM trips t
-				LEFT JOIN fee_mappings f 
-					ON t.company = f.company 
-					AND t.terminal = f.terminal 
-					AND t.drop_off_point = f.drop_off_point
-				WHERE t.company = ? AND t.deleted_at IS NULL
-				AND f.fee = ?
-				AND (t.date >= ? OR ? = '')
-				AND (t.date <= ? OR ? = '')
-				GROUP BY t.car_no_plate
-			`, company, route.Fee, startDate, startDate, endDate, endDate).Scan(&carStats)
-
-			for i := range carStats {
-				if hasFinancialAccess {
-					carBaseRevenue := carStats[i].TotalVolume * ratePerVolume / 1000
-					carVAT := carBaseRevenue * 0.14
-					carTotal := carBaseRevenue + carVAT
-
-					carStats[i].TotalRevenue = carBaseRevenue
-					carStats[i].VAT = carVAT
-					carStats[i].TotalWithVAT = carTotal
-				}
-			}
-
-			routeStat.Cars = carStats
-			routeStats = append(routeStats, routeStat)
-		}
-
-	default:
-		// Default case - count parent/standalone trips
-		var routeData []struct {
-			Terminal      string
-			DropOffPoint  string
-			TotalTrips    int64
-			TotalVolume   float64
-			TotalDistance float64
-			AvgFee        float64
-		}
-
-		h.DB.Raw(`
-			SELECT 
-				t.terminal, 
-				t.drop_off_point, 
-				COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-				COALESCE(SUM(fm.distance), 0) as total_distance,
-				COALESCE(AVG(fm.fee), 50) as avg_fee
-			FROM trips t
-			LEFT JOIN fee_mappings fm 
-				ON t.company = fm.company 
-				AND t.terminal = fm.terminal 
-				AND t.drop_off_point = fm.drop_off_point
-			WHERE t.company = ? AND t.deleted_at IS NULL
-			AND (t.date >= ? OR ? = '')
-			AND (t.date <= ? OR ? = '')
-			GROUP BY t.terminal, t.drop_off_point
-		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
-
-		for _, route := range routeData {
-			revenue := route.TotalVolume * route.AvgFee
-
-			routeStat := RouteRevenueStats{
-				RouteName:     fmt.Sprintf("%s to %s", route.Terminal, route.DropOffPoint),
-				Terminal:      route.Terminal,
-				DropOffPoint:  route.DropOffPoint,
-				RouteType:     "terminal-dropoff",
-				TotalTrips:    route.TotalTrips,
-				TotalVolume:   route.TotalVolume,
-				TotalDistance: route.TotalDistance,
-				Fee:           route.AvgFee,
-			}
-
-			if hasFinancialAccess {
-				routeStat.TotalRevenue = revenue
-				routeStat.TotalWithVAT = revenue
-			}
-
-			var carStats []CarStats
-			h.DB.Raw(`
-				SELECT 
-					t.car_no_plate,
-					COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
-					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
-					COALESCE(SUM(fm.distance), 0) as total_distance,
-					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
-				FROM trips t
-				LEFT JOIN fee_mappings fm 
-					ON t.company = fm.company 
-					AND t.terminal = fm.terminal 
-					AND t.drop_off_point = fm.drop_off_point
-				WHERE t.company = ? AND t.deleted_at IS NULL
-				AND t.terminal = ? AND t.drop_off_point = ?
-				AND (t.date >= ? OR ? = '')
-				AND (t.date <= ? OR ? = '')
-				GROUP BY t.car_no_plate
-			`, company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate).Scan(&carStats)
-
-			for i := range carStats {
-				if hasFinancialAccess {
-					carStats[i].TotalRevenue = route.AvgFee * carStats[i].TotalVolume
-					carStats[i].TotalWithVAT = carStats[i].TotalRevenue
-				}
-			}
-
-			routeStat.Cars = carStats
-			routeStats = append(routeStats, routeStat)
 		}
 	}
 
-	return routeStats
+	result := make([]CarTotal, 0, len(carTotalsMap))
+	for _, carTotal := range carTotalsMap {
+		result = append(result, *carTotal)
+	}
+
+	return result
 }
 
-// Helper function to group Petromin trips by car when tank_capacity < car.TankCapacity
+// Helper function to calculate group statistics - CORRECTED TRIP COUNTING
+func (h *TripHandler) calculateGroupStats(tripGroup []Models.TripStruct) (int64, float64, float64, int64) {
+	if len(tripGroup) == 0 {
+		return 0, 0, 0, 0
+	}
+
+	// CORRECTED: Count trips properly - unique parent_trip_ids + standalone trips
+	var totalTrips int64 = 0
+	parentTripIDs := make(map[uint]bool)
+
+	for _, trip := range tripGroup {
+		if trip.ParentTripID != nil && *trip.ParentTripID != 0 {
+			// Has a parent - only count unique parent IDs
+			parentTripIDs[*trip.ParentTripID] = true
+		} else {
+			// Standalone trip - count each one
+			totalTrips++
+		}
+	}
+
+	// Add the count of unique parent trip IDs
+	totalTrips += int64(len(parentTripIDs))
+
+	var totalVolume float64 = 0
+	var maxDistance float64 = h.getMaxDistanceFromTripGroup(tripGroup)
+	var uniqueDates = make(map[string]bool)
+
+	for _, trip := range tripGroup {
+		totalVolume += float64(trip.TankCapacity)
+		uniqueDates[trip.Date] = true
+	}
+
+	workingDays := int64(len(uniqueDates))
+
+	return totalTrips, totalVolume, maxDistance, workingDays
+}
+
+// Helper function to get the maximum distance from a group of trips
+func (h *TripHandler) getMaxDistanceFromTripGroup(tripGroup []Models.TripStruct) float64 {
+	if len(tripGroup) == 0 {
+		return 0
+	}
+
+	var maxDistance float64 = 0
+
+	for _, trip := range tripGroup {
+		// Get distance from fee mapping
+		var mapping Models.FeeMapping
+		err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			trip.Company, trip.Terminal, trip.DropOffPoint).First(&mapping).Error
+
+		if err == nil && mapping.Distance > maxDistance {
+			maxDistance = mapping.Distance
+		}
+	}
+
+	return maxDistance
+}
+
+// groupPetrominTripsByCapacity - NO CHANGES NEEDED (grouping logic is fine)
 func (h *TripHandler) groupPetrominTripsByCapacity(company, startDate, endDate string) [][]Models.TripStruct {
 	// Get all Petromin trips ordered by car_no_plate and receipt_no
 	var trips []Models.TripStruct
@@ -933,6 +574,7 @@ func (h *TripHandler) groupPetrominTripsByCapacity(company, startDate, endDate s
 	return allGroups
 }
 
+// groupTripsForSingleDate - NO CHANGES NEEDED (grouping logic is fine)
 func (h *TripHandler) groupTripsForSingleDate(trips []Models.TripStruct) [][]Models.TripStruct {
 	if len(trips) == 0 {
 		return nil
@@ -1014,51 +656,6 @@ func (h *TripHandler) groupTripsForSingleDate(trips []Models.TripStruct) [][]Mod
 	return allGroups
 }
 
-// Helper function to get the maximum distance from a group of trips
-func (h *TripHandler) getMaxDistanceFromTripGroup(tripGroup []Models.TripStruct) float64 {
-	if len(tripGroup) == 0 {
-		return 0
-	}
-
-	var maxDistance float64 = 0
-
-	for _, trip := range tripGroup {
-		// Get distance from fee mapping
-		var mapping Models.FeeMapping
-		err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
-			trip.Company, trip.Terminal, trip.DropOffPoint).First(&mapping).Error
-
-		if err == nil && mapping.Distance > maxDistance {
-			maxDistance = mapping.Distance
-		}
-	}
-
-	return maxDistance
-}
-
-// Helper function to calculate group statistics
-func (h *TripHandler) calculateGroupStats(tripGroup []Models.TripStruct) (int64, float64, float64, int64) {
-	if len(tripGroup) == 0 {
-		return 0, 0, 0, 0
-	}
-
-	var totalTrips int64 = int64(len(tripGroup))
-	var totalVolume float64 = 0
-	var maxDistance float64 = h.getMaxDistanceFromTripGroup(tripGroup)
-	var uniqueDates = make(map[string]bool)
-
-	for _, trip := range tripGroup {
-		totalVolume += float64(trip.TankCapacity)
-		uniqueDates[trip.Date] = true
-	}
-
-	workingDays := int64(len(uniqueDates))
-
-	return totalTrips, totalVolume, maxDistance, workingDays
-}
-
-// Updated Petromin case for GetTripStatistics function
-
 func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
@@ -1067,7 +664,6 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 	user, ok := c.Locals("user").(Models.User)
 	hasFinancialAccess := ok && user.Permission >= 3
 
-	// Base query - get ALL trips to find companies (don't filter by parent_trip_id yet)
 	query := h.DB.Model(&Models.TripStruct{})
 
 	if startDate != "" && endDate != "" {
@@ -1078,7 +674,6 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 		query = query.Where("company = ?", companyFilter)
 	}
 
-	// Get distinct companies from ALL trips
 	var companies []string
 	if err := query.Distinct("company").Pluck("company", &companies).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
@@ -1094,29 +689,29 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			Company: company,
 		}
 
-		// Count ONLY parent/standalone trips for trip count
+		// Count trips properly - standalone trips + count of distinct parent_trip_ids
 		var totalTrips int64
 		h.DB.Raw(`
-	SELECT COUNT(*) FROM (
-		SELECT parent_trip_id 
-		FROM trips 
-		WHERE company = ? 
-		AND deleted_at IS NULL
-		AND date >= ? AND date <= ?
-		AND parent_trip_id IS NOT NULL 
-		AND parent_trip_id != 0
-		GROUP BY parent_trip_id
-		UNION ALL
-		SELECT ID as parent_trip_id
-		FROM trips
-		WHERE company = ?
-		AND deleted_at IS NULL
-		AND date >= ? AND date <= ?
-		AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-	) AS trip_count
-`, company, startDate, endDate, company, startDate, endDate).Row().Scan(&totalTrips)
+			SELECT COUNT(*) FROM (
+				SELECT DISTINCT parent_trip_id 
+				FROM trips 
+				WHERE company = ? 
+				AND deleted_at IS NULL
+				AND date >= ? AND date <= ?
+				AND parent_trip_id IS NOT NULL 
+				AND parent_trip_id != 0
+				UNION ALL
+				SELECT ID
+				FROM trips
+				WHERE company = ?
+				AND deleted_at IS NULL
+				AND date >= ? AND date <= ?
+				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+			) AS trip_count
+		`, company, startDate, endDate, company, startDate, endDate).Row().Scan(&totalTrips)
 		companyStats.TotalTrips = totalTrips
-		// Sum ALL volumes (including containers)
+
+		// Sum ALL volumes
 		var totalVolume float64
 		h.DB.Model(&Models.TripStruct{}).
 			Where("company = ?", company).
@@ -1125,7 +720,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			Row().Scan(&totalVolume)
 		companyStats.TotalVolume = totalVolume
 
-		// Sum ALL distances (including containers)
+		// Sum ALL distances
 		var totalDistance float64
 		h.DB.Raw(`
 			SELECT COALESCE(SUM(fm.distance), 0) as total_distance
@@ -1137,7 +732,6 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			WHERE t.company = ? AND t.deleted_at IS NULL
 			AND t.date >= ? AND t.date <= ?
 		`, company, startDate, endDate).Row().Scan(&totalDistance)
-
 		companyStats.TotalDistance = totalDistance
 
 		switch company {
@@ -1150,10 +744,26 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				Fee           float64
 			}
 
-			// Count parent/standalone trips, sum all volumes/distances
 			h.DB.Raw(`
-				SELECT t.drop_off_point, 
-					COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
+				SELECT 
+					t.drop_off_point,
+					(SELECT COUNT(*) FROM (
+						SELECT DISTINCT parent_trip_id
+						FROM trips
+						WHERE company = t.company
+						AND drop_off_point = t.drop_off_point
+						AND deleted_at IS NULL
+						AND date >= ? AND date <= ?
+						AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+						UNION ALL
+						SELECT ID
+						FROM trips
+						WHERE company = t.company
+						AND drop_off_point = t.drop_off_point
+						AND deleted_at IS NULL
+						AND date >= ? AND date <= ?
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					) AS counted_trips) as total_trips,
 					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
 					COALESCE(SUM(fm.distance), 0) as total_distance,
 					fm.fee
@@ -1164,8 +774,8 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					AND t.drop_off_point = fm.drop_off_point
 				WHERE t.company = ? AND t.deleted_at IS NULL
 				AND t.date >= ? AND t.date <= ?
-				GROUP BY t.drop_off_point, fm.fee
-			`, company, startDate, endDate).Scan(&dropOffStats)
+				GROUP BY t.drop_off_point, fm.fee, t.company
+			`, startDate, endDate, startDate, endDate, company, startDate, endDate).Scan(&dropOffStats)
 
 			companyStats.Details = make([]TripStatisticsDetails, 0, len(dropOffStats))
 			companyStats.TotalRevenue = 0
@@ -1194,24 +804,6 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			}
 
 		case "TAQA":
-			// Car working days - count distinct (car_id, date) from parent/standalone trips only
-			var carWorkingDays []struct {
-				CarID string
-				Date  string
-			}
-
-			h.DB.Raw(`
-				SELECT DISTINCT car_id, date
-				FROM trips
-				WHERE company = ? 
-				AND deleted_at IS NULL
-				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-				AND date >= ? AND date <= ?
-				ORDER BY car_id, date
-			`, company, startDate, endDate).Scan(&carWorkingDays)
-
-			var totalCarRentalFee float64 = float64(len(carWorkingDays)) * 1433.0
-
 			var terminalStats []struct {
 				Terminal      string
 				TotalTrips    int64
@@ -1221,11 +813,28 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			}
 
 			h.DB.Raw(`
-				SELECT t.terminal, 
-					COUNT(CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN 1 END) as total_trips,
+				SELECT 
+					t.terminal,
+					(SELECT COUNT(*) FROM (
+						SELECT DISTINCT parent_trip_id
+						FROM trips
+						WHERE company = t.company
+						AND terminal = t.terminal
+						AND deleted_at IS NULL
+						AND date >= ? AND date <= ?
+						AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+						UNION ALL
+						SELECT ID
+						FROM trips
+						WHERE company = t.company
+						AND terminal = t.terminal
+						AND deleted_at IS NULL
+						AND date >= ? AND date <= ?
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					) AS counted_trips) as total_trips,
 					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
 					COALESCE(SUM(fm.distance), 0) as total_distance,
-					COUNT(DISTINCT t.car_id) as distinct_cars
+					COUNT(DISTINCT t.car_no_plate) as distinct_cars
 				FROM trips t
 				LEFT JOIN fee_mappings fm 
 					ON t.company = fm.company 
@@ -1233,34 +842,13 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					AND t.drop_off_point = fm.drop_off_point
 				WHERE t.company = ? AND t.deleted_at IS NULL
 				AND t.date >= ? AND t.date <= ?
-				GROUP BY t.terminal
-			`, company, startDate, endDate).Scan(&terminalStats)
-
-			terminalCarDays := make(map[string]int)
-
-			for _, terminal := range terminalStats {
-				var terminalWorkingDays []struct {
-					CarID string
-					Date  string
-				}
-
-				h.DB.Raw(`
-					SELECT DISTINCT car_id, date
-					FROM trips
-					WHERE company = ? AND deleted_at IS NULL
-					AND terminal = ?
-					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
-					AND date >= ? AND date <= ?
-					ORDER BY car_id, date
-				`, company, terminal.Terminal, startDate, endDate).Scan(&terminalWorkingDays)
-
-				terminalCarDays[terminal.Terminal] = len(terminalWorkingDays)
-			}
+				GROUP BY t.terminal, t.company
+			`, startDate, endDate, startDate, endDate, company, startDate, endDate).Scan(&terminalStats)
 
 			companyStats.Details = make([]TripStatisticsDetails, 0, len(terminalStats))
 			companyStats.TotalRevenue = 0
 			companyStats.TotalVAT = 0
-			companyStats.TotalCarRent = totalCarRentalFee
+			companyStats.TotalCarRent = 0
 			companyStats.TotalAmount = 0
 
 			for _, stat := range terminalStats {
@@ -1273,11 +861,45 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 
 				baseRevenue := stat.TotalDistance * ratePerKm
 
-				carRentalFee := 0.0
-				if terminalCarDays[stat.Terminal] > 0 {
-					carRentalFee = float64(terminalCarDays[stat.Terminal]) * 1433.0
+				// CORRECTED: Calculate rental PER CAR, then sum
+				var carRentalFee float64 = 0
+
+				// Get working days per car in this terminal
+				var carWorkingDays []struct {
+					CarNoPlate  string
+					WorkingDays int64
 				}
 
+				h.DB.Raw(`
+					SELECT 
+						car_no_plate,
+						COUNT(DISTINCT date) as working_days
+					FROM trips
+					WHERE company = ? 
+					AND deleted_at IS NULL
+					AND terminal = ?
+					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					AND date >= ? AND date <= ?
+					GROUP BY car_no_plate
+				`, company, stat.Terminal, startDate, endDate).Scan(&carWorkingDays)
+
+				var totalCarDays int64 = 0
+				for _, car := range carWorkingDays {
+					// Each car: 43000 if >= 28 days, else 43000 - ((28 - days) * 1433)
+					var carRental float64
+					if car.WorkingDays >= 28 {
+						carRental = 43000.0
+					} else {
+						carRental = 43000.0 - (float64(28-car.WorkingDays) * 1433.0)
+						if carRental < 0 {
+							carRental = 0
+						}
+					}
+					carRentalFee += carRental
+					totalCarDays += car.WorkingDays
+				}
+
+				// VAT applied AFTER adding base revenue and rental
 				vat := (baseRevenue + carRentalFee) * 0.14
 				totalRevenue := baseRevenue + carRentalFee + vat
 
@@ -1304,7 +926,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 					Fee:           ratePerKm,
 					DistinctCars:  stat.DistinctCars,
 					DistinctDays:  distinctDays,
-					CarDays:       int64(terminalCarDays[stat.Terminal]),
+					CarDays:       totalCarDays,
 				}
 
 				if !hasFinancialAccess {
@@ -1318,6 +940,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				companyStats.Details = append(companyStats.Details, detail)
 				if hasFinancialAccess {
 					companyStats.TotalRevenue += baseRevenue
+					companyStats.TotalCarRent += carRentalFee
 					companyStats.TotalVAT += vat
 					companyStats.TotalAmount += totalRevenue
 				}
@@ -1472,7 +1095,6 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 				TotalDistance float64
 			}
 
-			// Watanya counts all trips (containers are billed separately)
 			h.DB.Raw(`
 				SELECT f.fee, 
 					COUNT(*) as total_trips,
@@ -1579,52 +1201,642 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 	})
 }
 
-func GetCarTotals(statistics []TripStatistics) []CarTotal {
-	// Create a map to aggregate data by car number plate
-	carTotalsMap := make(map[string]*CarTotal)
+func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, hasFinancialAccess bool) []RouteRevenueStats {
+	var routeStats []RouteRevenueStats
 
-	// Iterate through all statistics
-	for _, statistic := range statistics {
-		// Access the route details which contain car information
-		for _, routeDetail := range statistic.RouteDetails {
-			// Process each car in the route
-			for _, car := range routeDetail.Cars {
-				// Check if we already have an entry for this car
-				carTotal, exists := carTotalsMap[car.CarNoPlate]
+	switch company {
+	case "Petrol Arrows":
+		var routeData []struct {
+			Terminal      string
+			DropOffPoint  string
+			TotalTrips    int64
+			TotalVolume   float64
+			TotalDistance float64
+			Fee           float64
+		}
 
-				if !exists {
-					// If not, create a new CarTotal
-					carTotal = &CarTotal{
-						CarNoPlate: car.CarNoPlate,
-					}
-					carTotalsMap[car.CarNoPlate] = carTotal
-				}
+		h.DB.Raw(`
+			SELECT 
+				t.terminal, 
+				t.drop_off_point,
+				(SELECT COUNT(*) FROM (
+					SELECT DISTINCT parent_trip_id
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND drop_off_point = t.drop_off_point
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+					UNION ALL
+					SELECT ID
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND drop_off_point = t.drop_off_point
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+				) AS counted_trips) as total_trips,
+				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+				COALESCE(SUM(fm.distance), 0) as total_distance,
+				fm.fee
+			FROM trips t
+			LEFT JOIN fee_mappings fm 
+				ON t.company = fm.company 
+				AND t.terminal = fm.terminal 
+				AND t.drop_off_point = fm.drop_off_point
+			WHERE t.company = ? AND t.deleted_at IS NULL
+			AND (t.date >= ? OR ? = '')
+			AND (t.date <= ? OR ? = '')
+			GROUP BY t.terminal, t.drop_off_point, fm.fee, t.company
+		`, startDate, startDate, endDate, endDate, startDate, startDate, endDate, endDate, company, startDate, startDate, endDate, endDate).Scan(&routeData)
 
-				// Aggregate the data
-				carTotal.Liters += car.TotalVolume // Assuming Liters corresponds to TotalVolume
-				carTotal.Distance += car.TotalDistance
-				carTotal.BaseRevenue += car.TotalRevenue
+		for _, route := range routeData {
+			revenue := route.Fee * route.TotalVolume / 1000
 
-				// Add VAT if available
-				if car.VAT > 0 {
-					carTotal.VAT += car.VAT
-				}
+			routeStat := RouteRevenueStats{
+				RouteName:     fmt.Sprintf("%s to %s", route.Terminal, route.DropOffPoint),
+				Terminal:      route.Terminal,
+				DropOffPoint:  route.DropOffPoint,
+				RouteType:     "terminal-dropoff",
+				TotalTrips:    route.TotalTrips,
+				TotalVolume:   route.TotalVolume,
+				TotalDistance: route.TotalDistance,
+				Fee:           route.Fee,
+			}
 
-				// Add Rent if available (assuming car rental corresponds to rent)
-				if car.CarRental > 0 {
-					carTotal.Rent += car.CarRental
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = revenue
+				routeStat.TotalWithVAT = revenue
+			}
+
+			var carStats []CarStats
+			h.DB.Raw(`
+				SELECT 
+					t.car_no_plate,
+					(SELECT COUNT(*) FROM (
+						SELECT DISTINCT parent_trip_id
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ? AND drop_off_point = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+						UNION ALL
+						SELECT ID
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ? AND drop_off_point = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					) AS counted_trips) as total_trips,
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance,
+					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
+				FROM trips t
+				LEFT JOIN fee_mappings fm 
+					ON t.company = fm.company 
+					AND t.terminal = fm.terminal 
+					AND t.drop_off_point = fm.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND t.terminal = ? AND t.drop_off_point = ?
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
+				GROUP BY t.car_no_plate
+			`, company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate,
+				company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate,
+				company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate).Scan(&carStats)
+
+			for i := range carStats {
+				if hasFinancialAccess {
+					carStats[i].TotalRevenue = route.Fee * carStats[i].TotalVolume / 1000
+					carStats[i].TotalWithVAT = carStats[i].TotalRevenue
 				}
 			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
+		}
+
+	case "TAQA":
+		var routeData []struct {
+			Terminal      string
+			TotalTrips    int64
+			TotalVolume   float64
+			TotalDistance float64
+			DistinctCars  int64
+		}
+
+		h.DB.Raw(`
+			SELECT 
+				t.terminal,
+				(SELECT COUNT(*) FROM (
+					SELECT DISTINCT parent_trip_id
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+					UNION ALL
+					SELECT ID
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+				) AS counted_trips) as total_trips,
+				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+				COALESCE(SUM(fm.distance), 0) as total_distance,
+				COUNT(DISTINCT t.car_no_plate) as distinct_cars
+			FROM trips t
+			LEFT JOIN fee_mappings fm 
+				ON t.company = fm.company 
+				AND t.terminal = fm.terminal 
+				AND t.drop_off_point = fm.drop_off_point
+			WHERE t.company = ? AND t.deleted_at IS NULL
+			AND (t.date >= ? OR ? = '')
+			AND (t.date <= ? OR ? = '')
+			GROUP BY t.terminal, t.company
+		`, startDate, startDate, endDate, endDate, startDate, startDate, endDate, endDate, company, startDate, startDate, endDate, endDate).Scan(&routeData)
+
+		for _, route := range routeData {
+			var ratePerKm float64
+			if route.Terminal == "Alex" || route.Terminal == "Suez" {
+				ratePerKm = 40.7
+			} else {
+				ratePerKm = 0
+			}
+
+			baseRevenue := route.TotalDistance * ratePerKm
+
+			// CORRECTED: Calculate rental PER CAR, then sum
+			var carRentalFee float64 = 0
+
+			var carWorkingDays []struct {
+				CarNoPlate  string
+				WorkingDays int64
+			}
+
+			h.DB.Raw(`
+				SELECT 
+					car_no_plate,
+					COUNT(DISTINCT date) as working_days
+				FROM trips
+				WHERE company = ? 
+				AND deleted_at IS NULL
+				AND terminal = ?
+				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+				AND (date >= ? OR ? = '')
+				AND (date <= ? OR ? = '')
+				GROUP BY car_no_plate
+			`, company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&carWorkingDays)
+
+			for _, car := range carWorkingDays {
+				var carRental float64
+				if car.WorkingDays >= 28 {
+					carRental = 43000.0
+				} else {
+					carRental = 43000.0 - (float64(28-car.WorkingDays) * 1433.0)
+					if carRental < 0 {
+						carRental = 0
+					}
+				}
+				carRentalFee += carRental
+			}
+
+			// VAT applied AFTER adding base revenue and rental
+			vat := (baseRevenue + carRentalFee) * 0.14
+			totalRevenue := baseRevenue + carRentalFee + vat
+
+			routeStat := RouteRevenueStats{
+				RouteName:     route.Terminal,
+				Terminal:      route.Terminal,
+				RouteType:     "terminal",
+				TotalTrips:    route.TotalTrips,
+				TotalVolume:   route.TotalVolume,
+				TotalDistance: route.TotalDistance,
+				Fee:           ratePerKm,
+			}
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = baseRevenue
+				routeStat.CarRental = carRentalFee
+				routeStat.VAT = vat
+				routeStat.TotalWithVAT = totalRevenue
+			}
+
+			// Get car stats with per-car rental calculation
+			var carStats []CarStats
+			h.DB.Raw(`
+				SELECT 
+					t.car_no_plate,
+					(SELECT COUNT(*) FROM (
+						SELECT DISTINCT parent_trip_id
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+						UNION ALL
+						SELECT ID
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					) AS counted_trips) as total_trips,
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance,
+					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
+				FROM trips t
+				LEFT JOIN fee_mappings fm 
+					ON t.company = fm.company 
+					AND t.terminal = fm.terminal 
+					AND t.drop_off_point = fm.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND t.terminal = ?
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
+				GROUP BY t.car_no_plate
+			`, company, route.Terminal, startDate, startDate, endDate, endDate,
+				company, route.Terminal, startDate, startDate, endDate, endDate,
+				company, route.Terminal, startDate, startDate, endDate, endDate).Scan(&carStats)
+
+			for i := range carStats {
+				if hasFinancialAccess {
+					carBaseRevenue := carStats[i].TotalDistance * ratePerKm
+
+					// CORRECTED: Per-car rental calculation
+					var carRental float64
+					if carStats[i].WorkingDays >= 28 {
+						carRental = 43000.0
+					} else {
+						carRental = 43000.0 - (float64(28-carStats[i].WorkingDays) * 1433.0)
+						if carRental < 0 {
+							carRental = 0
+						}
+					}
+
+					// VAT applied AFTER adding base revenue and rental
+					carVAT := (carBaseRevenue + carRental) * 0.14
+					carTotal := carBaseRevenue + carRental + carVAT
+
+					carStats[i].TotalRevenue = carBaseRevenue
+					carStats[i].CarRental = carRental
+					carStats[i].VAT = carVAT
+					carStats[i].TotalWithVAT = carTotal
+				}
+			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
+		}
+
+	case "Petromin":
+		groupedTrips := h.groupPetrominTripsByCapacity(company, startDate, endDate)
+
+		terminalGroups := make(map[string][][]Models.TripStruct)
+		for _, tripGroup := range groupedTrips {
+			if len(tripGroup) > 0 {
+				terminal := tripGroup[0].Terminal
+				terminalGroups[terminal] = append(terminalGroups[terminal], tripGroup)
+			}
+		}
+
+		for terminal, groups := range terminalGroups {
+			var totalTrips int64 = 0
+			var totalVolume float64 = 0
+			var revenueTotalDistance float64 = 0
+			var distinctCars = make(map[string]bool)
+			var workingDaysSet = make(map[string]bool)
+
+			for _, tripGroup := range groups {
+				groupTrips, groupVolume, maxDistance, _ := h.calculateGroupStats(tripGroup)
+				totalTrips += groupTrips
+				totalVolume += groupVolume
+				revenueTotalDistance += maxDistance
+
+				for _, trip := range tripGroup {
+					distinctCars[trip.CarNoPlate] = true
+					workingDaysSet[trip.Date] = true
+				}
+			}
+
+			var terminalWorkingDays []struct {
+				CarNoPlate string
+				Date       string
+			}
+
+			h.DB.Raw(`
+				SELECT DISTINCT car_no_plate, date
+				FROM trips
+				WHERE company = ? AND deleted_at IS NULL
+				AND terminal = ?
+				AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+				AND (date >= ? OR ? = '')
+				AND (date <= ? OR ? = '')
+				ORDER BY car_no_plate, date
+			`, company, terminal, startDate, startDate, endDate, endDate).Scan(&terminalWorkingDays)
+
+			ratePerKm := 42.5
+			baseRevenue := revenueTotalDistance * ratePerKm
+			carRentalFee := float64(len(terminalWorkingDays)) * 2000.0
+			vat := (baseRevenue + carRentalFee) * 0.14
+			totalRevenue := baseRevenue + carRentalFee + vat
+
+			routeStat := RouteRevenueStats{
+				RouteName:     terminal,
+				Terminal:      terminal,
+				RouteType:     "terminal",
+				TotalTrips:    totalTrips,
+				TotalVolume:   totalVolume,
+				TotalDistance: revenueTotalDistance,
+				Fee:           ratePerKm,
+			}
+
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = baseRevenue
+				routeStat.CarRental = carRentalFee
+				routeStat.VAT = vat
+				routeStat.TotalWithVAT = totalRevenue
+			}
+
+			var carStats []CarStats
+			carStatsMap := make(map[string]*CarStats)
+
+			for _, tripGroup := range groups {
+				if len(tripGroup) == 0 {
+					continue
+				}
+
+				carPlate := tripGroup[0].CarNoPlate
+				groupTrips, groupVolume, maxDistance, groupWorkingDays := h.calculateGroupStats(tripGroup)
+
+				if carStatsMap[carPlate] == nil {
+					carStatsMap[carPlate] = &CarStats{
+						CarNoPlate: carPlate,
+					}
+				}
+
+				carStatsMap[carPlate].TotalTrips += groupTrips
+				carStatsMap[carPlate].TotalVolume += groupVolume
+				carStatsMap[carPlate].TotalDistance += maxDistance
+				carStatsMap[carPlate].WorkingDays += groupWorkingDays
+			}
+
+			for _, carStat := range carStatsMap {
+				if hasFinancialAccess {
+					carBaseRevenue := carStat.TotalDistance * ratePerKm
+					carRental := float64(carStat.WorkingDays) * 2000.0
+					carVAT := (carBaseRevenue + carRental) * 0.14
+					carTotal := carBaseRevenue + carRental + carVAT
+
+					carStat.TotalRevenue = carBaseRevenue
+					carStat.CarRental = carRental
+					carStat.VAT = carVAT
+					carStat.TotalWithVAT = carTotal
+				}
+
+				carStats = append(carStats, *carStat)
+			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
+		}
+
+	case "Watanya":
+		var routeData []struct {
+			Fee           float64
+			TotalTrips    int64
+			TotalVolume   float64
+			TotalDistance float64
+		}
+
+		h.DB.Raw(`
+			SELECT 
+				f.fee, 
+				COUNT(*) as total_trips,
+				COALESCE(SUM(t.tank_capacity), 0) as total_volume, 
+				COALESCE(SUM(f.distance), 0) as total_distance
+			FROM trips t
+			LEFT JOIN fee_mappings f 
+				ON t.company = f.company 
+				AND t.terminal = f.terminal 
+				AND t.drop_off_point = f.drop_off_point
+			WHERE t.company = ? AND t.deleted_at IS NULL
+			AND (t.date >= ? OR ? = '')
+			AND (t.date <= ? OR ? = '')
+			GROUP BY f.fee
+		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
+
+		for _, route := range routeData {
+			var ratePerVolume float64
+
+			switch int(route.Fee) {
+			case 1:
+				ratePerVolume = 82.5
+			case 2:
+				ratePerVolume = 104.5
+			case 3:
+				ratePerVolume = 126.5
+			case 4:
+				ratePerVolume = 148.5
+			case 5:
+				ratePerVolume = 170.5
+			default:
+				ratePerVolume = 0
+			}
+
+			baseRevenue := route.TotalVolume * ratePerVolume / 1000
+			vat := baseRevenue * 0.14
+			totalRevenue := baseRevenue + vat
+
+			routeStat := RouteRevenueStats{
+				RouteName:     fmt.Sprintf("Fee Category %d", int(route.Fee)),
+				RouteType:     "fee",
+				FeeCategory:   int(route.Fee),
+				TotalTrips:    route.TotalTrips,
+				TotalVolume:   route.TotalVolume,
+				TotalDistance: route.TotalDistance,
+				Fee:           route.Fee,
+			}
+
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = baseRevenue
+				routeStat.VAT = vat
+				routeStat.TotalWithVAT = totalRevenue
+			}
+
+			var carStats []CarStats
+			h.DB.Raw(`
+				SELECT 
+					t.car_no_plate,
+					COUNT(*) as total_trips,
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(f.distance), 0) as total_distance,
+					COUNT(DISTINCT t.date) as working_days
+				FROM trips t
+				LEFT JOIN fee_mappings f 
+					ON t.company = f.company 
+					AND t.terminal = f.terminal 
+					AND t.drop_off_point = f.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND f.fee = ?
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
+				GROUP BY t.car_no_plate
+			`, company, route.Fee, startDate, startDate, endDate, endDate).Scan(&carStats)
+
+			for i := range carStats {
+				if hasFinancialAccess {
+					carBaseRevenue := carStats[i].TotalVolume * ratePerVolume / 1000
+					carVAT := carBaseRevenue * 0.14
+					carTotal := carBaseRevenue + carVAT
+
+					carStats[i].TotalRevenue = carBaseRevenue
+					carStats[i].VAT = carVAT
+					carStats[i].TotalWithVAT = carTotal
+				}
+			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
+		}
+
+	default:
+		var routeData []struct {
+			Terminal      string
+			DropOffPoint  string
+			TotalTrips    int64
+			TotalVolume   float64
+			TotalDistance float64
+			AvgFee        float64
+		}
+
+		h.DB.Raw(`
+			SELECT 
+				t.terminal, 
+				t.drop_off_point,
+				(SELECT COUNT(*) FROM (
+					SELECT DISTINCT parent_trip_id
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND drop_off_point = t.drop_off_point
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+					UNION ALL
+					SELECT ID
+					FROM trips
+					WHERE company = t.company
+					AND terminal = t.terminal
+					AND drop_off_point = t.drop_off_point
+					AND deleted_at IS NULL
+					AND (date >= ? OR ? = '')
+					AND (date <= ? OR ? = '')
+					AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+				) AS counted_trips) as total_trips,
+				COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+				COALESCE(SUM(fm.distance), 0) as total_distance,
+				COALESCE(AVG(fm.fee), 50) as avg_fee
+			FROM trips t
+			LEFT JOIN fee_mappings fm 
+				ON t.company = fm.company 
+				AND t.terminal = fm.terminal 
+				AND t.drop_off_point = fm.drop_off_point
+			WHERE t.company = ? AND t.deleted_at IS NULL
+			AND (t.date >= ? OR ? = '')
+			AND (t.date <= ? OR ? = '')
+			GROUP BY t.terminal, t.drop_off_point, t.company
+		`, startDate, startDate, endDate, endDate, startDate, startDate, endDate, endDate, company, startDate, startDate, endDate, endDate).Scan(&routeData)
+
+		for _, route := range routeData {
+			revenue := route.TotalVolume * route.AvgFee
+
+			routeStat := RouteRevenueStats{
+				RouteName:     fmt.Sprintf("%s to %s", route.Terminal, route.DropOffPoint),
+				Terminal:      route.Terminal,
+				DropOffPoint:  route.DropOffPoint,
+				RouteType:     "terminal-dropoff",
+				TotalTrips:    route.TotalTrips,
+				TotalVolume:   route.TotalVolume,
+				TotalDistance: route.TotalDistance,
+				Fee:           route.AvgFee,
+			}
+
+			if hasFinancialAccess {
+				routeStat.TotalRevenue = revenue
+				routeStat.TotalWithVAT = revenue
+			}
+
+			var carStats []CarStats
+			h.DB.Raw(`
+				SELECT 
+					t.car_no_plate,
+					(SELECT COUNT(*) FROM (
+						SELECT DISTINCT parent_trip_id
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ? AND drop_off_point = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND parent_trip_id IS NOT NULL AND parent_trip_id != 0
+						UNION ALL
+						SELECT ID
+						FROM trips
+						WHERE company = ? AND deleted_at IS NULL
+						AND terminal = ? AND drop_off_point = ?
+						AND car_no_plate = t.car_no_plate
+						AND (date >= ? OR ? = '')
+						AND (date <= ? OR ? = '')
+						AND (parent_trip_id IS NULL OR parent_trip_id = 0)
+					) AS counted_trips) as total_trips,
+					COALESCE(SUM(t.tank_capacity), 0) as total_volume,
+					COALESCE(SUM(fm.distance), 0) as total_distance,
+					COUNT(DISTINCT CASE WHEN (t.parent_trip_id IS NULL OR t.parent_trip_id = 0) THEN t.date END) as working_days
+				FROM trips t
+				LEFT JOIN fee_mappings fm 
+					ON t.company = fm.company 
+					AND t.terminal = fm.terminal 
+					AND t.drop_off_point = fm.drop_off_point
+				WHERE t.company = ? AND t.deleted_at IS NULL
+				AND t.terminal = ? AND t.drop_off_point = ?
+				AND (t.date >= ? OR ? = '')
+				AND (t.date <= ? OR ? = '')
+				GROUP BY t.car_no_plate
+			`, company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate,
+				company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate,
+				company, route.Terminal, route.DropOffPoint, startDate, startDate, endDate, endDate).Scan(&carStats)
+
+			for i := range carStats {
+				if hasFinancialAccess {
+					carStats[i].TotalRevenue = route.AvgFee * carStats[i].TotalVolume
+					carStats[i].TotalWithVAT = carStats[i].TotalRevenue
+				}
+			}
+
+			routeStat.Cars = carStats
+			routeStats = append(routeStats, routeStat)
 		}
 	}
 
-	// Convert the map to a slice
-	result := make([]CarTotal, 0, len(carTotalsMap))
-	for _, carTotal := range carTotalsMap {
-		result = append(result, *carTotal)
-	}
-
-	return result
+	return routeStats
 }
 
 func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
@@ -2063,147 +2275,6 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 		"message":            "Watanya driver analytics retrieved successfully",
 		"data":               response,
 		"hasFinancialAccess": hasFinancialAccess,
-	})
-}
-
-// GetAllTrips returns all trips
-func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
-	var trips []Models.TripStruct
-
-	// Support pagination
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	offset := (page - 1) * limit
-
-	// Get search term from query parameter
-	searchTerm := c.Query("search", "")
-
-	// Create a base query with proper sorting
-	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC")
-
-	// Add search condition if search term is provided
-	if searchTerm != "" {
-		searchPattern := "%" + searchTerm + "%" // For LIKE query
-		query = query.Where("car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
-	}
-
-	// Count total records
-	var total int64
-	query.Count(&total)
-
-	// Get trips with pagination (using the same sorting)
-	result := query.Limit(limit).Offset(offset).Find(&trips)
-	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to fetch trips",
-			"error":   result.Error.Error(),
-		})
-	}
-
-	// Enrich trip data with fee mapping details
-	for i := range trips {
-		var mapping Models.FeeMapping
-		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
-			trips[i].Company, trips[i].Terminal, trips[i].DropOffPoint).First(&mapping)
-
-		// Add fee mapping data if found
-		if mapping.ID > 0 {
-			trips[i].Distance = mapping.Distance
-			trips[i].Fee = mapping.Fee
-		}
-	}
-
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Trips retrieved successfully",
-		"data":    trips,
-		"meta": fiber.Map{
-			"total": total,
-			"page":  page,
-			"limit": limit,
-			"pages": (total + int64(limit) - 1) / int64(limit),
-		},
-	})
-}
-
-// GetTripsByCompany handles retrieving trips by company with search functionality
-func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
-	company := c.Params("company")
-	if company == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Company parameter is required",
-		})
-	}
-
-	company, err := url.QueryUnescape(company)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid company name format",
-			"error":   err.Error(),
-		})
-	}
-
-	// Get search term from query parameter
-	searchTerm := c.Query("search", "")
-
-	var trips []Models.TripStruct
-
-	// Support pagination
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	offset := (page - 1) * limit
-
-	// Create a base query with company filter and proper sorting
-	query := h.DB.Model(&Models.TripStruct{}).
-		Where("company = ?", company).
-		Order("date DESC, receipt_no DESC")
-
-	// Add search condition if search term is provided
-	if searchTerm != "" {
-		searchPattern := "%" + searchTerm + "%" // For LIKE query
-		query = query.Where(
-			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
-	}
-
-	// Count total records for this company
-	var total int64
-	query.Count(&total)
-
-	// Get trips for this company with pagination (using the same sorting)
-	result := query.Limit(limit).Offset(offset).Find(&trips)
-
-	if result.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to fetch trips",
-			"error":   result.Error.Error(),
-		})
-	}
-
-	// Enrich trip data with fee mapping details
-	for i := range trips {
-		var mapping Models.FeeMapping
-		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
-			trips[i].Company, trips[i].Terminal, trips[i].DropOffPoint).First(&mapping)
-
-		// Add fee mapping data if found
-		if mapping.ID > 0 {
-			trips[i].Distance = mapping.Distance
-			trips[i].Fee = mapping.Fee
-		}
-	}
-
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Trips retrieved successfully",
-		"data":    trips,
-		"meta": fiber.Map{
-			"total":   total,
-			"page":    page,
-			"limit":   limit,
-			"pages":   (total + int64(limit) - 1) / int64(limit),
-			"company": company,
-			"search":  searchTerm,
-		},
 	})
 }
 
@@ -3449,7 +3520,193 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 	})
 }
 
-// GetTripsByDate handles retrieving trips by date range with search functionality
+// GetAllTrips with missing data and receipt status filters
+func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
+	var trips []Models.TripStruct
+
+	// Support pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset := (page - 1) * limit
+
+	// Get filter parameters
+	searchTerm := c.Query("search", "")
+	missingData := c.Query("missing_data", "")
+	receiptStatus := c.Query("receipt_status", "")
+
+	// Create a base query with proper sorting
+	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC").Preload("ReceiptSteps")
+
+	// Preload receipt steps if filtering by receipt status
+	if receiptStatus != "" {
+		query = query.Preload("ReceiptSteps")
+	}
+
+	// Add search condition
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		query = query.Where("car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+
+	// Add missing data filter
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			query = query.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			query = query.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+
+	// Count total records before receipt status filter
+	var total int64
+	query.Count(&total)
+
+	// Get trips with pagination
+	result := query.Limit(limit).Offset(offset).Find(&trips)
+	if result.Error != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch trips",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	// Apply receipt status filter (client-side filtering after DB query)
+	if receiptStatus != "" {
+		trips = h.filterByReceiptStatus(trips, receiptStatus)
+	}
+
+	// Enrich trip data with fee mapping details
+	for i := range trips {
+		var mapping Models.FeeMapping
+		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			trips[i].Company, trips[i].Terminal, trips[i].DropOffPoint).First(&mapping)
+
+		if mapping.ID > 0 {
+			trips[i].Distance = mapping.Distance
+			trips[i].Fee = mapping.Fee
+		}
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Trips retrieved successfully",
+		"data":    trips,
+		"meta": fiber.Map{
+			"total": total,
+			"page":  page,
+			"limit": limit,
+			"pages": (total + int64(limit) - 1) / int64(limit),
+		},
+	})
+}
+
+// GetTripsByCompany with filters
+func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
+	company := c.Params("company")
+	if company == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Company parameter is required",
+		})
+	}
+
+	company, err := url.QueryUnescape(company)
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid company name format",
+			"error":   err.Error(),
+		})
+	}
+
+	// Get filter parameters
+	searchTerm := c.Query("search", "")
+	missingData := c.Query("missing_data", "")
+	receiptStatus := c.Query("receipt_status", "")
+
+	var trips []Models.TripStruct
+
+	// Support pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset := (page - 1) * limit
+
+	// Create a base query
+	query := h.DB.Model(&Models.TripStruct{}).
+		Where("company = ?", company).Preload("ReceiptSteps").
+		Order("date DESC, receipt_no DESC")
+
+	// Preload receipt steps if filtering by receipt status
+	if receiptStatus != "" {
+		query = query.Preload("ReceiptSteps")
+	}
+
+	// Add search condition
+	if searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
+		query = query.Where(
+			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+	}
+
+	// Add missing data filter
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			query = query.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			query = query.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+
+	// Count total records
+	var total int64
+	query.Count(&total)
+
+	// Get trips with pagination
+	result := query.Limit(limit).Offset(offset).Find(&trips)
+	if result.Error != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to fetch trips",
+			"error":   result.Error.Error(),
+		})
+	}
+
+	// Apply receipt status filter
+	if receiptStatus != "" {
+		trips = h.filterByReceiptStatus(trips, receiptStatus)
+	}
+
+	// Enrich trip data
+	for i := range trips {
+		var mapping Models.FeeMapping
+		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+			trips[i].Company, trips[i].Terminal, trips[i].DropOffPoint).First(&mapping)
+
+		if mapping.ID > 0 {
+			trips[i].Distance = mapping.Distance
+			trips[i].Fee = mapping.Fee
+		}
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "Trips retrieved successfully",
+		"data":    trips,
+		"meta": fiber.Map{
+			"total":   total,
+			"page":    page,
+			"limit":   limit,
+			"pages":   (total + int64(limit) - 1) / int64(limit),
+			"company": company,
+			"search":  searchTerm,
+		},
+	})
+}
+
+// GetTripsByDate with filters
 func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
@@ -3460,18 +3717,11 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get search term from query parameter
+	// Get filter parameters
 	searchTerm := c.Query("search", "")
-
-	var trips []Models.TripStruct
-
-	// Support pagination
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	offset := (page - 1) * limit
-
-	// Optional company filter
 	company := c.Query("company")
+	missingData := c.Query("missing_data", "")
+	receiptStatus := c.Query("receipt_status", "")
 
 	company, err := url.QueryUnescape(company)
 	if err != nil {
@@ -3481,31 +3731,54 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Base query with model and proper sorting
-	query := h.DB.Model(&Models.TripStruct{}).
+	var trips []Models.TripStruct
+
+	// Support pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	offset := (page - 1) * limit
+
+	// Base query
+	query := h.DB.Model(&Models.TripStruct{}).Preload("ReceiptSteps").
 		Where("date >= ? AND date <= ?", startDate, endDate).
 		Order("date DESC, receipt_no DESC")
 
-	// Apply company filter if provided
+	// Preload receipt steps if filtering by receipt status
+	if receiptStatus != "" {
+		query = query.Preload("ReceiptSteps")
+	}
+
+	// Apply company filter
 	if company != "" {
 		query = query.Where("company = ?", company)
 	}
 
-	// Add search condition if search term is provided
+	// Add search condition
 	if searchTerm != "" {
-		searchPattern := "%" + searchTerm + "%" // For LIKE query
+		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
 			"car_no_plate LIKE ? OR driver_name LIKE ? OR drop_off_point LIKE ? OR terminal LIKE ? OR date LIKE ? OR receipt_no LIKE ? OR CAST(tank_capacity AS TEXT) LIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
 	}
 
-	// Count total records for this date range
+	// Add missing data filter
+	if missingData != "" {
+		switch missingData {
+		case "driver":
+			query = query.Where("driver_name = ?", "غير مسجل")
+		case "route":
+			query = query.Where("drop_off_point = ?", "غير مسجل")
+		case "any":
+			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		}
+	}
+
+	// Count total records
 	var total int64
 	query.Count(&total)
 
-	// Get trips for this date range with pagination (using the same query)
+	// Get trips with pagination
 	result := query.Limit(limit).Offset(offset).Find(&trips)
-
 	if result.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch trips",
@@ -3513,13 +3786,17 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	// Enrich trip data with fee mapping details
+	// Apply receipt status filter
+	if receiptStatus != "" {
+		trips = h.filterByReceiptStatus(trips, receiptStatus)
+	}
+
+	// Enrich trip data
 	for i := range trips {
 		var mapping Models.FeeMapping
 		h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
 			trips[i].Company, trips[i].Terminal, trips[i].DropOffPoint).First(&mapping)
 
-		// Add fee mapping data if found
 		if mapping.ID > 0 {
 			trips[i].Distance = mapping.Distance
 			trips[i].Fee = mapping.Fee
@@ -3540,6 +3817,53 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"search":     searchTerm,
 		},
 	})
+}
+
+// Helper function to filter trips by receipt status
+// Helper function to filter trips by receipt status
+func (h *TripHandler) filterByReceiptStatus(trips []Models.TripStruct, status string) []Models.TripStruct {
+	var filtered []Models.TripStruct
+
+	for _, trip := range trips {
+		stepCount := len(trip.ReceiptSteps)
+
+		switch status {
+		case "pending":
+			if stepCount == 0 {
+				filtered = append(filtered, trip)
+			}
+		case "in_garage":
+			// Check if the LATEST step is Garage (steps are ordered by received_at DESC)
+			if stepCount > 0 {
+				// Find the most recent step
+				var latestStep *Models.ReceiptStep
+				for i := range trip.ReceiptSteps {
+					if latestStep == nil || trip.ReceiptSteps[i].ReceivedAt.After(latestStep.ReceivedAt) {
+						latestStep = &trip.ReceiptSteps[i]
+					}
+				}
+				if latestStep != nil && latestStep.Location == "Garage" {
+					filtered = append(filtered, trip)
+				}
+			}
+		case "in_office":
+			// Check if the LATEST step is Office
+			if stepCount > 0 {
+				// Find the most recent step
+				var latestStep *Models.ReceiptStep
+				for i := range trip.ReceiptSteps {
+					if latestStep == nil || trip.ReceiptSteps[i].ReceivedAt.After(latestStep.ReceivedAt) {
+						latestStep = &trip.ReceiptSteps[i]
+					}
+				}
+				if latestStep != nil && latestStep.Location == "Office" {
+					filtered = append(filtered, trip)
+				}
+			}
+		}
+	}
+
+	return filtered
 }
 
 // CreateMultiContainerTrip creates a parent trip with multiple container trips

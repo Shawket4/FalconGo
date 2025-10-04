@@ -70,6 +70,7 @@ func Connect() {
 		&ServiceInvoice{},
 		&DailyTask{},
 		&ParentTrip{},
+		&ReceiptStep{},
 	)
 
 	DB.AutoMigrate(&Vendor{}, &VendorTransaction{})

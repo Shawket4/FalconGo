@@ -34,9 +34,21 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	vendorController := Controllers.NewVendorController(db)
 	transactionController := Controllers.NewTransactionController(db)
 	vendorAnalyticsController := Controllers.NewAnalyticsController(db)
-
+	receiptController := &Controllers.ReceiptController{DB: db}
 	// API group
 	api := app.Group("/api")
+
+	receipts := app.Group("/api/receipts", middleware.Verify(1))
+
+	// Receipt step management
+	receipts.Post("/step", receiptController.AddReceiptStep)
+	receipts.Get("/trip/:tripId", receiptController.GetTripReceiptSteps)
+	receipts.Put("/step/:stepId", receiptController.UpdateReceiptStep)
+	receipts.Delete("/step/:stepId", receiptController.DeleteReceiptStep)
+
+	// Receipt status and statistics
+	receipts.Get("/status", receiptController.GetTripsWithReceiptStatus)
+	receipts.Get("/statistics", receiptController.GetReceiptStatistics)
 
 	// Vendor routes
 	vendors := api.Group("/vendors", middleware.Verify(3))
