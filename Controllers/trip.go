@@ -3521,6 +3521,25 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 }
 
 // GetAllTrips with missing data and receipt status filters
+// Helper function to apply receipt status filter at the database level
+func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
+	switch receiptStatus {
+	case "pending":
+		// Trips with no receipt steps
+		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
+	case "in_garage":
+		// Trips with garage step but no office step
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')").
+			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
+	case "in_office":
+		// Trips with office step but no garage step
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')").
+			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
+	}
+	return query
+}
+
+// GetAllTrips with missing data and receipt status filters
 func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	var trips []Models.TripStruct
 
@@ -3534,13 +3553,8 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	missingData := c.Query("missing_data", "")
 	receiptStatus := c.Query("receipt_status", "")
 
-	// Create a base query with proper sorting
+	// Create a base query with proper sorting and preload
 	query := h.DB.Model(&Models.TripStruct{}).Order("date DESC, receipt_no DESC").Preload("ReceiptSteps")
-
-	// Preload receipt steps if filtering by receipt status
-	if receiptStatus != "" {
-		query = query.Preload("ReceiptSteps")
-	}
 
 	// Add search condition
 	if searchTerm != "" {
@@ -3561,7 +3575,12 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 		}
 	}
 
-	// Count total records before receipt status filter
+	// Apply receipt status filter BEFORE counting and pagination
+	if receiptStatus != "" {
+		query = h.applyReceiptStatusFilter(query, receiptStatus)
+	}
+
+	// Count total records AFTER all filters are applied
 	var total int64
 	query.Count(&total)
 
@@ -3572,11 +3591,6 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 			"message": "Failed to fetch trips",
 			"error":   result.Error.Error(),
 		})
-	}
-
-	// Apply receipt status filter (client-side filtering after DB query)
-	if receiptStatus != "" {
-		trips = h.filterByReceiptStatus(trips, receiptStatus)
 	}
 
 	// Enrich trip data with fee mapping details
@@ -3634,13 +3648,9 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 
 	// Create a base query
 	query := h.DB.Model(&Models.TripStruct{}).
-		Where("company = ?", company).Preload("ReceiptSteps").
+		Where("company = ?", company).
+		Preload("ReceiptSteps").
 		Order("date DESC, receipt_no DESC")
-
-	// Preload receipt steps if filtering by receipt status
-	if receiptStatus != "" {
-		query = query.Preload("ReceiptSteps")
-	}
 
 	// Add search condition
 	if searchTerm != "" {
@@ -3662,7 +3672,12 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		}
 	}
 
-	// Count total records
+	// Apply receipt status filter BEFORE counting and pagination
+	if receiptStatus != "" {
+		query = h.applyReceiptStatusFilter(query, receiptStatus)
+	}
+
+	// Count total records AFTER all filters
 	var total int64
 	query.Count(&total)
 
@@ -3673,11 +3688,6 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 			"message": "Failed to fetch trips",
 			"error":   result.Error.Error(),
 		})
-	}
-
-	// Apply receipt status filter
-	if receiptStatus != "" {
-		trips = h.filterByReceiptStatus(trips, receiptStatus)
 	}
 
 	// Enrich trip data
@@ -3739,14 +3749,10 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	// Base query
-	query := h.DB.Model(&Models.TripStruct{}).Preload("ReceiptSteps").
+	query := h.DB.Model(&Models.TripStruct{}).
+		Preload("ReceiptSteps").
 		Where("date >= ? AND date <= ?", startDate, endDate).
 		Order("date DESC, receipt_no DESC")
-
-	// Preload receipt steps if filtering by receipt status
-	if receiptStatus != "" {
-		query = query.Preload("ReceiptSteps")
-	}
 
 	// Apply company filter
 	if company != "" {
@@ -3773,7 +3779,12 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		}
 	}
 
-	// Count total records
+	// Apply receipt status filter BEFORE counting and pagination
+	if receiptStatus != "" {
+		query = h.applyReceiptStatusFilter(query, receiptStatus)
+	}
+
+	// Count total records AFTER all filters
 	var total int64
 	query.Count(&total)
 
@@ -3784,11 +3795,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"message": "Failed to fetch trips",
 			"error":   result.Error.Error(),
 		})
-	}
-
-	// Apply receipt status filter
-	if receiptStatus != "" {
-		trips = h.filterByReceiptStatus(trips, receiptStatus)
 	}
 
 	// Enrich trip data
@@ -3817,53 +3823,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"search":     searchTerm,
 		},
 	})
-}
-
-// Helper function to filter trips by receipt status
-// Helper function to filter trips by receipt status
-func (h *TripHandler) filterByReceiptStatus(trips []Models.TripStruct, status string) []Models.TripStruct {
-	var filtered []Models.TripStruct
-
-	for _, trip := range trips {
-		stepCount := len(trip.ReceiptSteps)
-
-		switch status {
-		case "pending":
-			if stepCount == 0 {
-				filtered = append(filtered, trip)
-			}
-		case "in_garage":
-			// Check if the LATEST step is Garage (steps are ordered by received_at DESC)
-			if stepCount > 0 {
-				// Find the most recent step
-				var latestStep *Models.ReceiptStep
-				for i := range trip.ReceiptSteps {
-					if latestStep == nil || trip.ReceiptSteps[i].ReceivedAt.After(latestStep.ReceivedAt) {
-						latestStep = &trip.ReceiptSteps[i]
-					}
-				}
-				if latestStep != nil && latestStep.Location == "Garage" {
-					filtered = append(filtered, trip)
-				}
-			}
-		case "in_office":
-			// Check if the LATEST step is Office
-			if stepCount > 0 {
-				// Find the most recent step
-				var latestStep *Models.ReceiptStep
-				for i := range trip.ReceiptSteps {
-					if latestStep == nil || trip.ReceiptSteps[i].ReceivedAt.After(latestStep.ReceivedAt) {
-						latestStep = &trip.ReceiptSteps[i]
-					}
-				}
-				if latestStep != nil && latestStep.Location == "Office" {
-					filtered = append(filtered, trip)
-				}
-			}
-		}
-	}
-
-	return filtered
 }
 
 // CreateMultiContainerTrip creates a parent trip with multiple container trips
