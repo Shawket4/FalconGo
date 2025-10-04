@@ -3520,29 +3520,67 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 	})
 }
 
-// GetAllTrips with missing data and receipt status filters
-// Helper function to apply receipt status filter at the database level
-func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
-	switch receiptStatus {
-	case "pending":
-		// Trips with no receipt steps
-		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
-	case "in_garage":
-		// Trips with garage step but no office step
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')").
-			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
-	case "in_office":
-		// Trips with office step but no garage step
-		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')").
-			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
+// Helper function to fetch trips with all their containers
+// Helper function to fetch trips with all their containers
+func (h *TripHandler) fetchTripsWithContainers(query *gorm.DB, limit, offset int) ([]Models.TripStruct, error) {
+	// First, get the paginated trips
+	var paginatedTrips []Models.TripStruct
+	err := query.Limit(limit).Offset(offset).Find(&paginatedTrips).Error
+	if err != nil {
+		return nil, err
 	}
-	return query
+
+	if len(paginatedTrips) == 0 {
+		return paginatedTrips, nil
+	}
+
+	// Collect all parent IDs from containers in the paginated results
+	parentIDs := make(map[uint]bool)
+	for _, trip := range paginatedTrips {
+		// Fix: Dereference pointer and check for nil
+		if trip.ParentTripID != nil && *trip.ParentTripID > 0 {
+			parentIDs[*trip.ParentTripID] = true
+		}
+	}
+
+	// If we have containers, we need to fetch ALL siblings for those parents
+	if len(parentIDs) > 0 {
+		parentIDList := make([]uint, 0, len(parentIDs))
+		for id := range parentIDs {
+			parentIDList = append(parentIDList, id)
+		}
+
+		// Fetch all containers that belong to these parent IDs
+		var allContainers []Models.TripStruct
+		h.DB.Preload("ReceiptSteps").
+			Where("parent_trip_id IN ?", parentIDList).
+			Find(&allContainers)
+
+		// Create a map to track which trips we already have
+		tripMap := make(map[uint]Models.TripStruct)
+		for _, trip := range paginatedTrips {
+			tripMap[trip.ID] = trip
+		}
+
+		// Add all containers (including ones not in original pagination)
+		for _, container := range allContainers {
+			tripMap[container.ID] = container
+		}
+
+		// Convert back to slice
+		finalTrips := make([]Models.TripStruct, 0, len(tripMap))
+		for _, trip := range tripMap {
+			finalTrips = append(finalTrips, trip)
+		}
+
+		return finalTrips, nil
+	}
+
+	return paginatedTrips, nil
 }
 
 // GetAllTrips with missing data and receipt status filters
 func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
-	var trips []Models.TripStruct
-
 	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
@@ -3584,12 +3622,12 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	var total int64
 	query.Count(&total)
 
-	// Get trips with pagination
-	result := query.Limit(limit).Offset(offset).Find(&trips)
-	if result.Error != nil {
+	// Fetch trips with all their containers
+	trips, err := h.fetchTripsWithContainers(query, limit, offset)
+	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch trips",
-			"error":   result.Error.Error(),
+			"error":   err.Error(),
 		})
 	}
 
@@ -3639,8 +3677,6 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	missingData := c.Query("missing_data", "")
 	receiptStatus := c.Query("receipt_status", "")
 
-	var trips []Models.TripStruct
-
 	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
@@ -3681,12 +3717,12 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	var total int64
 	query.Count(&total)
 
-	// Get trips with pagination
-	result := query.Limit(limit).Offset(offset).Find(&trips)
-	if result.Error != nil {
+	// Fetch trips with all their containers
+	trips, err := h.fetchTripsWithContainers(query, limit, offset)
+	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch trips",
-			"error":   result.Error.Error(),
+			"error":   err.Error(),
 		})
 	}
 
@@ -3741,8 +3777,6 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		})
 	}
 
-	var trips []Models.TripStruct
-
 	// Support pagination
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
@@ -3788,12 +3822,12 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	var total int64
 	query.Count(&total)
 
-	// Get trips with pagination
-	result := query.Limit(limit).Offset(offset).Find(&trips)
-	if result.Error != nil {
+	// Fetch trips with all their containers
+	trips, err := h.fetchTripsWithContainers(query, limit, offset)
+	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to fetch trips",
-			"error":   result.Error.Error(),
+			"error":   err.Error(),
 		})
 	}
 
@@ -3823,6 +3857,23 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			"search":     searchTerm,
 		},
 	})
+}
+
+func (h *TripHandler) applyReceiptStatusFilter(query *gorm.DB, receiptStatus string) *gorm.DB {
+	switch receiptStatus {
+	case "pending":
+		// Trips with no receipt steps
+		query = query.Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id)")
+	case "in_garage":
+		// Trips with garage step but no office step
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')").
+			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')")
+	case "in_office":
+		// Trips with office step but no garage step
+		query = query.Where("EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Office')").
+			Where("NOT EXISTS (SELECT 1 FROM receipt_steps WHERE receipt_steps.trip_id = trips.id AND receipt_steps.location = 'Garage')")
+	}
+	return query
 }
 
 // CreateMultiContainerTrip creates a parent trip with multiple container trips
