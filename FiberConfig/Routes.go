@@ -510,7 +510,7 @@ func FiberConfig() {
 	SetupRoutes(app, Models.DB)
 	SetupEmployeeRoutes(app, Models.DB)
 	SetupPaySlipRoutes(app, Models.DB)
-	app.Listen(":3001")
+	app.Listen("127.0.0.1:3001")
 }
 
 func SetupTripSummaryRoutes(app *fiber.App) {
