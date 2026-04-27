@@ -17,11 +17,15 @@ go.work.sum
 
 # Binaries
 main
+server
+app
+FalconGo
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+bin/
 
 # Test binary
 *.test
@@ -52,6 +56,12 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+
+# Backup and scratch files
+go.back
+chat.txt
+speed_report_*.txt
 
 # Temporary files
 tmp/

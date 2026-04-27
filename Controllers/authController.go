@@ -15,8 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const SecretKey = "secret"
-
 func RegisterDriver(c *fiber.Ctx) error {
 	var data Models.Driver
 	formData := c.FormValue("request")

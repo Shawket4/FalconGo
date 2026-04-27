@@ -7,6 +7,7 @@ import (
 	"Falcon/PetroApp"
 	"Falcon/Slack"
 	"Falcon/workers"
+	"Falcon/Constants"
 	"fmt"
 	"log"
 	"os"
@@ -18,6 +19,7 @@ import (
 )
 
 func main() {
+	Constants.Init()
 	// ============================================
 	// STEP 1: SETUP LOGGING
 	// ============================================

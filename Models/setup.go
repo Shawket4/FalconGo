@@ -23,12 +23,12 @@ func Connect() {
 	}
 
 	// Get PostgreSQL connection details from environment
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "apex")
-	dbPassword := getEnv("DB_PASSWORD", "REDACTED")
-	dbName := getEnv("DB_NAME", "apex")
-	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	dbHost := getEnv("DB_HOST", "")
+	dbPort := getEnv("DB_PORT", "")
+	dbUser := getEnv("DB_USER", "")
+	dbPassword := getEnv("DB_PASSWORD", "")
+	dbName := getEnv("DB_NAME", "")
+	dbSSLMode := getEnv("DB_SSLMODE", "")
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Africa/Cairo",
