@@ -16,7 +16,7 @@ import (
 func CreateServiceInvoice(c *fiber.Ctx) error {
 	var req Models.ServiceInvoiceRequest
 
-	// Parse request body
+	// 1. Parse request body
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Invalid request body",
@@ -24,22 +24,24 @@ func CreateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.CarID == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":   "Validation failed",
-			"message": "car_id is required",
+	// 2. GENERATE VECTORS FIRST (Outside the DB Transaction)
+	// We do this first so the DB isn't locked while waiting for the AI engine
+	embeddings, err := generateEmbeddingsForItems(req.InspectionItems)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to generate search vectors",
+			"details": err.Error(),
 		})
 	}
 
-	if req.DriverName == "" {
+	// 3. Validation
+	if req.CarID == 0 || req.DriverName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Validation failed",
-			"message": "driver_name is required",
+			"message": "car_id and driver_name are required",
 		})
 	}
 
-	// Parse date
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -48,22 +50,16 @@ func CreateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if car exists
-	var car Models.Car
-	if err := Models.DB.First(&car, req.CarID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error":   "Car not found",
-				"message": "The specified car does not exist",
-			})
-		}
+	// 4. Begin transaction
+	tx := Models.DB.Begin()
+	if tx.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Database error",
-			"message": err.Error(),
+			"error": "Transaction failed",
 		})
 	}
 
-	// Create service invoice
+	// 5. Create the Service Invoice (The Parent)
+	// We do this first so that invoice.ID is populated for the children
 	invoice := &Models.ServiceInvoice{
 		CarID:           req.CarID,
 		DriverName:      req.DriverName,
@@ -74,52 +70,47 @@ func CreateServiceInvoice(c *fiber.Ctx) error {
 		OperatingRegion: req.OperatingRegion,
 	}
 
-	// Begin transaction
-	tx := Models.DB.Begin()
-	if tx.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Transaction error",
-			"message": tx.Error.Error(),
-		})
-	}
-
-	// Create the service invoice
 	if err := tx.Create(invoice).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to create service invoice",
-			"message": err.Error(),
+			"error": "Failed to create service invoice",
 		})
 	}
 
-	// Create inspection items
+	// 6. Create Inspection Items (The Children)
+	embeddingIdx := 0
 	for i, item := range req.InspectionItems {
 		if item.Service != "" || item.Notes != "" {
 			inspectionItem := Models.InspectionItem{
-				ServiceInvoiceID: invoice.ID,
+				ServiceInvoiceID: invoice.ID, // Links to the newly created parent
 				Service:          item.Service,
 				Notes:            item.Notes,
 				ItemOrder:        i + 1,
 			}
+
+			// Assign the pre-calculated vector
+			if embeddingIdx < len(embeddings) {
+				inspectionItem.Embedding = pgvector.NewVector(embeddings[embeddingIdx])
+				embeddingIdx++
+			}
+
 			if err := tx.Create(&inspectionItem).Error; err != nil {
 				tx.Rollback()
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":   "Failed to create inspection items",
-					"message": err.Error(),
+					"error": "Failed to create inspection items",
 				})
 			}
 		}
 	}
 
-	// Commit transaction
+	// 7. Finalize the Database write
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to commit transaction",
-			"message": err.Error(),
+			"error": "Failed to commit transaction",
 		})
 	}
 
-	// Reload with relationships
+	// 8. Reload everything for the response
 	Models.DB.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("item_order ASC")
 	}).First(invoice, invoice.ID)
@@ -280,7 +271,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if invoice exists
+	// 1. Check if invoice exists
 	var invoice Models.ServiceInvoice
 	if err := Models.DB.First(&invoice, uint(invoiceID)).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -295,7 +286,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Parse date
+	// 2. Parse date
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -304,7 +295,18 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Begin transaction
+	// 3. Generate vectors for all items in the request
+	// We do this BEFORE starting the transaction to avoid holding DB locks 
+	// while waiting for the TEI Docker container to respond.
+	embeddings, err := generateEmbeddingsForItems(req.InspectionItems)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to generate search vectors",
+			"details": err.Error(),
+		})
+	}
+
+	// 4. Begin transaction
 	tx := Models.DB.Begin()
 	if tx.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -313,7 +315,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update service invoice
+	// 5. Update main invoice fields
 	invoice.DriverName = req.DriverName
 	invoice.Date = date
 	invoice.MeterReading = req.MeterReading
@@ -329,7 +331,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Delete existing inspection items
+	// 6. Delete existing inspection items
 	if err := tx.Where("service_invoice_id = ?", invoice.ID).Delete(&Models.InspectionItem{}).Error; err != nil {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -338,7 +340,8 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create new inspection items
+	// 7. Create new inspection items with their vectors
+	embeddingIdx := 0
 	for i, item := range req.InspectionItems {
 		if item.Service != "" || item.Notes != "" {
 			inspectionItem := Models.InspectionItem{
@@ -347,6 +350,13 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 				Notes:            item.Notes,
 				ItemOrder:        i + 1,
 			}
+
+			// Assign the corresponding vector from our batch results
+			if embeddingIdx < len(embeddings) {
+				inspectionItem.Embedding = pgvector.NewVector(embeddings[embeddingIdx])
+				embeddingIdx++
+			}
+
 			if err := tx.Create(&inspectionItem).Error; err != nil {
 				tx.Rollback()
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -357,7 +367,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		}
 	}
 
-	// Commit transaction
+	// 8. Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to commit transaction",
@@ -365,7 +375,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Reload with relationships
+	// 9. Reload with relationships for the response
 	Models.DB.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("item_order ASC")
 	}).First(&invoice, invoice.ID)
@@ -637,4 +647,22 @@ func sortByMatchCount(results []InvoiceResponse) {
 			}
 		}
 	}
+}
+
+
+func generateEmbeddingsForItems(items []Models.InspectionItemRequest) ([][]float32, error) {
+	var texts []string
+	for _, item := range items {
+		if item.Service != "" || item.Notes != "" {
+			combined := item.Service + " " + item.Notes
+			texts = append(texts, combined)
+		}
+	}
+
+	if len(texts) == 0 {
+		return nil, nil
+	}
+
+	// Use the Batch function we created in AbstractFunctions/Services
+	return AbstractFunctions.GenerateEmbeddingsBatch(texts)
 }
