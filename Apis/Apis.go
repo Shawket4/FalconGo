@@ -83,12 +83,36 @@ type CarResponse struct {
 }
 
 func GetCars(c *fiber.Ctx) error {
+	limitStr := c.Query("limit")
+	pageStr := c.Query("page", "1")
+
 	var cars []Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Preload("Driver").Find(&cars).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to fetch cars",
-		})
+	var total int64
+
+	db := Models.DB.Model(&Models.Car{}).Preload("Driver")
+
+	if limitStr != "" {
+		limit, _ := strconv.Atoi(limitStr)
+		page, _ := strconv.Atoi(pageStr)
+		if page < 1 {
+			page = 1
+		}
+		offset := (page - 1) * limit
+
+		db.Count(&total)
+		if err := db.Offset(offset).Limit(limit).Find(&cars).Error; err != nil {
+			log.Println(err.Error())
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to fetch cars",
+			})
+		}
+	} else {
+		if err := db.Find(&cars).Error; err != nil {
+			log.Println(err.Error())
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to fetch cars",
+			})
+		}
 	}
 
 	// Build response with image URLs
@@ -116,6 +140,20 @@ func GetCars(c *fiber.Ctx) error {
 		if car.TankLicenseImageNameBack != "" {
 			carsResponse[i].TankLicenseBackURL = fmt.Sprintf("%s/images/tank-licenses-back/%s", baseURL, car.TankLicenseImageNameBack)
 		}
+	}
+
+	if limitStr != "" {
+		limit, _ := strconv.Atoi(limitStr)
+		page, _ := strconv.Atoi(pageStr)
+		return c.JSON(fiber.Map{
+			"data": carsResponse,
+			"pagination": fiber.Map{
+				"page":       page,
+				"limit":      limit,
+				"total":      total,
+				"totalPages": (total + int64(limit) - 1) / int64(limit),
+			},
+		})
 	}
 
 	return c.JSON(carsResponse)
@@ -1647,22 +1685,56 @@ func GetAllServiceEvents(c *fiber.Ctx) error {
 		if Controllers.CurrentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
+			limitStr := c.Query("limit")
+			pageStr := c.Query("page", "1")
+			carIDStr := c.Query("car_id")
+
 			var serviceEvents []Models.Service
-			if Controllers.CurrentUser.Permission == 4 {
-				if err := Models.DB.Model(&Models.Service{}).Find(&serviceEvents).Error; err != nil {
-					log.Println(err.Error())
-					return err
-				}
-			} else {
-				if err := Models.DB.Model(&Models.Service{}).Where("transporter = ?", Controllers.CurrentUser.Name).Find(&serviceEvents).Error; err != nil {
-					log.Println(err.Error())
-					return err
-				}
+			var total int64
+
+			db := Models.DB.Model(&Models.Service{})
+
+			if Controllers.CurrentUser.Permission != 4 {
+				db = db.Where("transporter = ?", Controllers.CurrentUser.Name)
 			}
-			fmt.Println(serviceEvents)
-			return c.JSON(fiber.Map{
-				"ServiceEvents": serviceEvents,
-			})
+
+			if carIDStr != "" {
+				carID, _ := strconv.Atoi(carIDStr)
+				db = db.Where("car_id = ?", carID)
+			}
+
+			if limitStr != "" {
+				limit, _ := strconv.Atoi(limitStr)
+				page, _ := strconv.Atoi(pageStr)
+				if page < 1 {
+					page = 1
+				}
+				offset := (page - 1) * limit
+
+				db.Count(&total)
+				if err := db.Order("date_of_service DESC").Offset(offset).Limit(limit).Find(&serviceEvents).Error; err != nil {
+					log.Println(err.Error())
+					return err
+				}
+
+				return c.JSON(fiber.Map{
+					"data": serviceEvents,
+					"pagination": fiber.Map{
+						"page":       page,
+						"limit":      limit,
+						"total":      total,
+						"totalPages": (total + int64(limit) - 1) / int64(limit),
+					},
+				})
+			} else {
+				if err := db.Order("date_of_service DESC").Find(&serviceEvents).Error; err != nil {
+					log.Println(err.Error())
+					return err
+				}
+				return c.JSON(fiber.Map{
+					"ServiceEvents": serviceEvents,
+				})
+			}
 		}
 	} else {
 		return c.JSON(fiber.Map{

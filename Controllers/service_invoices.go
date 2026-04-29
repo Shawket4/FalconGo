@@ -438,6 +438,7 @@ type SearchServiceRequest struct {
 	FromDate    string `json:"from_date" query:"from_date"`
 	ToDate      string `json:"to_date" query:"to_date"`
 	Limit       int    `json:"limit" query:"limit"`
+	Page        int    `json:"page" query:"page"`
 }
 
 
@@ -450,6 +451,7 @@ type InspectionItemResponse struct {
 	Reason    *string `json:"reason,omitempty"`
 	Score     *int    `json:"score,omitempty"`
 	Distance  float64 `json:"distance,omitempty"`
+	MatchType string  `json:"match_type,omitempty"` // "semantic", "keyword", or "both"
 }
 
 type InvoiceResponse struct {
@@ -504,8 +506,10 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 	if req.Query == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Success: false, Error: "Query required"})
 	}
-	if req.Limit <= 0 {
-		req.Limit = 50
+
+	limitProvided := c.Query("limit") != ""
+	if limitProvided && req.Limit <= 0 {
+		req.Limit = 10 // default if limit provided but invalid
 	}
 
 	// 1. Convert user query to vector
@@ -515,18 +519,27 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 	}
 	pgVec := pgvector.NewVector(queryVector)
 
-	// 2. Vector Search via Postgres Cosine Distance (<=>)
+	// 2. Hybrid Search: Vector Distance + Keyword Match
+	searchTerm := "%" + req.Query + "%"
 	type MatchedItem struct {
 		Models.InspectionItem
-		Distance float64 `gorm:"column:distance"`
+		Distance       float64 `gorm:"column:distance"`
+		IsKeywordMatch bool    `gorm:"column:is_keyword_match"`
 	}
 	var matches []MatchedItem
 
 	dbQuery := Models.DB.Table("inspection_items").
-		Select("inspection_items.*, inspection_items.embedding <=> ? AS distance", pgVec).
+		Select(`
+			inspection_items.*, 
+			inspection_items.embedding <=> ? AS distance,
+			(inspection_items.service ILIKE ? OR inspection_items.notes ILIKE ?) AS is_keyword_match
+		`, pgVec, searchTerm, searchTerm).
 		Joins("JOIN service_invoices ON service_invoices.id = inspection_items.service_invoice_id").
 		Where("service_invoices.deleted_at IS NULL").
-		Where("inspection_items.embedding <=> ? < ?", pgVec, 0.45) // Adjust threshold: lower is stricter
+		Where(`
+			(inspection_items.embedding <=> ? < 0.45) OR 
+			(inspection_items.service ILIKE ? OR inspection_items.notes ILIKE ?)
+		`, pgVec, searchTerm, searchTerm)
 
 	if req.PlateNumber != "" {
 		dbQuery = dbQuery.Where("service_invoices.plate_number = ?", req.PlateNumber)
@@ -534,9 +547,18 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 	if req.CarID > 0 {
 		dbQuery = dbQuery.Where("service_invoices.car_id = ?", req.CarID)
 	}
-	// Note: Re-apply your FromDate/ToDate string parsing logic here if needed
 
-	if err := dbQuery.Order("distance ASC").Limit(req.Limit * 3).Find(&matches).Error; err != nil {
+	// Order by distance (semantic) but prioritize exact keyword matches by boosting them
+	// We fetch more than we need to allow for grouping and sorting in memory
+	fetchLimit := 500
+	if limitProvided && req.Limit > 0 {
+		fetchLimit = (req.Page + 1) * req.Limit * 2
+		if fetchLimit < 500 {
+			fetchLimit = 500
+		}
+	}
+
+	if err := dbQuery.Order("is_keyword_match DESC, distance ASC").Limit(fetchLimit).Find(&matches).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Success: false, Error: "DB search failed"})
 	}
 
@@ -546,14 +568,22 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 
 	// 3. Extract Invoice IDs & fetch full relationships
 	var invoiceIDs []uint
-	distanceMap := make(map[uint]float64)
-	
+	matchInfoMap := make(map[uint]struct {
+		Distance       float64
+		IsKeywordMatch bool
+	})
+
 	for _, m := range matches {
-		distanceMap[m.ID] = m.Distance
+		matchInfoMap[m.ID] = struct {
+			Distance       float64
+			IsKeywordMatch bool
+		}{m.Distance, m.IsKeywordMatch}
+
 		exists := false
 		for _, id := range invoiceIDs {
 			if id == m.ServiceInvoiceID {
-				exists = true; break
+				exists = true
+				break
 			}
 		}
 		if !exists {
@@ -566,7 +596,6 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 		Preload("InspectionItems", func(db *gorm.DB) *gorm.DB { return db.Order("item_order ASC") }).
 		Preload("Car").
 		Order("date DESC").
-		Limit(req.Limit).
 		Find(&invoices)
 
 	// 4. Build Final Response
@@ -585,11 +614,21 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 				ItemOrder: item.ItemOrder,
 				Matched:   false,
 			}
-			
-			if dist, exists := distanceMap[item.ID]; exists {
+
+			if info, exists := matchInfoMap[item.ID]; exists {
 				items[j].Matched = true
-				// Optional: map the 0.0-0.45 distance back to your 1-3 Score system if needed by the frontend
-				items[j].Distance = dist 
+				items[j].Distance = info.Distance
+
+				// Determine Match Type
+				isSemantic := info.Distance < 0.45
+				if isSemantic && info.IsKeywordMatch {
+					items[j].MatchType = "both"
+				} else if info.IsKeywordMatch {
+					items[j].MatchType = "keyword"
+				} else {
+					items[j].MatchType = "semantic"
+				}
+
 				matchCount++
 				totalMatches++
 			}
@@ -622,11 +661,45 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 
 	sortByMatchCount(results)
 
+	totalResults := len(results)
+	if limitProvided {
+		page := req.Page
+		if page < 1 {
+			page = 1
+		}
+		start := (page - 1) * req.Limit
+		end := start + req.Limit
+
+		if start > totalResults {
+			results = []InvoiceResponse{}
+		} else {
+			if end > totalResults {
+				end = totalResults
+			}
+			results = results[start:end]
+		}
+
+		return c.JSON(fiber.Map{
+			"success":       true,
+			"query":         req.Query,
+			"total_matches": totalMatches,
+			"invoice_count": totalResults,
+			"results":       results,
+			"search_time":   time.Since(startTime).String(),
+			"pagination": fiber.Map{
+				"page":       page,
+				"limit":      req.Limit,
+				"total":      totalResults,
+				"totalPages": (totalResults + req.Limit - 1) / req.Limit,
+			},
+		})
+	}
+
 	return c.JSON(SearchResponse{
 		Success:      true,
 		Query:        req.Query,
 		TotalMatches: totalMatches,
-		InvoiceCount: len(results),
+		InvoiceCount: totalResults,
 		Results:      results,
 		SearchTime:   time.Since(startTime).String(),
 	})
