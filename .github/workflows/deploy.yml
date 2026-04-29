@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Updated to v4 for better performance
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "1.21"
           cache: true
@@ -24,33 +24,30 @@ jobs:
 
       - name: Ensure HTTP on localhost
         run: |
-          echo "Checking Listen configuration in FiberConfig/Routes.go..."
-          if grep -qE "^\s*app\.ListenTLS" FiberConfig/Routes.go; then
-            sed -i 's|^\(\s*\)app\.ListenTLS(.*|\1// &|g' FiberConfig/Routes.go
-          fi
-          if grep -q "// app.Listen" FiberConfig/Routes.go; then
-            sed -i 's|// app\.Listen(":3001")|app.Listen("127.0.0.1:3001")|g' FiberConfig/Routes.go
-          fi
+          # Rebinds Fiber from TLS to local port 3001 for VPS reverse proxy
+          sed -i 's|^\(\s*\)app\.ListenTLS(.*|\1// &|g' FiberConfig/Routes.go
+          sed -i 's|// app\.Listen(":3001")|app.Listen("127.0.0.1:3001")|g' FiberConfig/Routes.go
           if grep -qE "^\s*app\.Listen\(\":3001\"\)" FiberConfig/Routes.go; then
             sed -i 's|app\.Listen(":3001")|app.Listen("127.0.0.1:3001")|g' FiberConfig/Routes.go
           fi
 
-      - name: Build Go application for Ubuntu
+      - name: Build Go application
         run: |
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o main ./main.go
+          # CGO_ENABLED=0 creates a static binary that works on any Linux distro
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main ./main.go
           chmod +x main
 
       - name: Prepare deployment package
         run: |
-          # We create the tarball directly from the root
-          # We include the binary 'main' and all source files
-          # We EXCLUDE git history, github actions, and the tarball itself to save space
-          tar -czf deployment.tar.gz \
-            --exclude='deployment.tar.gz' \
+          # FIXED: Create tarball in /tmp to avoid "file changed as we read it" error
+          tar -czf /tmp/deployment.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='uploads' \
+            --exclude='bge-m3' \
+            --exclude='local_dir' \
             .
+          mv /tmp/deployment.tar.gz .
 
       - name: Setup SSH
         run: |
@@ -64,39 +61,32 @@ jobs:
         run: |
           cat > deploy.sh << 'EOF'
           #!/bin/bash
-          sudo mkdir -p /var/www/FalconGo
+          APP_DIR="/var/www/FalconGo"
+          sudo mkdir -p $APP_DIR
           sudo systemctl stop Falcon || true
 
-          # ✅ BACKUP DATABASE (Keep this safe during overwrite)
-          if [ -f /var/www/FalconGo/database.db ]; then
-            cp /var/www/FalconGo/database.db /tmp/database.db.temp
-          fi
+          # ✅ PROTECT CRITICAL DATA
+          # Move DB, Uploads, and your AI Model to /tmp so they aren't overwritten
+          [ -f $APP_DIR/database.db ] && mv $APP_DIR/database.db /tmp/database.db.temp
+          [ -d $APP_DIR/uploads ] && mv $APP_DIR/uploads /tmp/uploads.temp
+          [ -d $APP_DIR/bge-m3 ] && mv $APP_DIR/bge-m3 /tmp/bge-m3.temp
+          [ -d $APP_DIR/local_dir ] && mv $APP_DIR/local_dir /tmp/local_dir.temp
 
-          # ✅ BACKUP UPLOADS
-          if [ -d /var/www/FalconGo/uploads ]; then
-            mv /var/www/FalconGo/uploads /tmp/uploads.temp
-          fi
+          # Clear the directory for a clean source/binary sync
+          sudo rm -rf $APP_DIR/* # Extract everything
+          echo "Extracting Source + Binary..."
+          sudo tar -xzf /tmp/deployment.tar.gz -C $APP_DIR
 
-          # Extract everything (Source + Binary)
-          echo "Extracting Source Code and Binary..."
-          sudo tar -xzf /tmp/deployment.tar.gz -C /var/www/FalconGo
+          # ✅ RESTORE PROTECTED DATA
+          [ -f /tmp/database.db.temp ] && mv /tmp/database.db.temp $APP_DIR/database.db
+          [ -d /tmp/uploads.temp ] && mv /tmp/uploads.temp $APP_DIR/uploads
+          [ -d /tmp/bge-m3.temp ] && mv /tmp/bge-m3.temp $APP_DIR/bge-m3
+          [ -d /tmp/local_dir.temp ] && mv /tmp/local_dir.temp $APP_DIR/local_dir
 
-          # ✅ RESTORE DATABASE
-          if [ -f /tmp/database.db.temp ]; then
-            mv /tmp/database.db.temp /var/www/FalconGo/database.db
-          fi
-
-          # ✅ RESTORE UPLOADS
-          if [ -d /tmp/uploads.temp ]; then
-            mv /tmp/uploads.temp /var/www/FalconGo/uploads
-          else
-            mkdir -p /var/www/FalconGo/uploads
-          fi
-
-          chmod +x /var/www/FalconGo/main
-          sudo chown -R root:root /var/www/FalconGo
+          # Final setup
+          chmod +x $APP_DIR/main
+          sudo chown -R ${{ secrets.SSH_USER }}:$(id -gn ${{ secrets.SSH_USER }}) $APP_DIR
           
-          # Restart service
           sudo systemctl restart Falcon
           EOF
 
@@ -104,7 +94,3 @@ jobs:
           scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deployment.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
           scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
           ssh -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash /tmp/deploy.sh"
-
-      - name: Verify deployment
-        run: |
-          ssh -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "systemctl status Falcon | grep 'active'" || true
