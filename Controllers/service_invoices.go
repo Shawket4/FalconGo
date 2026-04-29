@@ -209,28 +209,59 @@ func GetServiceInvoicesByCarID(c *fiber.Ctx) error {
 // GetAllServiceInvoices retrieves all service invoices with pagination
 // GET /api/service-invoices?page=1&limit=10
 func GetAllServiceInvoices(c *fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	pageStr := c.Query("page", "1")
+	limitStr := c.Query("limit")
+	carIDStr := c.Query("car_id")
 
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 10
-	}
+	db := Models.DB.Model(&Models.ServiceInvoice{})
 
-	offset := (page - 1) * limit
+	if carIDStr != "" {
+		carID, _ := strconv.Atoi(carIDStr)
+		db = db.Where("car_id = ?", carID)
+	}
 
 	var invoices []Models.ServiceInvoice
 	var total int64
 
-	// Get total count
-	Models.DB.Model(&Models.ServiceInvoice{}).Count(&total)
+	if limitStr != "" {
+		limit, _ := strconv.Atoi(limitStr)
+		page, _ := strconv.Atoi(pageStr)
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 {
+			limit = 10
+		}
+		offset := (page - 1) * limit
 
-	// Get paginated results
-	err := Models.DB.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
+		db.Count(&total)
+		err := db.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("item_order ASC")
+		}).Order("date DESC").Offset(offset).Limit(limit).Find(&invoices).Error
+
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Database error",
+				"message": err.Error(),
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"message": "Service invoices retrieved successfully",
+			"data":    invoices,
+			"pagination": fiber.Map{
+				"page":       page,
+				"limit":      limit,
+				"total":      total,
+				"totalPages": (total + int64(limit) - 1) / int64(limit),
+			},
+		})
+	}
+
+	// Non-paginated: Return everything
+	err := db.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("item_order ASC")
-	}).Order("date DESC").Offset(offset).Limit(limit).Find(&invoices).Error
+	}).Order("date DESC").Find(&invoices).Error
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -242,12 +273,6 @@ func GetAllServiceInvoices(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Service invoices retrieved successfully",
 		"data":    invoices,
-		"pagination": fiber.Map{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"totalPages": (total + int64(limit) - 1) / int64(limit),
-		},
 	})
 }
 
