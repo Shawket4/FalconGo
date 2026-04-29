@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"Falcon/Models"   // Ensure this matches your project structure
-	"Falcon/Services" // Ensure this matches your project structure
+	"Falcon/AbstractFunctions" // Ensure this matches your project structure
 
 	"github.com/joho/godotenv"
 	"github.com/pgvector/pgvector-go"
@@ -76,7 +76,7 @@ func main() {
 		}
 
 		// Call your local TEI Docker container
-		vectors, err := Services.GenerateEmbeddingsBatch(texts)
+		vectors, err := AbstractFunctions.GenerateEmbeddingsBatch(texts)
 		if err != nil {
 			log.Printf("ERROR on batch starting at index %d: %v", i, err)
 			continue
