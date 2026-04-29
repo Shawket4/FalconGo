@@ -2,7 +2,7 @@ package Models
 
 import (
 	"time"
-
+	"github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
 )
 
@@ -28,6 +28,8 @@ type InspectionItem struct {
 	Service          string `json:"service" gorm:"size:500"`
 	Notes            string `json:"notes" gorm:"type:text"`
 	ItemOrder        int    `json:"item_order" gorm:"not null;default:0"`
+	// The pgvector field (1024 dimensions for bge-m3)
+	Embedding pgvector.Vector `json:"-" gorm:"type:vector(1024)"`
 
 	// Relationship
 	ServiceInvoice ServiceInvoice `json:"service_invoice,omitempty" gorm:"foreignKey:ServiceInvoiceID"`
