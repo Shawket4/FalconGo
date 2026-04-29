@@ -25,57 +25,32 @@ jobs:
       - name: Ensure HTTP on localhost
         run: |
           echo "Checking Listen configuration in FiberConfig/Routes.go..."
-
-          # Comment out any active ListenTLS lines
           if grep -qE "^\s*app\.ListenTLS" FiberConfig/Routes.go; then
-            echo "Found active ListenTLS, commenting out..."
             sed -i 's|^\(\s*\)app\.ListenTLS(.*|\1// &|g' FiberConfig/Routes.go
-            echo "✅ ListenTLS commented out"
-          else
-            echo "No active ListenTLS found, nothing to disable"
           fi
-
-          # Ensure app.Listen is bound to 127.0.0.1:3001 (not :3001)
-          # Handle the case where it's currently commented out
           if grep -q "// app.Listen" FiberConfig/Routes.go; then
-            echo "Found commented Listen, uncommenting..."
             sed -i 's|// app\.Listen(":3001")|app.Listen("127.0.0.1:3001")|g' FiberConfig/Routes.go
           fi
-
-          # If it's already active but bound to all interfaces, rebind to loopback
           if grep -qE "^\s*app\.Listen\(\":3001\"\)" FiberConfig/Routes.go; then
-            echo "Rebinding from :3001 to 127.0.0.1:3001..."
             sed -i 's|app\.Listen(":3001")|app.Listen("127.0.0.1:3001")|g' FiberConfig/Routes.go
           fi
 
-          # Verify
-          echo ""
-          echo "Current Listen configuration:"
-          grep "Listen" FiberConfig/Routes.go
-
       - name: Build Go application for Ubuntu
         run: |
-          # Build for Linux (Ubuntu)
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o main ./main.go
-          # Make the binary executable
           chmod +x main
 
       - name: Prepare deployment package
         run: |
-          # Create a directory for all files to deploy
-          mkdir -p deployment
-
-          # Copy the binary
-          cp main deployment/
-
-          # Copy all necessary directories for static files (EXCLUDING uploads/)
-          cp -r Templates static deployment/ || true
-
-          # Copy any config files you might need
-          cp -r config*.* deployment/ || true
-
-          # Create a tarball for easier transfer
-          tar -czf deployment.tar.gz -C deployment .
+          # We create the tarball directly from the root
+          # We include the binary 'main' and all source files
+          # We EXCLUDE git history, github actions, and the tarball itself to save space
+          tar -czf deployment.tar.gz \
+            --exclude='deployment.tar.gz' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='uploads' \
+            .
 
       - name: Setup SSH
         run: |
@@ -87,85 +62,46 @@ jobs:
 
       - name: Deploy to VPS
         run: |
-          # Create a backup script to run on the server
           cat > deploy.sh << 'EOF'
           #!/bin/bash
-          # Create directory if it doesn't exist
           sudo mkdir -p /var/www/FalconGo
-
-          # Stop the service
           sudo systemctl stop Falcon || true
 
-          # ✅ BACKUP DATABASE
+          # ✅ BACKUP DATABASE (Keep this safe during overwrite)
           if [ -f /var/www/FalconGo/database.db ]; then
-            echo "Backing up database..."
-            cp /var/www/FalconGo/database.db /var/www/FalconGo/database.db.bak
             cp /var/www/FalconGo/database.db /tmp/database.db.temp
           fi
 
-          # ✅ BACKUP UPLOADS DIRECTORY
+          # ✅ BACKUP UPLOADS
           if [ -d /var/www/FalconGo/uploads ]; then
-            echo "Backing up uploads directory..."
             mv /var/www/FalconGo/uploads /tmp/uploads.temp
           fi
 
-          # Extract new files
-          echo "Extracting new files..."
-          cd /var/www/FalconGo
-
-          # Extract everything, overwriting existing files
-          tar -xzf /tmp/deployment.tar.gz
+          # Extract everything (Source + Binary)
+          echo "Extracting Source Code and Binary..."
+          sudo tar -xzf /tmp/deployment.tar.gz -C /var/www/FalconGo
 
           # ✅ RESTORE DATABASE
           if [ -f /tmp/database.db.temp ]; then
-            echo "Restoring database..."
             mv /tmp/database.db.temp /var/www/FalconGo/database.db
           fi
 
-          # ✅ RESTORE UPLOADS DIRECTORY
+          # ✅ RESTORE UPLOADS
           if [ -d /tmp/uploads.temp ]; then
-            echo "Restoring uploads directory..."
             mv /tmp/uploads.temp /var/www/FalconGo/uploads
           else
-            # Create uploads directory if it doesn't exist
-            echo "Creating uploads directory..."
             mkdir -p /var/www/FalconGo/uploads
           fi
 
-          # Make sure binary is executable
           chmod +x /var/www/FalconGo/main
-
-          # Set ownership
           sudo chown -R root:root /var/www/FalconGo
-
-          # Make sure directories for static files exist
-          mkdir -p /var/www/FalconGo/CarLicenses
-          mkdir -p /var/www/FalconGo/CarLicensesBack
-          mkdir -p /var/www/FalconGo/CalibrationLicenses
-          mkdir -p /var/www/FalconGo/CalibrationLicensesBack
-          mkdir -p /var/www/FalconGo/DriverLicenses
-          mkdir -p /var/www/FalconGo/SafetyLicenses
-          mkdir -p /var/www/FalconGo/DrugTests
-          mkdir -p /var/www/FalconGo/CriminalRecords
-          mkdir -p /var/www/FalconGo/IDLicenses
-          mkdir -p /var/www/FalconGo/IDLicensesBack
-          mkdir -p /var/www/FalconGo/TankLicenses
-          mkdir -p /var/www/FalconGo/TankLicensesBack
-          mkdir -p /var/www/FalconGo/ServiceProofs
-          mkdir -p /var/www/FalconGo/static
-
+          
           # Restart service
-          echo "Restarting service..."
           sudo systemctl restart Falcon
-          echo "Deployment completed!"
           EOF
 
           chmod +x deploy.sh
-
-          # Copy the deployment package to the VPS
           scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deployment.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
-
-          # Copy and execute the deployment script
           scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/
           ssh -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "bash /tmp/deploy.sh"
 
