@@ -4230,6 +4230,9 @@ func (h *TripHandler) GetDriverTrips(c *fiber.Ctx) error {
 }
 
 func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*Models.User)
+	hasFinancialAccess := ok && user.Permission >= 3
+
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	offset := (page - 1) * limit
@@ -4312,6 +4315,11 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 		if mapping.ID > 0 {
 			trips[i].Distance = mapping.Distance
 			trips[i].Fee = mapping.Fee
+
+			// Hide fees for Petrol Arrows if user lacks financial access
+			if !hasFinancialAccess && trips[i].Company == "Petrol Arrows" {
+				trips[i].Fee = 0
+			}
 		}
 	}
 
@@ -4329,6 +4337,9 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 
 // GetTripsByCompany - FIXED
 func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*Models.User)
+	hasFinancialAccess := ok && user.Permission >= 3
+
 	company := c.Params("company")
 	if company == "" {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
@@ -4419,6 +4430,11 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 		if mapping.ID > 0 {
 			trips[i].Distance = mapping.Distance
 			trips[i].Fee = mapping.Fee
+
+			// Hide fees for Petrol Arrows if user lacks financial access
+			if !hasFinancialAccess && trips[i].Company == "Petrol Arrows" {
+				trips[i].Fee = 0
+			}
 		}
 	}
 
@@ -4438,6 +4454,9 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 
 // GetTripsByDate - FIXED
 func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
+	user, ok := c.Locals("user").(*Models.User)
+	hasFinancialAccess := ok && user.Permission >= 3
+
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 
@@ -4538,6 +4557,11 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 		if mapping.ID > 0 {
 			trips[i].Distance = mapping.Distance
 			trips[i].Fee = mapping.Fee
+
+			// Hide fees for Petrol Arrows if user lacks financial access
+			if !hasFinancialAccess && trips[i].Company == "Petrol Arrows" {
+				trips[i].Fee = 0
+			}
 		}
 	}
 
