@@ -20,12 +20,12 @@ func Logger() fiber.Handler {
 // This is for admin users only (web dashboard)
 func Verify(requiredPermission int) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Get JWT from cookies
+		// Get JWT from cookies, fall back to Authorization header (Tauri desktop)
 		cookie := c.Cookies("jwt")
 		if cookie == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"message": "Not Logged In.",
-			})
+			if auth := c.Get("Authorization"); len(auth) > 7 && auth[:7] == "Bearer " {
+				cookie = auth[7:]
+			}
 		}
 
 		// Parse token with custom claims
