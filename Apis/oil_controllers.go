@@ -24,14 +24,17 @@ func CreateOilChange(c *fiber.Ctx) error {
 	authorUser := c.Locals("user").(*Models.User)
 	input.Author = authorUser.Name
 	input, err := input.Add()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 
 	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", car.ID).Update("last_oil_change_id", input.ID).Error; err != nil {
 		log.Println(err)
 		return err
 	}
-	if err != nil {
-		log.Println(err)
-		return err
+	if err := Models.RecalculateMileage(car.ID); err != nil {
+		log.Println("Error updating car mileage:", err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -72,10 +75,12 @@ func EditOilChange(c *fiber.Ctx) error {
 	oilChange.OdometerAtChange = input.OdometerAtChange
 	overWriterUser := c.Locals("user").(*Models.User)
 	oilChange.Overwriter = overWriterUser.Name
-	_, err := oilChange.Edit()
-	if err != nil {
+	if _, err := oilChange.Edit(); err != nil {
 		log.Println(err)
 		return err
+	}
+	if err := Models.RecalculateMileage(car.ID); err != nil {
+		log.Println("Error updating car mileage:", err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -115,12 +120,12 @@ func DeleteOilChange(c *fiber.Ctx) error {
 		})
 	}
 
-	_, err = oilChange.Delete()
-	if err != nil {
+	if _, err = oilChange.Delete(); err != nil {
 		log.Println(err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Error deleting oil change record",
-		})
+		return err
+	}
+	if err := Models.RecalculateMileage(oilChange.CarID); err != nil {
+		log.Println("Error updating car mileage:", err)
 	}
 
 	return c.JSON(fiber.Map{

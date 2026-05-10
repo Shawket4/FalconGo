@@ -288,6 +288,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	fuel := api.Group("/fuel", middleware.Verify(1))
 	fuel.Get("/statistics", fuelHandler.GetFuelStatistics)
 	fuel.Get("/sync-car-odometers", middleware.Verify(3), Apis.SyncCarLastFuelOdometer)
+	fuel.Get("/sync-car-mileages", middleware.Verify(3), Apis.SyncCarMileages)
 
 	protectedApis := api.Group("/protected/", middleware.Verify(1))
 	protectedApis.Post("/AddFuelEvent", middleware.Verify(3), Apis.AddFuelEvent)

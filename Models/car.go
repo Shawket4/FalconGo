@@ -30,6 +30,7 @@ type Car struct {
 	Speed                     int              `json:"speed"`
 	LastFuelOdometer          int              `json:"last_fuel_odometer"`
 	LastOilChangeID           int              `json:"last_oil_change_id"`
+	Mileage                   float64          `json:"mileage"`
 	DriverID                  *uint            `json:"driver_id" gorm:"index"`
 	Driver                    *Driver          `json:"driver" gorm:"foreignKey:DriverID"`
 	EtitCarID                 string           `json:"etit_car_id"`
@@ -51,4 +52,37 @@ type Car struct {
 
 func (Car) TableName() string {
 	return "cars"
+}
+
+func RecalculateMileage(carID uint) error {
+	var car Car
+	if err := DB.First(&car, carID).Error; err != nil {
+		return err
+	}
+
+	var maxMileage float64
+
+	// 1. Check Fuel Events
+	var maxFuelOdo float64
+	DB.Model(&FuelEvent{}).Where("car_id = ?", carID).Select("MAX(odometer_after)").Scan(&maxFuelOdo)
+	if maxFuelOdo > maxMileage {
+		maxMileage = maxFuelOdo
+	}
+
+	// 2. Check Oil Changes
+	var maxOilOdo float64
+	DB.Model(&OilChange{}).Where("car_id = ?", carID).Select("MAX(current_odometer)").Scan(&maxOilOdo)
+	if maxOilOdo > maxMileage {
+		maxMileage = maxOilOdo
+	}
+
+	// 3. Check Service Invoices (Manual Overrides)
+	var maxServiceOdo float64
+	DB.Model(&ServiceInvoice{}).Where("car_id = ?", carID).Select("MAX(meter_reading)").Scan(&maxServiceOdo)
+	if maxServiceOdo > maxMileage {
+		maxMileage = maxServiceOdo
+	}
+
+	// Update Car Mileage
+	return DB.Model(&car).Update("mileage", maxMileage).Error
 }

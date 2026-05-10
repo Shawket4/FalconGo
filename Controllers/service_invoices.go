@@ -110,6 +110,12 @@ func CreateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
+	// Recalculate Car Mileage
+	if err := Models.RecalculateMileage(invoice.CarID); err != nil {
+		// Log but don't fail the request since the invoice is already created
+		println("Error updating car mileage:", err.Error())
+	}
+
 	// 8. Reload everything for the response
 	Models.DB.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("item_order ASC")
@@ -400,6 +406,11 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 		})
 	}
 
+	// Recalculate Car Mileage
+	if err := Models.RecalculateMileage(invoice.CarID); err != nil {
+		println("Error updating car mileage:", err.Error())
+	}
+
 	// 9. Reload with relationships for the response
 	Models.DB.Preload("Car").Preload("InspectionItems", func(db *gorm.DB) *gorm.DB {
 		return db.Order("item_order ASC")
@@ -444,6 +455,11 @@ func DeleteServiceInvoice(c *fiber.Ctx) error {
 			"error":   "Failed to delete service invoice",
 			"message": err.Error(),
 		})
+	}
+
+	// Recalculate Car Mileage
+	if err := Models.RecalculateMileage(invoice.CarID); err != nil {
+		println("Error updating car mileage:", err.Error())
 	}
 
 	return c.JSON(fiber.Map{

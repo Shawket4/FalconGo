@@ -365,6 +365,9 @@ func AddFuelEvent(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
+	if err := Models.RecalculateMileage(car.ID); err != nil {
+		log.Println("Error updating car mileage:", err)
+	}
 	PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
 	return c.JSON(inputJson)
 }
@@ -415,6 +418,10 @@ func EditFuelEvent(c *fiber.Ctx) error {
 		// If the edited fuel event is the last fuel event, call the PetroApp function
 		PetroApp.UpdatePetroAppOdometerFromManualFuelEvent(inputJson.CarNoPlate, inputJson.OdometerAfter)
 	}
+
+	if err := Models.RecalculateMileage(car.ID); err != nil {
+		log.Println("Error updating car mileage:", err)
+	}
 	return c.JSON(inputJson)
 }
 
@@ -430,10 +437,21 @@ func DeleteFuelEvent(c *fiber.Ctx) error {
 	}
 
 	// _, err := fuelEvent.Delete()
+	// Find car ID before deletion to recalculate mileage
+	var fuelEvent Models.FuelEvent
+	Models.DB.First(&fuelEvent, inputJson.ID)
+
 	if err := Models.DB.Delete(&Models.FuelEvent{}, "id= ?", inputJson.ID).Error; err != nil {
 		log.Println(err.Error())
 		return err
 	}
+
+	if fuelEvent.CarID != 0 {
+		if err := Models.RecalculateMileage(fuelEvent.CarID); err != nil {
+			log.Println("Error updating car mileage:", err)
+		}
+	}
+
 	return c.JSON(fiber.Map{
 		"message": "Fuel Event Deleted Successfully",
 	})

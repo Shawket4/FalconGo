@@ -1947,3 +1947,35 @@ func SyncCarLastFuelOdometer(c *fiber.Ctx) error {
 		"results":       results,
 	})
 }
+
+func SyncCarMileages(c *fiber.Ctx) error {
+	log.Println("Starting global car mileage recalculation process...")
+
+	var cars []Models.Car
+	if err := Models.DB.Find(&cars).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to fetch cars",
+			"error":   err.Error(),
+		})
+	}
+
+	updatedCount := 0
+	errorCount := 0
+
+	for _, car := range cars {
+		if err := Models.RecalculateMileage(car.ID); err != nil {
+			log.Printf("Error recalculating mileage for car %s: %v", car.CarNoPlate, err)
+			errorCount++
+		} else {
+			updatedCount++
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success":       true,
+		"message":       fmt.Sprintf("Recalculated mileage for %d cars, %d errors", updatedCount, errorCount),
+		"updated_count": updatedCount,
+		"error_count":   errorCount,
+	})
+}
