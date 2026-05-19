@@ -353,13 +353,21 @@ func (h *TripHandler) GetTripStatsByTime(StartDate, EndDate, CompanyFilter strin
 					h.DB.Raw(`
 						SELECT COALESCE(SUM(
 							CASE 
-								WHEN fm.fee = 1 THEN t.tank_capacity * 95.0 / 1000
-                WHEN fm.fee = 2 THEN t.tank_capacity * 111.0 / 1000
-                WHEN fm.fee = 3 THEN t.tank_capacity * 118.0 / 1000
-                WHEN fm.fee = 4 THEN t.tank_capacity * 142.0 / 1000
-                WHEN fm.fee = 5 THEN t.tank_capacity * 167.0 / 1000
-                WHEN fm.fee = 6 THEN t.tank_capacity * 179.0 / 1000
-                WHEN fm.fee = 7 THEN t.tank_capacity * 191.0 / 1000
+								WHEN fm.fee = 1 THEN t.tank_capacity * 104.5 / 1000
+								WHEN fm.fee = 2 THEN t.tank_capacity * 122.1 / 1000
+								WHEN fm.fee = 3 THEN t.tank_capacity * 129.8 / 1000
+								WHEN fm.fee = 4 THEN t.tank_capacity * 156.2 / 1000
+								WHEN fm.fee = 5 THEN t.tank_capacity * 183.7 / 1000
+								WHEN fm.fee = 6 THEN t.tank_capacity * 196.9 / 1000
+								WHEN fm.fee = 7 THEN t.tank_capacity * 210.1 / 1000
+								WHEN fm.fee = 8 THEN t.tank_capacity * 235.4 / 1000
+								WHEN fm.fee = 9 THEN t.tank_capacity * 261.8 / 1000
+								WHEN fm.fee = 10 THEN t.tank_capacity * 288.2 / 1000
+								WHEN fm.fee = 11 THEN t.tank_capacity * 314.6 / 1000
+								WHEN fm.fee = 12 THEN t.tank_capacity * 341.0 / 1000
+								WHEN fm.fee = 13 THEN t.tank_capacity * 367.4 / 1000
+								WHEN fm.fee = 14 THEN t.tank_capacity * 393.8 / 1000
+								WHEN fm.fee = 15 THEN t.tank_capacity * 420.2 / 1000
 								ELSE 0
 							END
 						), 0) as total_revenue
@@ -1240,26 +1248,7 @@ func (h *TripHandler) GetTripStatistics(c *fiber.Ctx) error {
 			companyStats.TotalAmount = 0
 
 			for _, stat := range feeStats {
-				var ratePerVolume float64
-
-				switch int(stat.Fee) {
-				case 1:
-					ratePerVolume = 95.0
-				case 2:
-					ratePerVolume = 111.0
-				case 3:
-					ratePerVolume = 118.0
-				case 4:
-					ratePerVolume = 142.0
-				case 5:
-					ratePerVolume = 167.0
-				case 6:
-					ratePerVolume = 179.0
-				case 7:
-					ratePerVolume = 191.0
-				default:
-					ratePerVolume = 0
-				}
+				ratePerVolume := wtFeeIndexToAmount[int(stat.Fee)]
 
 				baseRevenue := stat.TotalVolume * ratePerVolume / 1000
 				vat := baseRevenue * 0.14
@@ -1814,26 +1803,7 @@ func (h *TripHandler) GetTripStatsByRoute(company, startDate, endDate string, ha
 		`, company, startDate, startDate, endDate, endDate).Scan(&routeData)
 
 		for _, route := range routeData {
-			var ratePerVolume float64
-
-			switch int(route.Fee) {
-			case 1:
-				ratePerVolume = 95.0
-			case 2:
-				ratePerVolume = 111.0
-			case 3:
-				ratePerVolume = 118.0
-			case 4:
-				ratePerVolume = 142.0
-			case 5:
-				ratePerVolume = 167.0
-			case 6:
-				ratePerVolume = 179.0
-			case 7:
-				ratePerVolume = 191.0
-			default:
-				ratePerVolume = 0
-			}
+			ratePerVolume := wtFeeIndexToAmount[int(route.Fee)]
 
 			baseRevenue := route.TotalVolume * ratePerVolume / 1000
 			vat := baseRevenue * 0.14
@@ -2250,25 +2220,7 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 				continue
 			}
 
-			var feeAmount float64
-			switch int64(feeMapping.Fee) {
-			case 1:
-				feeAmount = 95.0
-			case 2:
-				feeAmount = 111.0
-			case 3:
-				feeAmount = 118.0
-			case 4:
-				feeAmount = 142.0
-			case 5:
-				feeAmount = 167.0
-			case 6:
-				feeAmount = 179.0
-			case 7:
-				feeAmount = 191.0
-			default:
-				feeAmount = 0.0
-			}
+			feeAmount := wtFeeIndexToAmount[int(feeMapping.Fee)]
 			feeAmount *= 1.14
 
 			// Get daily route details
@@ -2578,9 +2530,9 @@ const (
  
 // wtFeeIndexToAmount maps a fee index (1-15) to its EGP-per-1 000-litre amount.
 var wtFeeIndexToAmount = map[int]float64{
-	1: 95, 2: 111, 3: 118, 4: 142, 5: 167,
-	6: 179, 7: 191, 8: 214, 9: 238, 10: 262,
-	11: 286, 12: 310, 13: 334, 14: 358, 15: 382,
+	1: 104.5, 2: 122.1, 3: 129.8, 4: 156.2, 5: 183.7,
+	6: 196.9, 7: 210.1, 8: 235.4, 9: 261.8, 10: 288.2,
+	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
 }
  
 // wtPalette holds every hex color used in the report.
