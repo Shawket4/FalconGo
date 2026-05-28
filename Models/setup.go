@@ -6,14 +6,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"github.com/joho/godotenv"
 )
 
 var DB *gorm.DB
-
 
 func Connect() {
 	var err error
@@ -232,6 +231,8 @@ func runAutoMigrations() {
 		&Vendor{},
 		&VendorTransaction{},
 	)
+
+	DB.AutoMigrate(&PetroAppToken{})
 
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences

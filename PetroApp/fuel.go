@@ -107,17 +107,22 @@ func FetchPetroAppRecords() ([]Models.PetroAppRecord, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set required headers - validate they're not empty
-	if token == "" {
+	var petroAppToken Models.PetroAppToken
+
+	if err := Models.DB.Find(&petroAppToken).Error; err != nil {
 		return nil, fmt.Errorf("authorization token is not set")
 	}
-	if cookie == "" {
+	// Set required headers - validate they're not empty
+	if petroAppToken.Token == "" {
+		return nil, fmt.Errorf("authorization token is not set")
+	}
+	if petroAppToken.Cookie == "" {
 		log.Println("Warning: cookie is empty, this might cause authentication issues")
 	}
 
-	req.Header.Set("Authorization", token)
+	req.Header.Set("Authorization", petroAppToken.Token)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Cookie", petroAppToken.Cookie)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Falcon-PetroApp-Sync/1.0")
 
@@ -669,17 +674,23 @@ func UpdatePetroAppOdometerFromManualFuelEvent(plateNumber string, odometer int)
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Validate required headers
-	if token == "" {
+	var petroAppToken Models.PetroAppToken
+
+	if err := Models.DB.Find(&petroAppToken).Error; err != nil {
 		return fmt.Errorf("authorization token is not set")
 	}
-	if cookie == "" {
+
+	// Validate required headers
+	if petroAppToken.Token == "" {
+		return fmt.Errorf("authorization token is not set")
+	}
+	if petroAppToken.Cookie == "" {
 		log.Println("Warning: cookie is empty, this might cause authentication issues")
 	}
 
-	req.Header.Set("Authorization", token)
+	req.Header.Set("Authorization", petroAppToken.Token)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Cookie", petroAppToken.Cookie)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Falcon-PetroApp-Sync/1.0")
 

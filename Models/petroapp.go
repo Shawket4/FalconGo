@@ -2,6 +2,12 @@ package Models
 
 import "gorm.io/gorm"
 
+type PetroAppToken struct {
+	gorm.Model
+	Token  string `json:"token"`
+	Cookie string `json:"cookie"`
+}
+
 type PetroAppRecord struct {
 	gorm.Model
 	Branch                string  `json:"branch"`

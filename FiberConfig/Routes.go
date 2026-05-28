@@ -389,7 +389,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	app.Post("/get-closest-stations", middleware.VerifyAny(), PetroApp.GetClosestStations)
 	api.Post("/multi-route-optimizer", MultiRouteOptimizer.OptimalRouteHandler)
 	app.Post("/convert/upload", middleware.Verify(1), ETA.ConvertToExcel)
-
+	app.Post("/set-petroapp-token", middleware.Verify(3), PetroApp.SetPetroAppTokens)
 	// ============================================
 	// NOTIFICATIONS
 	// ============================================
@@ -487,7 +487,7 @@ func FiberConfig() {
 
 	// CORS
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://apextransport.ddns.net, http://localhost:3000, http://localhost:5173, http://192.168.1.7:5174, tauri://localhost, https://tauri.localhost",
+		AllowOrigins:     "https://apextransport.ddns.net, http://localhost:3000, http://localhost:5173, http://192.168.1.7:5174, tauri://localhost, https://tauri.localhost",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type",
 		AllowCredentials: true,

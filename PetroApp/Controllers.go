@@ -145,3 +145,17 @@ func getOSRMRouteData(originLat, originLng, destLat, destLng float64) (float64, 
 	route := osrmResp.Routes[0]
 	return route.Distance / 1000, route.Duration / 60, nil
 }
+
+func SetPetroAppTokens(c *fiber.Ctx) error {
+	var input Models.PetroAppToken
+	if err := c.BodyParser(&input); err != nil {
+		return err
+	}
+	input.ID = 1
+	if err := Models.DB.Save(&input).Error; err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{
+		"Success": "PetroApp Token Updated",
+	})
+}
