@@ -389,7 +389,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	app.Post("/get-closest-stations", middleware.VerifyAny(), PetroApp.GetClosestStations)
 	api.Post("/multi-route-optimizer", MultiRouteOptimizer.OptimalRouteHandler)
 	app.Post("/convert/upload", middleware.Verify(1), ETA.ConvertToExcel)
-	app.Post("/set-petroapp-token", middleware.Verify(3), PetroApp.SetPetroAppTokens)
+	api.Post("/set-petroapp-token", middleware.Verify(3), PetroApp.SetPetroAppTokens)
 	// ============================================
 	// NOTIFICATIONS
 	// ============================================
