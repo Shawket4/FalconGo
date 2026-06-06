@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
 
@@ -419,7 +421,7 @@ func EditFuelEvent(c *fiber.Ctx) error {
 
 	if lastFuelEvent.ID == inputJson.ID {
 		// If the edited fuel event is the last fuel event, push the odometer
-		PushOdometerToServiceAsync(inputJson.CarID, inputJson.OdometerAfter)
+		PushOdometerToServiceAsync(car.ID, inputJson.OdometerAfter)
 	}
 
 	if err := Models.RecalculateMileage(car.ID); err != nil {
@@ -463,12 +465,21 @@ func DeleteFuelEvent(c *fiber.Ctx) error {
 // PushOdometerToServiceAsync sends the manual fuel event's odometer reading to the Rust apex-petroapp microservice asynchronously.
 func PushOdometerToServiceAsync(carID uint, odometer int) {
 	go func() {
-		if Constants.PetroAppServiceURL == "" {
+		if err := godotenv.Load(".env"); err != nil {
+			log.Printf("⚠️  Error loading .env file: %v", err)
+		}
+		
+		serviceURL := os.Getenv("PETROAPP_SERVICE_URL")
+		if serviceURL == "" {
+			serviceURL = Constants.PetroAppServiceURL
+		}
+
+		if serviceURL == "" {
 			log.Println("Warning: PETROAPP_SERVICE_URL is not set, skipping odometer push")
 			return
 		}
 		
-		url := Constants.PetroAppServiceURL + "/odometer/push"
+		url := serviceURL + "/odometer/push"
 		
 		payload := map[string]interface{}{
 			"db_car_id": carID,
@@ -488,8 +499,13 @@ func PushOdometerToServiceAsync(carID uint, odometer int) {
 		}
 		
 		req.Header.Set("Content-Type", "application/json")
-		if Constants.PetroAppServiceAPIKey != "" {
-			req.Header.Set("X-Api-Key", Constants.PetroAppServiceAPIKey)
+		
+		apiKey := os.Getenv("PETROAPP_SERVICE_API_KEY")
+		if apiKey == "" {
+			apiKey = Constants.PetroAppServiceAPIKey
+		}
+		if apiKey != "" {
+			req.Header.Set("X-Api-Key", apiKey)
 		}
 		
 		client := &http.Client{Timeout: 10 * time.Second}
