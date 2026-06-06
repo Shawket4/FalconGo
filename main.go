@@ -4,7 +4,6 @@ import (
 	"Falcon/FiberConfig"
 	"Falcon/Migrations"
 	"Falcon/Models"
-	"Falcon/PetroApp"
 	"Falcon/Slack"
 	"Falcon/workers"
 	"Falcon/Constants"
@@ -193,45 +192,13 @@ func startBackgroundWorkers() {
 	tripSummaryWorker.Start()
 	log.Println("✅ Trip Summary Worker started")
 
-	// 2. PetroApp Sync Worker
-	go petroAppSyncWorker()
-
-	// 3. Speed Violation Monitoring Worker
+	// 2. Speed Violation Monitoring Worker
 	Slack.StartViolationMonitoring()
 	log.Println("✅ Speed Violation Monitoring started")
 
 	log.Println("✅ All background workers started")
 }
 
-// PetroApp sync worker
-func petroAppSyncWorker() {
-	log.Println("🔄 PetroApp Sync Worker started")
-
-	// Initial delay
-	time.Sleep(30 * time.Second)
-
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			// Fetch PetroApp records
-			if records, err := PetroApp.FetchPetroAppRecords(); err != nil {
-				log.Printf("⚠️  Error fetching PetroApp records: %v", err)
-			} else {
-				log.Printf("✅ Fetched %d PetroApp records", len(records))
-			}
-
-			// Sync to FuelEvents
-			if err := PetroApp.SyncPetroAppRecordsToFuelEvents(); err != nil {
-				log.Printf("⚠️  Error syncing PetroApp records: %v", err)
-			} else {
-				log.Println("✅ PetroApp records synced")
-			}
-		}
-	}
-}
 
 // Document expiration checker (uncomment when ready)
 /*

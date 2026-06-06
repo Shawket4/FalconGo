@@ -92,7 +92,6 @@ func fixAllSequences() {
 		"land_marks",
 		"fcm_tokens",
 		"petro_app_stations",
-		"petro_app_records",
 		"speed_alerts",
 		"daily_tasks",
 		"drivers",
@@ -167,7 +166,6 @@ func runAutoMigrations() {
 		&LandMark{},
 		&FCMToken{},
 		&PetroAppStation{},
-		&PetroAppRecord{},
 		&SpeedAlert{},
 		&SpeedViolation{},
 		&DailyTask{},
@@ -231,8 +229,6 @@ func runAutoMigrations() {
 		&Vendor{},
 		&VendorTransaction{},
 	)
-
-	DB.AutoMigrate(&PetroAppToken{})
 
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
