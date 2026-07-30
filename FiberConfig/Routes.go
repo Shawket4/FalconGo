@@ -399,6 +399,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	protectedApis.Get("/CheckWPLogin", middleware.Verify(4), Whatsapp.CheckWPLogin)
 	protectedApis.Get("/GetWhatsAppQRCode", middleware.Verify(4), Whatsapp.GetQRCode)
+	protectedApis.Post("/WhatsAppReconnect", middleware.Verify(4), Whatsapp.Reconnect)
 
 	// ============================================
 	// SLACK INTEGRATION

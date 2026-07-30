@@ -8,60 +8,73 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func CheckWPLogin(c *fiber.Ctx) error {
-	client := &http.Client{}
-	method := "GET"
+type GatewayStatus struct {
+	IsConnected bool   `json:"is_connected"`
+	IsLoggedIn  bool   `json:"is_logged_in"`
+	JID         string `json:"jid"`
+}
 
-	url := Constants.WhatsappGoService + "/app/devices"
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create request",
-		})
-	}
-	req.Header.Add("Content-Type", "application/json")
+func fetchGatewayStatus() (*GatewayStatus, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
 
-	res, err := client.Do(req)
+	res, err := client.Get(Constants.WhatsappGoService + "/app/status")
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to check login status",
-		})
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body) // Use io.ReadAll instead of ioutil.ReadAll
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to read response",
-		})
+		return nil, err
 	}
 
 	var output struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-		Results []struct {
-			Name   string `json:"name"`
-			Device string `json:"device"`
-		} `json:"results"`
+		Results GatewayStatus `json:"results"`
 	}
-
 	if err = json.Unmarshal(body, &output); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to parse response",
-		})
+		return nil, err
 	}
+	return &output.Results, nil
+}
 
-	// Check if user is logged in
-	if len(output.Results) == 0 {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"error": "Not logged in to WhatsApp",
+// CheckWPLogin reports the gateway's live state from GoWA /app/status.
+// /app/devices is not enough: a stored session still lists a device while
+// the link to WhatsApp's servers is dead (e.g. the client-outdated outage).
+func CheckWPLogin(c *fiber.Ctx) error {
+	status, err := fetchGatewayStatus()
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error": "WhatsApp service unreachable",
 		})
 	}
-	return c.Status(http.StatusOK).JSON(nil)
+	return c.Status(http.StatusOK).JSON(status)
+}
+
+// Reconnect asks GoWA to re-establish the WhatsApp link from the stored
+// session, then reports the resulting status.
+func Reconnect(c *fiber.Ctx) error {
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	res, err := client.Get(Constants.WhatsappGoService + "/app/reconnect")
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error": "WhatsApp service unreachable",
+		})
+	}
+	res.Body.Close()
+
+	status, err := fetchGatewayStatus()
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error": "WhatsApp service unreachable",
+		})
+	}
+	return c.Status(http.StatusOK).JSON(status)
 }
 
 func GetQRCode(c *fiber.Ctx) error {
