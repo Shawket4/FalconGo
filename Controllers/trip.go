@@ -4632,6 +4632,49 @@ func (h *TripHandler) checkDuplicateReceipts(receiptNumbers []string, excludeTri
 	return duplicates, nil
 }
 
+// enforceCapacityMatch compares the summed container capacities against the
+// car's registered tank capacity. On mismatch, admins (permission >= 4) get
+// the trip through with a logged override; everyone else is rejected with a
+// 400. Returns handled=true when a response has already been written — the
+// caller must then return the accompanying error.
+func (h *TripHandler) enforceCapacityMatch(
+	c *fiber.Ctx,
+	carID uint,
+	carNoPlate string,
+	containers []Models.TripStruct,
+) (bool, error) {
+	if carID == 0 {
+		return false, nil
+	}
+
+	var car Models.Car
+	if err := h.DB.First(&car, carID).Error; err != nil || car.TankCapacity <= 0 {
+		// Unknown car or no registered capacity — nothing to enforce
+		return false, nil
+	}
+
+	totalCapacity := 0
+	for _, container := range containers {
+		totalCapacity += container.TankCapacity
+	}
+	if totalCapacity == car.TankCapacity {
+		return false, nil
+	}
+
+	user, ok := c.Locals("user").(*Models.User)
+	if !ok || user.Permission < 4 {
+		return true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": fmt.Sprintf(
+				"Total container capacity (%d L) doesn't match the truck's tank capacity (%d L)",
+				totalCapacity, car.TankCapacity),
+		})
+	}
+
+	log.Printf("⚠️  CAPACITY OVERRIDE: %s saved a trip for %s with %d L against a registered capacity of %d L",
+		user.Name, carNoPlate, totalCapacity, car.TankCapacity)
+	return false, nil
+}
+
 func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 	var input struct {
 		ParentTrip       Models.ParentTrip   `json:"parent_trip"`
@@ -4746,6 +4789,14 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 				"error":   err.Error(),
 			})
 		}
+	}
+
+	// Container capacities must sum to the car's tank capacity —
+	// permission-4 admins may override (logged inside the helper)
+	if handled, err := h.enforceCapacityMatch(
+		c, input.ParentTrip.CarID, input.ParentTrip.CarNoPlate, input.Containers,
+	); handled {
+		return err
 	}
 
 	// Begin transaction
@@ -5120,6 +5171,23 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 	// Log if this is a forced update
 	if input.ForceUpdate {
 		log.Printf("⚠️  FORCED UPDATE: User bypassed duplicate check for parent trip ID: %d", id)
+	}
+
+	// Same capacity rule as creation. The frontend always sends the full
+	// container set with update_containers, so the input list is the final
+	// state of the trip.
+	if input.UpdateContainers && len(input.Containers) > 0 {
+		capacityCarID := input.ParentTrip.CarID
+		capacityCarPlate := input.ParentTrip.CarNoPlate
+		if capacityCarID == 0 {
+			capacityCarID = existingParent.CarID
+			capacityCarPlate = existingParent.CarNoPlate
+		}
+		if handled, err := h.enforceCapacityMatch(
+			c, capacityCarID, capacityCarPlate, input.Containers,
+		); handled {
+			return err
+		}
 	}
 
 	// Begin transaction
