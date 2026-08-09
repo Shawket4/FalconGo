@@ -14,6 +14,18 @@ type Loan struct {
 	Method      string  `json:"method"`
 	Date        string  `json:"date"`
 	IsPaid      bool    `json:"is_paid" gorm:"not null;default:false"`
+
+	// Kind distinguishes money that is arithmetically identical but means
+	// different things:
+	//
+	//   advance - paid out ahead of earnings, recovered later. Every row that
+	//             existed before this column was added is one of these.
+	//   loan    - a genuine debt, repaid over time rather than against one period.
+	//   salary  - part of the salary itself, recorded here for visibility only.
+	//
+	// Defaulted to 'advance' so historical rows keep their existing meaning
+	// without a backfill pass being required for correctness.
+	Kind string `json:"kind" gorm:"type:varchar(16);not null;default:'advance';index"`
 	Description string  `json:"description" gorm:"type:text"` // Optional note about the loan
 
 	// Relationships

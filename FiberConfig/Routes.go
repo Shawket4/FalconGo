@@ -510,7 +510,15 @@ func FiberConfig() {
 
 	SetupRoutes(app, Models.DB)
 	SetupEmployeeRoutes(app, Models.DB)
-	SetupPaySlipRoutes(app, Models.DB)
+	// Payroll is DEPRECATED and no longer routed. The module was broken and has
+	// been withdrawn rather than left half-working.
+	//
+	// Deliberately a route-level withdrawal, not a data deletion: pay_slips and
+	// its related tables are untouched and still readable directly, so nothing
+	// historical is destroyed and the decision stays reversible. Re-enable by
+	// restoring this call.
+	// SetupPaySlipRoutes(app, Models.DB)
+	SetupDeprecatedPaySlipRoutes(app)
 	app.Listen("127.0.0.1:3001")
 }
 
@@ -552,6 +560,23 @@ func SetupEmployeeRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/credit-balance/:entity_type/:entity_id", creditController.GetCreditBalance)
 	api.Get("/credit-transactions/:entity_type/:entity_id", creditController.GetCreditTransactions)
 	api.Post("/credit-balance/adjust", creditController.ManualAdjustment)
+}
+
+// SetupDeprecatedPaySlipRoutes answers every payroll path with 410 Gone.
+//
+// A 410 rather than a 404: the endpoints existed and were deliberately removed,
+// and any client still calling them should surface a clear message instead of
+// looking like a routing bug.
+func SetupDeprecatedPaySlipRoutes(app *fiber.App) {
+	gone := func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusGone).JSON(fiber.Map{
+			"error": "The payroll module has been deprecated and is no longer available.",
+			"code":  "payroll_deprecated",
+		})
+	}
+	api := app.Group("/api", middleware.Verify(3))
+	api.All("/payslips", gone)
+	api.All("/payslips/*", gone)
 }
 
 func SetupPaySlipRoutes(app *fiber.App, db *gorm.DB) {
