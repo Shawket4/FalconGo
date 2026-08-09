@@ -6,7 +6,7 @@ type Employee struct {
 	gorm.Model
 	Name         string `json:"name" validate:"required,min=3,max=100"`
 	MobileNumber string `json:"mobile_number"`
-	Type         string `json:"type" validate:"required,oneof=garage office"` // "garage" or "office"
+	Type         string `json:"type"` // Free-form role label, e.g. garage, office, accountant
 	IsActive     bool   `json:"is_active" gorm:"default:true"`
 
 	// Relationships

@@ -28,12 +28,9 @@ func (ec *EmployeeController) CreateEmployee(c *fiber.Ctx) error {
 
 	userID := utils.GetUserIDFromContext(c)
 
-	// Validate employee type
-	if employee.Type != "garage" && employee.Type != "office" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Employee type must be either 'garage' or 'office'",
-		})
-	}
+	// Employee type is free-form. It was previously restricted to "garage" or
+	// "office", which rejected every other real role and blocked creating an
+	// employee inline from the expenses form.
 
 	// Start transaction
 	tx := ec.DB.Begin()
@@ -108,11 +105,7 @@ func (ec *EmployeeController) GetAllEmployees(c *fiber.Ctx) error {
 	// Filter by type if provided
 	employeeType := c.Query("type")
 	if employeeType != "" {
-		if employeeType != "garage" && employeeType != "office" {
-			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid employee type",
-			})
-		}
+		// Any type may be filtered on, since any type may now be stored.
 		query = query.Where("type = ?", employeeType)
 	}
 
@@ -200,13 +193,6 @@ func (ec *EmployeeController) UpdateEmployee(c *fiber.Ctx) error {
 	if err := c.BodyParser(&updateData); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
-		})
-	}
-
-	// Validate type if being updated
-	if updateData.Type != "" && updateData.Type != "garage" && updateData.Type != "office" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Employee type must be either 'garage' or 'office'",
 		})
 	}
 
