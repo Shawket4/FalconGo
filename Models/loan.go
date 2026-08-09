@@ -47,3 +47,18 @@ func (l *Loan) Validate() error {
 	}
 	return nil
 }
+
+// BeforeSave defaults an unset kind to "advance".
+//
+// The database CHECK only accepts advance/loan/salary, and Go's zero value for
+// a string is "" -- so any caller that omits the field (every existing client
+// does) would otherwise fail the constraint. Defaulting here covers every write
+// path rather than each handler remembering to.
+func (l *Loan) BeforeSave(tx *gorm.DB) error {
+	switch l.Kind {
+	case "advance", "loan", "salary":
+	default:
+		l.Kind = "advance"
+	}
+	return nil
+}
