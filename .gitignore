@@ -67,3 +67,5 @@ speed_report_*.txt
 tmp/
 temp/
 *.tmp
+# Agent scratch: worktrees are embedded git repos and break clones.
+.claude/
