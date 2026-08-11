@@ -27,19 +27,6 @@ import (
 // zebra striping, per-cell colouring for the receipt flags, and a SUM totals
 // row — plus an autofilter and a second summary sheet the old one lacked.
 
-// Palette copied from shared/lib/excel.ts so both exports look like the same
-// product. ARGB, as excelize expects.
-const (
-	colBrand      = "#1E40AF"
-	colBrandLight = "#3B6FE0"
-	colWhite      = "#FFFFFF"
-	colRowEven    = "#F9FAFB"
-	colBorder     = "#E5E7EB"
-	colText       = "#111827"
-	colMuted      = "#6B7280"
-	colGreen      = "#16A34A"
-	colViolet     = "#7C3AED"
-)
 
 // TripExportLabels carries the already-translated column headers and titles.
 //
@@ -200,12 +187,13 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 	_ = f.SetCellValue(sheet, "A1", l.Title)
 	_ = f.SetCellValue(sheet, "A2", l.Subtitle)
 	_ = f.SetCellValue(sheet, "A3", meta)
-	_ = f.SetCellStyle(sheet, "A1", fmt.Sprintf("%s1", lastCol), styles.bannerTitle)
-	_ = f.SetCellStyle(sheet, "A2", fmt.Sprintf("%s2", lastCol), styles.bannerSub)
-	_ = f.SetCellStyle(sheet, "A3", fmt.Sprintf("%s3", lastCol), styles.bannerMeta)
-	_ = f.SetRowHeight(sheet, 1, 30)
-	_ = f.SetRowHeight(sheet, 2, 18)
-	_ = f.SetRowHeight(sheet, 3, 16)
+	_ = f.SetCellStyle(sheet, "A1", fmt.Sprintf("%s1", lastCol), styles.title)
+	_ = f.SetCellStyle(sheet, "A2", fmt.Sprintf("%s2", lastCol), styles.subtitle)
+	_ = f.SetCellStyle(sheet, "A3", fmt.Sprintf("%s3", lastCol), styles.meta)
+	_ = f.SetRowHeight(sheet, 1, 38)
+	_ = f.SetRowHeight(sheet, 2, 22)
+	_ = f.SetRowHeight(sheet, 3, 20)
+	_ = f.SetRowHeight(sheet, 4, 8)
 
 	// ── Stat pills (rows 5-6) ────────────────────────────────────────────────
 	stats := computeTripStats(sorted, l, showFinancials)
@@ -237,8 +225,8 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		}
 		_ = f.SetCellStyle(sheet, fmt.Sprintf("%s6", startCol), fmt.Sprintf("%s6", endCol), style)
 	}
-	_ = f.SetRowHeight(sheet, 5, 15)
-	_ = f.SetRowHeight(sheet, 6, 22)
+	_ = f.SetRowHeight(sheet, 5, 18)
+	_ = f.SetRowHeight(sheet, 6, 30)
 
 	// ── Header (row 7) ───────────────────────────────────────────────────────
 	const headerRow = 7
@@ -249,7 +237,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		_ = f.SetColWidth(sheet, colName, colName, c.width)
 	}
 	_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", headerRow), fmt.Sprintf("%s%d", lastCol, headerRow), styles.header)
-	_ = f.SetRowHeight(sheet, headerRow, 30)
+	_ = f.SetRowHeight(sheet, headerRow, 34)
 
 	// Freeze everything above the first data row so the header and the KPIs stay
 	// visible while scrolling thousands of rows -- the whole point of moving the
@@ -267,7 +255,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 	// ── Data rows ────────────────────────────────────────────────────────────
 	row := headerRow + 1
 	for _, t := range trips2(sorted) {
-		even := (row-headerRow)%2 == 0
+		striped := (row-headerRow)%2 == 0
 
 		values := []interface{}{
 			orDash(t.ReceiptNo),
@@ -301,7 +289,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 			} else {
 				_ = f.SetCellValue(sheet, cell, v)
 			}
-			_ = f.SetCellStyle(sheet, cell, cell, styles.cell(cols[i].kind, even))
+			_ = f.SetCellStyle(sheet, cell, cell, styles.cell(cols[i].kind, striped))
 		}
 
 		// Receipt flags are colour-coded green/muted, as in the client build --
@@ -309,9 +297,10 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		flagStart := len(values) - 7
 		for offset, on := range []bool{inGarage, inOffice, stamped} {
 			cell, _ := excelize.CoordinatesToCellName(flagStart+offset+1, row)
-			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, even))
+			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, striped))
 		}
 
+		_ = f.SetRowHeight(sheet, row, 20)
 		row++
 	}
 
@@ -332,7 +321,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 			}
 			_ = f.SetCellStyle(sheet, cell, cell, styles.totalFor(c.kind))
 		}
-		_ = f.SetRowHeight(sheet, totalRow, 24)
+		_ = f.SetRowHeight(sheet, totalRow, 28)
 	}
 
 	if err := writeTripSummarySheet(f, sorted, l, showFinancials); err != nil {
@@ -435,12 +424,12 @@ func writeTripSummarySheet(f *excelize.File, trips []Models.TripStruct, l TripEx
 	}
 	lastCol, _ := excelize.ColumnNumberToName(len(headers))
 	_ = f.SetCellStyle(name, "A1", fmt.Sprintf("%s1", lastCol), styles.header)
-	_ = f.SetRowHeight(name, 1, 26)
+	_ = f.SetRowHeight(name, 1, 34)
 
 	row := 2
 	for _, key := range order {
 		a := byCompany[key]
-		even := row%2 == 0
+		striped := row%2 == 0
 		vals := []interface{}{key, a.trips, round2(a.capacity), round2(a.distance)}
 		kinds := []string{"text", "int", "num", "num"}
 		if showFinancials {
@@ -450,8 +439,9 @@ func writeTripSummarySheet(f *excelize.File, trips []Models.TripStruct, l TripEx
 		for i, v := range vals {
 			cell, _ := excelize.CoordinatesToCellName(i+1, row)
 			_ = f.SetCellValue(name, cell, v)
-			_ = f.SetCellStyle(name, cell, cell, styles.cell(kinds[i], even))
+			_ = f.SetCellStyle(name, cell, cell, styles.cell(kinds[i], striped))
 		}
+		_ = f.SetRowHeight(name, row, 20)
 		row++
 	}
 

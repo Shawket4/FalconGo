@@ -2,24 +2,52 @@ package services
 
 import "github.com/xuri/excelize/v2"
 
-// Cell styles for the trip export, built once per workbook.
+// Cell styles for the trip export.
 //
-// excelize returns an integer style id per NewStyle call and reuses are cheap,
-// but creating one per cell across tens of thousands of rows is not -- it
-// bloats the file and the write. Everything is created up front and indexed.
+// The visual language is taken from the Watanya report (Controllers/trip.go):
+// Cairo throughout, a teal/slate palette, and bottom-only rules instead of a
+// full grid. A boxed grid fights the eye on a wide sheet; a single hairline
+// under each row gives the same row separation and reads far quieter.
+//
+// Everything is centred horizontally and vertically. On a sheet this wide the
+// alternative -- numbers right, text left -- leaves ragged gutters between
+// columns, and vertical centring is what stops a wrapped header from sitting
+// awkwardly above its neighbours.
+//
+// Styles are built once per workbook and indexed. excelize hands back an int per
+// NewStyle, and creating one per cell across ~11,000 rows bloats both the file
+// and the write.
+
+// Palette, matching the Watanya report so the two exports look like one product.
+const (
+	colHeaderBg   = "#2C5F7C"
+	colHeaderText = "#FFFFFF"
+	colAltRow     = "#F8FAFB"
+	colBorder     = "#D5DBDE"
+	colTextDark   = "#2C3E50"
+	colTotalBg    = "#E8F1F5"
+	colAccent     = "#4A90A4"
+	colSubtotalBg = "#D4E6ED"
+	colMutedText  = "#7F8C8D"
+	colPositive   = "#1E8449"
+)
+
+const fontFamily = "Cairo"
 
 type tripStyles struct {
-	bannerTitle    int
-	bannerSub      int
-	bannerMeta     int
+	title    int
+	subtitle int
+	meta     int
+
 	statLabel      int
 	statValue      int
 	statValueMoney int
-	header         int
 
-	// [kind][even] -> style id
+	header int
+
+	// [kind][striped] -> style id
 	body map[string][2]int
-	// [on][even]
+	// [on][striped]
 	flags [2][2]int
 
 	totalText  int
@@ -38,62 +66,80 @@ const (
 
 func newTripStyles(f *excelize.File) (*tripStyles, error) {
 	s := &tripStyles{body: map[string][2]int{}}
-	var err error
 
-	mk := func(st *excelize.Style) (int, error) { return f.NewStyle(st) }
-
-	if s.bannerTitle, err = mk(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Size: 16, Color: colWhite},
-		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colBrand}},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1},
-	}); err != nil {
-		return nil, err
-	}
-	if s.bannerSub, err = mk(&excelize.Style{
-		Font:      &excelize.Font{Size: 11, Color: colWhite},
-		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colBrandLight}},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1},
-	}); err != nil {
-		return nil, err
-	}
-	if s.bannerMeta, err = mk(&excelize.Style{
-		Font:      &excelize.Font{Size: 9, Italic: true, Color: colMuted},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1},
-	}); err != nil {
-		return nil, err
+	var firstErr error
+	make := func(st *excelize.Style) int {
+		id, err := f.NewStyle(st)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		return id
 	}
 
-	if s.statLabel, err = mk(&excelize.Style{
-		Font:      &excelize.Font{Size: 9, Color: colMuted},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
-	}); err != nil {
-		return nil, err
+	cairo := func(size float64, bold bool, color string) *excelize.Font {
+		return &excelize.Font{Size: size, Bold: bold, Color: color, Family: fontFamily}
 	}
-	if s.statValue, err = mk(&excelize.Style{
-		Font:         &excelize.Font{Bold: true, Size: 13, Color: colBrand},
-		Alignment:    &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	// The single alignment used everywhere.
+	center := func() *excelize.Alignment {
+		return &excelize.Alignment{Horizontal: "center", Vertical: "center"}
+	}
+	centerWrap := func() *excelize.Alignment {
+		return &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true}
+	}
+	fill := func(color string) excelize.Fill {
+		return excelize.Fill{Type: "pattern", Color: []string{color}, Pattern: 1}
+	}
+	underline := func(color string, weight int) []excelize.Border {
+		return []excelize.Border{{Type: "bottom", Color: color, Style: weight}}
+	}
+
+	// ── Banner ───────────────────────────────────────────────────────────────
+	// Coloured text on white rather than a filled block: the Watanya report reads
+	// as a document, not a dashboard widget, and at this size a solid band across
+	// seventeen columns is overbearing.
+	s.title = make(&excelize.Style{
+		Font:      cairo(20, true, colHeaderBg),
+		Alignment: center(),
+	})
+	s.subtitle = make(&excelize.Style{
+		Font:      cairo(13, false, colMutedText),
+		Alignment: center(),
+	})
+	s.meta = make(&excelize.Style{
+		Font:      cairo(10, false, colMutedText),
+		Alignment: center(),
+	})
+
+	// ── KPI pills ────────────────────────────────────────────────────────────
+	s.statLabel = make(&excelize.Style{
+		Font:      cairo(10, false, colMutedText),
+		Fill:      fill(colTotalBg),
+		Alignment: center(),
+	})
+	s.statValue = make(&excelize.Style{
+		Font:         cairo(15, true, colHeaderBg),
+		Fill:         fill(colTotalBg),
+		Alignment:    center(),
+		Border:       underline(colAccent, 2),
 		CustomNumFmt: strPtr(fmtInt),
-	}); err != nil {
-		return nil, err
-	}
-	if s.statValueMoney, err = mk(&excelize.Style{
-		Font:         &excelize.Font{Bold: true, Size: 13, Color: colBrand},
-		Alignment:    &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	})
+	s.statValueMoney = make(&excelize.Style{
+		Font:         cairo(15, true, colHeaderBg),
+		Fill:         fill(colTotalBg),
+		Alignment:    center(),
+		Border:       underline(colAccent, 2),
 		CustomNumFmt: strPtr(fmtMoney),
-	}); err != nil {
-		return nil, err
-	}
+	})
 
-	if s.header, err = mk(&excelize.Style{
-		Font:      &excelize.Font{Bold: true, Size: 10, Color: colWhite},
-		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colBrand}},
-		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
-		Border:    thinBorder(),
-	}); err != nil {
-		return nil, err
-	}
+	// ── Header ───────────────────────────────────────────────────────────────
+	s.header = make(&excelize.Style{
+		Font:      cairo(11, true, colHeaderText),
+		Fill:      fill(colHeaderBg),
+		Alignment: centerWrap(),
+		Border:    underline(colHeaderBg, 2),
+	})
 
-	// Body styles: one per (kind, striped) pair.
+	// ── Body ─────────────────────────────────────────────────────────────────
 	kinds := map[string]string{
 		"text": "", "flag": "",
 		"int": fmtInt, "num": fmtNum, "money": fmtMoney,
@@ -101,99 +147,89 @@ func newTripStyles(f *excelize.File) (*tripStyles, error) {
 	}
 	for kind, numFmt := range kinds {
 		var pair [2]int
-		for i, even := range []bool{false, true} {
+		for i, striped := range []bool{false, true} {
 			st := &excelize.Style{
-				Font:      &excelize.Font{Size: 10, Color: colText},
-				Border:    thinBorder(),
-				Alignment: &excelize.Alignment{Vertical: "center", Horizontal: alignFor(kind)},
+				Font:      cairo(10, false, colTextDark),
+				Alignment: center(),
+				Border:    underline(colBorder, 1),
 			}
 			if numFmt != "" {
 				st.CustomNumFmt = strPtr(numFmt)
 			}
-			if even {
-				st.Fill = excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colRowEven}}
+			if striped {
+				st.Fill = fill(colAltRow)
 			}
-			id, err := mk(st)
-			if err != nil {
-				return nil, err
-			}
-			pair[i] = id
+			pair[i] = make(st)
 		}
 		s.body[kind] = pair
 	}
 
+	// ── Receipt flags ────────────────────────────────────────────────────────
+	// Colour carries the meaning here: the column is scanned, not read.
 	for oi, on := range []bool{false, true} {
-		for ei, even := range []bool{false, true} {
-			colour := colMuted
-			bold := false
+		for si, striped := range []bool{false, true} {
+			colour, bold := colMutedText, false
 			if on {
-				colour = colGreen
-				bold = true
+				colour, bold = colPositive, true
 			}
 			st := &excelize.Style{
-				Font:      &excelize.Font{Size: 10, Color: colour, Bold: bold},
-				Border:    thinBorder(),
-				Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "center"},
+				Font:      cairo(10, bold, colour),
+				Alignment: center(),
+				Border:    underline(colBorder, 1),
 			}
-			if even {
-				st.Fill = excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colRowEven}}
+			if striped {
+				st.Fill = fill(colAltRow)
 			}
-			id, err := mk(st)
-			if err != nil {
-				return nil, err
-			}
-			s.flags[oi][ei] = id
+			s.flags[oi][si] = make(st)
 		}
 	}
 
-	totalBase := func(numFmt string) *excelize.Style {
+	// ── Totals ───────────────────────────────────────────────────────────────
+	// A heavy rule above rather than a filled band: it closes the table without
+	// competing with the header for attention.
+	totalStyle := func(numFmt string) *excelize.Style {
 		st := &excelize.Style{
-			Font:      &excelize.Font{Bold: true, Size: 10, Color: colWhite},
-			Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{colViolet}},
-			Border:    thinBorder(),
-			Alignment: &excelize.Alignment{Vertical: "center", Horizontal: "right"},
+			Font:      cairo(11, true, colHeaderBg),
+			Fill:      fill(colTotalBg),
+			Alignment: center(),
+			Border:    []excelize.Border{{Type: "top", Color: colAccent, Style: 2}},
 		}
 		if numFmt != "" {
 			st.CustomNumFmt = strPtr(numFmt)
 		}
 		return st
 	}
-	if s.totalText, err = mk(totalBase("")); err != nil {
-		return nil, err
-	}
-	if s.totalInt, err = mk(totalBase(fmtInt)); err != nil {
-		return nil, err
-	}
-	if s.totalNum, err = mk(totalBase(fmtNum)); err != nil {
-		return nil, err
-	}
-	if s.totalMoney, err = mk(totalBase(fmtMoney)); err != nil {
-		return nil, err
-	}
+	s.totalText = make(totalStyle(""))
+	s.totalInt = make(totalStyle(fmtInt))
+	s.totalNum = make(totalStyle(fmtNum))
+	s.totalMoney = make(totalStyle(fmtMoney))
 
+	if firstErr != nil {
+		return nil, firstErr
+	}
 	return s, nil
 }
 
-func (s *tripStyles) cell(kind string, even bool) int {
+func (s *tripStyles) cell(kind string, striped bool) int {
 	pair, ok := s.body[kind]
 	if !ok {
 		pair = s.body["text"]
 	}
-	if even {
+	if striped {
 		return pair[1]
 	}
 	return pair[0]
 }
 
-func (s *tripStyles) flag(on, even bool) int {
-	oi, ei := 0, 0
+func (s *tripStyles) flag(on, striped bool) int {
+	oi, si := 0, 0
 	if on {
 		oi = 1
 	}
-	if even {
-		ei = 1
+	if striped {
+		si = 1
 	}
-	return s.flags[oi][ei]
+	return s.flags[oi][si]
 }
 
 func (s *tripStyles) totalFor(kind string) int {
@@ -206,28 +242,6 @@ func (s *tripStyles) totalFor(kind string) int {
 		return s.totalMoney
 	default:
 		return s.totalText
-	}
-}
-
-// Numbers right, flags centre, everything else left -- the convention the
-// TypeScript export used and what makes a wide sheet scannable.
-func alignFor(kind string) string {
-	switch kind {
-	case "int", "num", "money":
-		return "right"
-	case "flag", "date", "datetime":
-		return "center"
-	default:
-		return "left"
-	}
-}
-
-func thinBorder() []excelize.Border {
-	return []excelize.Border{
-		{Type: "left", Color: colBorder, Style: 1},
-		{Type: "right", Color: colBorder, Style: 1},
-		{Type: "top", Color: colBorder, Style: 1},
-		{Type: "bottom", Color: colBorder, Style: 1},
 	}
 }
 
