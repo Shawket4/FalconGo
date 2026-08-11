@@ -199,6 +199,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips := api.Group("/trips", middleware.Verify(1))
 	trips.Get("/", tripHandler.GetAllTrips)
 	trips.Get("/statistics", tripHandler.GetTripStatistics)
+	// Server-side Excel export: no row cap, returns the file itself.
+	trips.Post("/export", tripHandler.ExportTripsExcel)
 	trips.Get("/watanya/driver-analytics", tripHandler.GetWatanyaDriverAnalytics)
 	trips.Get("/date", tripHandler.GetTripsByDate)
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
