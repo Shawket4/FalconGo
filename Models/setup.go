@@ -230,6 +230,12 @@ func runAutoMigrations() {
 		&VendorTransaction{},
 	)
 
+	// Phase 12: Canonical locations (set-once terminal/drop-off pins)
+	DB.AutoMigrate(
+		&TerminalAlias{},
+		&DropOffPoint{},
+	)
+
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
 	fixAllSequences()
@@ -237,7 +243,37 @@ func runAutoMigrations() {
 	// Create custom indexes
 	createCustomIndexes()
 
+	backfillDropOffPoints()
+
 	log.Println("✅ Migrations completed")
+}
+
+// backfillDropOffPoints seeds drop_off_points from the legacy per-mapping
+// coordinates in fee_mappings. Every distinct drop-off name gets a row; the
+// pin is taken from the most recently updated mapping that has one. Names
+// without any pinned mapping get a NULL pin and surface in the dashboard's
+// "needs attention" inbox. Idempotent: existing rows are never overwritten.
+func backfillDropOffPoints() {
+	err := DB.Exec(`
+        INSERT INTO drop_off_points (created_at, updated_at, name, latitude, longitude, pin_source)
+        SELECT NOW(), NOW(), src.drop_off_point, src.lat, src.lng,
+               CASE WHEN src.lat IS NOT NULL THEN 'backfill' ELSE '' END
+          FROM (
+            SELECT DISTINCT ON (drop_off_point)
+                   drop_off_point,
+                   NULLIF(latitude, 0)  AS lat,
+                   NULLIF(longitude, 0) AS lng
+              FROM fee_mappings
+             WHERE deleted_at IS NULL AND drop_off_point <> ''
+             ORDER BY drop_off_point,
+                      (NULLIF(latitude, 0) IS NULL),
+                      updated_at DESC
+          ) src
+        ON CONFLICT (name) DO NOTHING
+    `).Error
+	if err != nil {
+		log.Printf("⚠️ drop_off_points backfill failed: %v", err)
+	}
 }
 
 func createCustomIndexes() {

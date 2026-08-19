@@ -28,6 +28,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// INITIALIZE CONTROLLERS
 	// ============================================
 	feeMappingHandler := Controllers.NewFeeMappingHandler(db)
+	locationsHandler := Controllers.NewLocationsHandler(db)
 	osrm := Controllers.NewOSRMEnrichmentHandler(db)
 	tripHandler := Controllers.NewTripHandler(db)
 	vendorController := Controllers.NewVendorController(db)
@@ -175,6 +176,19 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// FEE MAPPING MANAGEMENT
 	// ============================================
+	// Canonical locations: terminals (aliases, radius) + drop-off points.
+	// Pins are set once here and referenced everywhere by name.
+	locations := api.Group("/locations", middleware.Verify(1))
+	locations.Get("/inbox", locationsHandler.GetLocationsInbox)
+	locations.Get("/terminals", locationsHandler.GetTerminals)
+	locations.Put("/terminals/:id", middleware.Verify(3), locationsHandler.UpdateTerminal)
+	locations.Post("/terminals/:id/aliases", middleware.Verify(3), locationsHandler.CreateTerminalAlias)
+	locations.Delete("/aliases/:id", middleware.Verify(3), locationsHandler.DeleteTerminalAlias)
+	locations.Get("/dropoffs", locationsHandler.GetDropOffPoints)
+	locations.Post("/dropoffs", middleware.Verify(3), locationsHandler.CreateDropOffPoint)
+	locations.Put("/dropoffs/:id", middleware.Verify(3), locationsHandler.UpdateDropOffPoint)
+	locations.Delete("/dropoffs/:id", middleware.Verify(3), locationsHandler.DeleteDropOffPoint)
+
 	mappings := api.Group("/mappings", middleware.Verify(1))
 	mappings.Get("/", feeMappingHandler.GetAllFeeMappings)
 	mappings.Post("/enrich-osrm", middleware.Verify(3), osrm.BulkEnrichOSRM)

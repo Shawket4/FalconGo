@@ -102,6 +102,19 @@ func (h *FeeMappingHandler) CreateFeeMapping(c *fiber.Ctx) error {
 		})
 	}
 
+	// Coordinates come from the canonical drop_off_points table: reuse the
+	// shared pin when one exists, otherwise register the name (unpinned) so
+	// it appears in the locations inbox.
+	var point Models.DropOffPoint
+	if err := h.DB.Where("name = ?", mapping.DropOffPoint).First(&point).Error; err == nil {
+		if point.Latitude != nil && point.Longitude != nil {
+			mapping.Latitude = *point.Latitude
+			mapping.Longitude = *point.Longitude
+		}
+	} else {
+		ensureDropOffPointExists(h.DB, mapping.DropOffPoint)
+	}
+
 	// Create the new mapping
 	result = h.DB.Create(&mapping)
 	if result.Error != nil {
@@ -190,8 +203,21 @@ func (h *FeeMappingHandler) UpdateFeeMapping(c *fiber.Ctx) error {
 	if updatedMapping.Terminal != "" {
 		existingMapping.Terminal = updatedMapping.Terminal
 	}
-	if updatedMapping.DropOffPoint != "" {
+	if updatedMapping.DropOffPoint != "" && updatedMapping.DropOffPoint != existingMapping.DropOffPoint {
 		existingMapping.DropOffPoint = updatedMapping.DropOffPoint
+		// Renamed to a different drop-off: adopt the canonical pin when one
+		// exists, otherwise register the new name for the locations inbox.
+		var point Models.DropOffPoint
+		if err := h.DB.Where("name = ?", updatedMapping.DropOffPoint).First(&point).Error; err == nil {
+			if point.Latitude != nil && point.Longitude != nil {
+				existingMapping.Latitude = *point.Latitude
+				existingMapping.Longitude = *point.Longitude
+			}
+		} else {
+			ensureDropOffPointExists(h.DB, updatedMapping.DropOffPoint)
+			existingMapping.Latitude = 0
+			existingMapping.Longitude = 0
+		}
 	}
 	existingMapping.Distance = updatedMapping.Distance
 	existingMapping.Fee = updatedMapping.Fee
