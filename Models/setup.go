@@ -234,11 +234,16 @@ func runAutoMigrations() {
 
 	// Phase 12: Canonical locations (set-once terminal/drop-off pins) and
 	// terminal normalization (per-company allowlists, receipt serial patterns)
-	DB.AutoMigrate(
+	if err := DB.AutoMigrate(
 		&DropOffPoint{},
 		&TerminalCompany{},
 		&TerminalReceiptPattern{},
-	)
+	); err != nil {
+		// AutoMigrate stops at the first failing model and silently skips the
+		// rest; migrateTerminalNormalization() creates the terminal tables
+		// with raw SQL regardless, so log loudly and continue.
+		log.Printf("phase-12 AutoMigrate: %v", err)
+	}
 
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
@@ -339,6 +344,31 @@ func migrateTerminalNormalization() {
 		label string
 		sql   string
 	}{
+		// -- The tables themselves. gorm's AutoMigrate has proven fragile
+		// here (a failure on one model silently skips the rest of the
+		// phase), so the schema this migration depends on is created
+		// explicitly. Shapes mirror the gorm models exactly.
+		{"terminal_companies table", `
+        CREATE TABLE IF NOT EXISTS terminal_companies (
+            id          bigserial PRIMARY KEY,
+            terminal_id bigint NOT NULL REFERENCES terminals(id),
+            company     text   NOT NULL,
+            created_at  timestamp
+        )`},
+		{"terminal_companies unique index", `
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_terminal_companies_terminal_company
+        ON terminal_companies (terminal_id, company)`},
+		{"terminal_receipt_patterns table", `
+        CREATE TABLE IF NOT EXISTS terminal_receipt_patterns (
+            id          bigserial PRIMARY KEY,
+            terminal_id bigint  NOT NULL REFERENCES terminals(id),
+            company     text,
+            pattern     text    NOT NULL,
+            description text,
+            active      boolean NOT NULL DEFAULT true,
+            created_at  timestamp,
+            updated_at  timestamp
+        )`},
 		// -- FK constraints. The columns themselves are added by AutoMigrate
 		// (ADD COLUMN IF NOT EXISTS semantics); the constraints are added here
 		// because gorm cannot express them without an association field.
