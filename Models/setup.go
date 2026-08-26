@@ -436,6 +436,23 @@ func migrateTerminalNormalization() {
 		{"parent_trips backfill", backfill("parent_trips")},
 		{"fee_mappings backfill", backfill("fee_mappings")},
 
+		// -- Canonicalize the legacy terminal strings from the FK. The text
+		// columns are display/join-compat only, but fee lookups still join on
+		// them, and new trips save the canonical name — stale legacy strings
+		// would miss their fee mappings.
+		{"trips terminal canonicalize", `
+        UPDATE trips t SET terminal = term.name
+          FROM terminals term
+         WHERE t.terminal_id = term.id AND t.terminal IS DISTINCT FROM term.name`},
+		{"parent_trips terminal canonicalize", `
+        UPDATE parent_trips t SET terminal = term.name
+          FROM terminals term
+         WHERE t.terminal_id = term.id AND t.terminal IS DISTINCT FROM term.name`},
+		{"fee_mappings terminal canonicalize", `
+        UPDATE fee_mappings t SET terminal = term.name
+          FROM terminals term
+         WHERE t.terminal_id = term.id AND t.terminal IS DISTINCT FROM term.name`},
+
 		// -- 'Haykstep' was a duplicate of 'هايكستب'; everything now points at
 		// the canonical row, so retire the duplicate.
 		{"soft-delete Haykstep", `
