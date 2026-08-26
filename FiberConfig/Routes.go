@@ -177,13 +177,14 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// FEE MAPPING MANAGEMENT
 	// ============================================
 	// Canonical locations: terminals (pins, radius) + drop-off points.
-	// Pins are set once here and referenced everywhere by name.
+	// Pins are set once here and referenced everywhere by name. Drop-off
+	// existence flows from fee mappings (no standalone create here); the
+	// Locations page owns geography only.
 	locations := api.Group("/locations", middleware.Verify(1))
 	locations.Get("/inbox", locationsHandler.GetLocationsInbox)
 	locations.Get("/terminals", locationsHandler.GetTerminals)
 	locations.Put("/terminals/:id", middleware.Verify(3), locationsHandler.UpdateTerminal)
 	locations.Get("/dropoffs", locationsHandler.GetDropOffPoints)
-	locations.Post("/dropoffs", middleware.Verify(3), locationsHandler.CreateDropOffPoint)
 	locations.Put("/dropoffs/:id", middleware.Verify(3), locationsHandler.UpdateDropOffPoint)
 	locations.Delete("/dropoffs/:id", middleware.Verify(3), locationsHandler.DeleteDropOffPoint)
 

@@ -21,6 +21,9 @@ type Terminal struct {
 	// Geofence radius override in meters. NULL means the consumer's default
 	// (trip auditor defaults to 500m for terminals).
 	RadiusM *float64 `json:"radius_m"`
+	// Where the current pin came from: "" (unpinned/legacy), "manual",
+	// "gps_suggested" (auto-applied by the etit-proxy calibration job).
+	PinSource string `json:"pin_source" gorm:"default:''"`
 }
 
 // TerminalCompany is the per-company allowlist: a terminal can only be picked

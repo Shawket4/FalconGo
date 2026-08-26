@@ -358,6 +358,12 @@ func migrateTerminalNormalization() {
             END IF;
         END $$`},
 
+		// -- Terminal pins can now be auto-applied by the etit-proxy GPS
+		// calibration job; pin_source labels where the current pin came from
+		// ('', 'manual', 'gps_suggested'), mirroring drop_off_points.
+		{"terminals pin_source column", `
+        ALTER TABLE terminals ADD COLUMN IF NOT EXISTS pin_source text NOT NULL DEFAULT ''`},
+
 		// -- The tables themselves. gorm's AutoMigrate has proven fragile
 		// here (a failure on one model silently skips the rest of the
 		// phase), so the schema this migration depends on is created

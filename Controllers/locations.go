@@ -55,6 +55,8 @@ func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
 		RadiusM   *float64 `json:"radius_m"`
 		// Distinguishes "radius_m: null" (clear override) from field absent.
 		ClearRadius bool `json:"clear_radius"`
+		// "manual" (default) or "gps_suggested" when accepting an inbox suggestion.
+		PinSource string `json:"pin_source"`
 	}
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
@@ -67,6 +69,11 @@ func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
 	if body.Latitude != nil && body.Longitude != nil {
 		updates["latitude"] = *body.Latitude
 		updates["longitude"] = *body.Longitude
+		source := body.PinSource
+		if source != "gps_suggested" {
+			source = "manual"
+		}
+		updates["pin_source"] = source
 	}
 	if body.RadiusM != nil {
 		updates["radius_m"] = *body.RadiusM
@@ -87,58 +94,56 @@ func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
 // Drop-off points
 // ---------------------------------------------------------------------------
 
-// GetDropOffPoints lists drop-off points. Query params:
-//   - q:       substring filter on name
-//   - missing: "true" returns only points without a pin
+// GetDropOffPoints lists drop-off points with server-side pagination.
+// Query params:
+//   - q:        substring filter on name
+//   - missing:  "true" returns only points without a pin
+//   - page:     1-based page number (default 1)
+//   - per_page: page size (default 25, max 200)
+//
+// Drop-off points are never created here: their existence flows from fee
+// mappings (see Controllers/fee.go); this page only manages geography.
 func (h *LocationsHandler) GetDropOffPoints(c *fiber.Ctx) error {
-	query := h.DB.Model(&Models.DropOffPoint{}).Order("name")
-	if q := strings.TrimSpace(c.Query("q")); q != "" {
-		query = query.Where("name ILIKE ?", "%"+q+"%")
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	if page < 1 {
+		page = 1
 	}
-	if c.Query("missing") == "true" {
-		query = query.Where("latitude IS NULL")
+	perPage, _ := strconv.Atoi(c.Query("per_page", "25"))
+	if perPage < 1 {
+		perPage = 25
+	}
+	if perPage > 200 {
+		perPage = 200
+	}
+
+	filtered := func() *gorm.DB {
+		query := h.DB.Model(&Models.DropOffPoint{})
+		if q := strings.TrimSpace(c.Query("q")); q != "" {
+			query = query.Where("name ILIKE ?", "%"+q+"%")
+		}
+		if c.Query("missing") == "true" {
+			query = query.Where("latitude IS NULL")
+		}
+		return query
+	}
+
+	var total int64
+	if err := filtered().Count(&total).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var points []Models.DropOffPoint
-	if err := query.Find(&points).Error; err != nil {
+	if err := filtered().Order("name").
+		Limit(perPage).Offset((page - 1) * perPage).
+		Find(&points).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.JSON(fiber.Map{"data": points})
-}
-
-func (h *LocationsHandler) CreateDropOffPoint(c *fiber.Ctx) error {
-	var body struct {
-		Name      string   `json:"name"`
-		Latitude  *float64 `json:"lat"`
-		Longitude *float64 `json:"long"`
-		RadiusM   *float64 `json:"radius_m"`
-	}
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-	body.Name = strings.TrimSpace(body.Name)
-	if body.Name == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
-	}
-
-	point := Models.DropOffPoint{
-		Name:      body.Name,
-		Latitude:  body.Latitude,
-		Longitude: body.Longitude,
-		RadiusM:   body.RadiusM,
-	}
-	if body.Latitude != nil {
-		point.PinSource = "manual"
-	}
-	if err := h.DB.Create(&point).Error; err != nil {
-		return c.Status(http.StatusConflict).JSON(fiber.Map{"error": "drop-off point already exists or could not be created"})
-	}
-	if point.Latitude != nil && point.Longitude != nil {
-		if err := syncDropOffPin(h.DB, point.Name, *point.Latitude, *point.Longitude, point.PinSource); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-	}
-	return c.Status(http.StatusCreated).JSON(fiber.Map{"message": "drop-off point created", "data": point})
+	return c.JSON(fiber.Map{
+		"items":    points,
+		"total":    total,
+		"page":     page,
+		"per_page": perPage,
+	})
 }
 
 func (h *LocationsHandler) UpdateDropOffPoint(c *fiber.Ctx) error {
@@ -202,11 +207,37 @@ func (h *LocationsHandler) UpdateDropOffPoint(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "drop-off point updated", "data": point})
 }
 
+// DeleteDropOffPoint removes a drop-off point, but only when no live fee
+// mapping still references its name — fee mappings own drop-off existence, so
+// deleting a referenced point would just resurrect it (unpinned) on the next
+// mapping write.
 func (h *LocationsHandler) DeleteDropOffPoint(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
+
+	var point Models.DropOffPoint
+	if err := h.DB.First(&point, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "drop-off point not found"})
+		}
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var references int64
+	if err := h.DB.Model(&Models.FeeMapping{}).
+		Where("drop_off_point = ?", point.Name).
+		Count(&references).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if references > 0 {
+		return c.Status(http.StatusConflict).JSON(fiber.Map{
+			"error":      "drop-off point is still referenced by fee mappings; delete those mappings first",
+			"references": references,
+		})
+	}
+
 	res := h.DB.Delete(&Models.DropOffPoint{}, id)
 	if res.Error != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": res.Error.Error()})
@@ -245,9 +276,11 @@ func syncDropOffPin(db *gorm.DB, name string, lat, lng float64, source string) e
     `, lat, lng, name).Error
 }
 
-// ensureDropOffPointExists creates an unpinned drop_off_points row for a new
-// drop-off name so it shows up in the needs-attention inbox. No-op when the
-// row already exists.
+// ensureDropOffPointExists guarantees a drop_off_points row for a drop-off
+// name referenced by a fee mapping (fee mappings own drop-off existence). A
+// new name gets an unpinned row (so it shows up in the needs-attention inbox),
+// a soft-deleted row is restored with its old pin intact, and a live row is
+// left untouched.
 func ensureDropOffPointExists(db *gorm.DB, name string) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -256,7 +289,10 @@ func ensureDropOffPointExists(db *gorm.DB, name string) {
 	db.Exec(`
         INSERT INTO drop_off_points (created_at, updated_at, name, pin_source)
         VALUES (NOW(), NOW(), ?, '')
-        ON CONFLICT (name) DO NOTHING
+        ON CONFLICT (name) DO UPDATE
+           SET deleted_at = NULL,
+               updated_at = NOW()
+         WHERE drop_off_points.deleted_at IS NOT NULL
     `, name)
 }
 
@@ -269,13 +305,25 @@ func ensureDropOffPointExists(db *gorm.DB, name string) {
 // now (see terminals.go), so there is no "unknown terminal names" section any
 // more. GPS pin suggestions are served separately by the etit-proxy
 // calibration API and merged client-side.
+// The unpinned list is capped; total_unpinned carries the real count.
 func (h *LocationsHandler) GetLocationsInbox(c *fiber.Ctx) error {
+	const inboxCap = 50
+
+	var totalUnpinned int64
+	if err := h.DB.Model(&Models.DropOffPoint{}).
+		Where("latitude IS NULL").
+		Count(&totalUnpinned).Error; err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
 	var unpinned []Models.DropOffPoint
-	if err := h.DB.Where("latitude IS NULL").Order("name").Find(&unpinned).Error; err != nil {
+	if err := h.DB.Where("latitude IS NULL").Order("name").
+		Limit(inboxCap).Find(&unpinned).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(fiber.Map{
 		"unpinned_dropoffs": unpinned,
+		"total_unpinned":    totalUnpinned,
 	})
 }
