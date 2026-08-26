@@ -3210,6 +3210,8 @@ func (h *TripHandler) GetTrip(c *fiber.Ctx) error {
 		trip.Fee = mapping.Fee
 	}
 
+	trip.ReceiptValid = services.ReceiptValidity(h.DB, trip.TerminalID, trip.Company, trip.ReceiptNo)
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trip retrieved successfully",
 		"data":    trip,
@@ -3559,6 +3561,45 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	// Optional FK-era fields. Parsed separately with pointers so that an
+	// absent field is distinguishable from a false/zero one -- the legacy
+	// string-only payload keeps working unchanged.
+	var aux struct {
+		TerminalID      *uint `json:"terminal_id"`
+		ReceiptOverride *bool `json:"receipt_override"`
+	}
+	_ = c.BodyParser(&aux)
+
+	// A terminal picked by id wins over the terminal string: validate it
+	// against the company allowlist and drive the legacy string from the
+	// canonical name.
+	if aux.TerminalID != nil {
+		var terminal Models.Terminal
+		if err := h.DB.First(&terminal, *aux.TerminalID).Error; err != nil {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"message": "Terminal not found",
+			})
+		}
+		company := existingTrip.Company
+		if updatedTrip.Company != "" {
+			company = updatedTrip.Company
+		}
+		allowed, err := terminalAllowedForCompany(h.DB, terminal.ID, company)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to validate terminal",
+				"error":   err.Error(),
+			})
+		}
+		if !allowed {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Terminal %s is not allowed for company %s", terminal.Name, company),
+			})
+		}
+		updatedTrip.TerminalID = aux.TerminalID
+		updatedTrip.Terminal = terminal.Name
+	}
+
 	// Check if company, terminal, or drop-off point changed
 	companyChanged := updatedTrip.Company != "" && updatedTrip.Company != existingTrip.Company
 	terminalChanged := updatedTrip.Terminal != "" && updatedTrip.Terminal != existingTrip.Terminal
@@ -3625,6 +3666,20 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 	if updatedTrip.Terminal != "" {
 		existingTrip.Terminal = updatedTrip.Terminal
 	}
+	if updatedTrip.TerminalID != nil {
+		existingTrip.TerminalID = updatedTrip.TerminalID
+	} else if terminalChanged {
+		// Legacy string-only rename: keep the FK in sync by name (nil when
+		// the string matches no canonical terminal).
+		if terminal := resolveTerminalByName(h.DB, existingTrip.Terminal); terminal != nil {
+			existingTrip.TerminalID = &terminal.ID
+		} else {
+			existingTrip.TerminalID = nil
+		}
+	}
+	if aux.ReceiptOverride != nil {
+		existingTrip.ReceiptOverride = *aux.ReceiptOverride
+	}
 	if updatedTrip.DropOffPoint != "" {
 		existingTrip.DropOffPoint = updatedTrip.DropOffPoint
 	}
@@ -3678,6 +3733,7 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Distance = mapping.Distance
 		existingTrip.Fee = mapping.Fee
 	}
+	existingTrip.ReceiptValid = services.ReceiptValidity(h.DB, existingTrip.TerminalID, existingTrip.Company, existingTrip.ReceiptNo)
 	var Terminal Models.Terminal
 	if err := Models.DB.Model(&Models.Terminal{}).Where("name = ?", existingTrip.Terminal).First(&Terminal).Error; err != nil {
 		log.Println(err)
@@ -4275,6 +4331,8 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 		}
 	}
 
+	services.EnrichReceiptValidity(h.DB, trips)
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trips retrieved successfully",
 		"data":    trips,
@@ -4389,6 +4447,8 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 			}
 		}
 	}
+
+	services.EnrichReceiptValidity(h.DB, trips)
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trips retrieved successfully",
@@ -4516,6 +4576,8 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 			}
 		}
 	}
+
+	services.EnrichReceiptValidity(h.DB, trips)
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trips retrieved successfully",
@@ -4699,10 +4761,40 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		})
 	}
 
-	if input.ParentTrip.Company == "" || input.ParentTrip.Terminal == "" || input.ParentTrip.Date == "" {
+	if input.ParentTrip.Company == "" || input.ParentTrip.Date == "" ||
+		(input.ParentTrip.Terminal == "" && input.ParentTrip.TerminalID == nil) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Parent trip must have company, terminal, and date",
 		})
+	}
+
+	// Resolve the canonical terminal. A terminal_id (new clients) wins: it is
+	// validated against the company allowlist and the legacy terminal string
+	// is set to the canonical name. A string-only payload (backwards compat)
+	// behaves exactly as before, with the FK resolved by name best-effort.
+	if input.ParentTrip.TerminalID != nil {
+		var terminal Models.Terminal
+		if err := h.DB.First(&terminal, *input.ParentTrip.TerminalID).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Terminal not found",
+			})
+		}
+		allowed, err := terminalAllowedForCompany(h.DB, terminal.ID, input.ParentTrip.Company)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to validate terminal",
+				"error":   err.Error(),
+			})
+		}
+		if !allowed {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Terminal %s is not allowed for company %s",
+					terminal.Name, input.ParentTrip.Company),
+			})
+		}
+		input.ParentTrip.Terminal = terminal.Name
+	} else if terminal := resolveTerminalByName(h.DB, input.ParentTrip.Terminal); terminal != nil {
+		input.ParentTrip.TerminalID = &terminal.ID
 	}
 
 	// NEW: Check for duplicate receipts unless force_create is true
@@ -4831,6 +4923,7 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		input.Containers[i].Transporter = input.ParentTrip.Transporter
 		input.Containers[i].Company = input.ParentTrip.Company
 		input.Containers[i].Terminal = input.ParentTrip.Terminal
+		input.Containers[i].TerminalID = input.ParentTrip.TerminalID
 		input.Containers[i].Date = input.ParentTrip.Date
 
 		// Get fee mapping for this container
@@ -5054,6 +5147,8 @@ func (h *TripHandler) GetContainersByParent(c *fiber.Ctx) error {
 		}
 	}
 
+	services.EnrichReceiptValidity(h.DB, containers)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message":         "Containers retrieved successfully",
 		"parent_trip":     parentTrip,
@@ -5173,6 +5268,35 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		log.Printf("⚠️  FORCED UPDATE: User bypassed duplicate check for parent trip ID: %d", id)
 	}
 
+	// A terminal picked by id wins over the terminal string: validate it
+	// against the company allowlist and drive the legacy string from the
+	// canonical name. String-only payloads keep working unchanged.
+	if input.ParentTrip.TerminalID != nil {
+		var terminal Models.Terminal
+		if err := h.DB.First(&terminal, *input.ParentTrip.TerminalID).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Terminal not found",
+			})
+		}
+		company := existingParent.Company
+		if input.ParentTrip.Company != "" {
+			company = input.ParentTrip.Company
+		}
+		allowed, err := terminalAllowedForCompany(h.DB, terminal.ID, company)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to validate terminal",
+				"error":   err.Error(),
+			})
+		}
+		if !allowed {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Terminal %s is not allowed for company %s", terminal.Name, company),
+			})
+		}
+		input.ParentTrip.Terminal = terminal.Name
+	}
+
 	// Same capacity rule as creation. The frontend always sends the full
 	// container set with update_containers, so the input list is the final
 	// state of the trip.
@@ -5229,6 +5353,19 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		existingParent.Terminal = input.ParentTrip.Terminal
 		parentFieldsUpdated = true
 		terminalOrCompanyChanged = true
+		if input.ParentTrip.TerminalID == nil {
+			// Legacy string-only rename: keep the FK in sync by name.
+			if terminal := resolveTerminalByName(h.DB, existingParent.Terminal); terminal != nil {
+				existingParent.TerminalID = &terminal.ID
+			} else {
+				existingParent.TerminalID = nil
+			}
+		}
+	}
+	if input.ParentTrip.TerminalID != nil &&
+		(existingParent.TerminalID == nil || *existingParent.TerminalID != *input.ParentTrip.TerminalID) {
+		existingParent.TerminalID = input.ParentTrip.TerminalID
+		parentFieldsUpdated = true
 	}
 	if input.ParentTrip.Date != "" {
 		existingParent.Date = input.ParentTrip.Date
@@ -5255,6 +5392,7 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 			"driver_name":  existingParent.DriverName,
 			"company":      existingParent.Company,
 			"terminal":     existingParent.Terminal,
+			"terminal_id":  existingParent.TerminalID,
 			"date":         existingParent.Date,
 		}
 
@@ -5423,20 +5561,22 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 				// Create new container with ALL fields
 				parentIDUint := uint(id)
 				newContainer := Models.TripStruct{
-					ParentTripID: &parentIDUint,
-					CarID:        existingParent.CarID,
-					DriverID:     existingParent.DriverID,
-					CarNoPlate:   existingParent.CarNoPlate,
-					DriverName:   existingParent.DriverName,
-					Company:      existingParent.Company,
-					Terminal:     existingParent.Terminal,
-					Date:         existingParent.Date,
-					DropOffPoint: container.DropOffPoint,
-					TankCapacity: container.TankCapacity,
-					GasType:      container.GasType,
-					ReceiptNo:    container.ReceiptNo,
-					Mileage:      mapping.Distance,
-					Revenue:      mapping.Fee,
+					ParentTripID:    &parentIDUint,
+					CarID:           existingParent.CarID,
+					DriverID:        existingParent.DriverID,
+					CarNoPlate:      existingParent.CarNoPlate,
+					DriverName:      existingParent.DriverName,
+					Company:         existingParent.Company,
+					Terminal:        existingParent.Terminal,
+					TerminalID:      existingParent.TerminalID,
+					Date:            existingParent.Date,
+					DropOffPoint:    container.DropOffPoint,
+					TankCapacity:    container.TankCapacity,
+					GasType:         container.GasType,
+					ReceiptNo:       container.ReceiptNo,
+					ReceiptOverride: container.ReceiptOverride,
+					Mileage:         mapping.Distance,
+					Revenue:         mapping.Fee,
 				}
 
 				if err := tx.Create(&newContainer).Error; err != nil {

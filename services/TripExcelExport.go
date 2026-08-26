@@ -27,7 +27,6 @@ import (
 // zebra striping, per-cell colouring for the receipt flags, and a SUM totals
 // row — plus an autofilter and a second summary sheet the old one lacked.
 
-
 // TripExportLabels carries the already-translated column headers and titles.
 //
 // The server has no i18n bundle, and inventing a second set of English strings
@@ -55,6 +54,7 @@ type TripExportLabels struct {
 	GarageDate       string `json:"garage_date"`
 	OfficeReceivedBy string `json:"office_received_by"`
 	OfficeDate       string `json:"office_date"`
+	Remark           string `json:"remark"`
 
 	TotalTrips    string `json:"total_trips"`
 	TotalVolume   string `json:"total_volume"`
@@ -96,6 +96,7 @@ func (l TripExportLabels) withDefaults() TripExportLabels {
 	l.GarageDate = def(l.GarageDate, "Garage Date")
 	l.OfficeReceivedBy = def(l.OfficeReceivedBy, "Office Received By")
 	l.OfficeDate = def(l.OfficeDate, "Office Date")
+	l.Remark = def(l.Remark, "Remark")
 	l.TotalTrips = def(l.TotalTrips, "Total Trips")
 	l.TotalVolume = def(l.TotalVolume, "Total Volume")
 	l.TotalDistance = def(l.TotalDistance, "Total Distance")
@@ -146,6 +147,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		tripColumn{l.GarageDate, 17, "datetime", false},
 		tripColumn{l.OfficeReceivedBy, 18, "text", false},
 		tripColumn{l.OfficeDate, 17, "datetime", false},
+		tripColumn{l.Remark, 34, "text", false},
 	)
 
 	// Deterministic order, matching what the client produced so downstream
@@ -280,6 +282,7 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 			stepReceivedAt(t, "Garage"),
 			stepReceivedBy(t, "Office"),
 			stepReceivedAt(t, "Office"),
+			receiptRemark(t),
 		)
 
 		for i, v := range values {
@@ -293,8 +296,9 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		}
 
 		// Receipt flags are colour-coded green/muted, as in the client build --
-		// the column is scanned, not read.
-		flagStart := len(values) - 7
+		// the column is scanned, not read. Counted from the end: 3 flags +
+		// 4 receipt-step columns + the remark column.
+		flagStart := len(values) - 8
 		for offset, on := range []bool{inGarage, inOffice, stamped} {
 			cell, _ := excelize.CoordinatesToCellName(flagStart+offset+1, row)
 			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, striped))
@@ -489,6 +493,21 @@ func stepReceivedAt(t Models.TripStruct, location string) interface{} {
 		}
 	}
 	return nil
+}
+
+// receiptRemark flags receipt numbers that fall outside the terminal's serial
+// pattern for the trip's company. An explicit override (a knowingly
+// out-of-serial receipt, e.g. a replacement book) is labelled as such; an
+// unchecked mismatch is called out; trips with no applicable pattern
+// (ReceiptValid == nil) get no remark.
+func receiptRemark(t Models.TripStruct) string {
+	if t.ReceiptOverride {
+		return "overridden - out of terminal serialization"
+	}
+	if t.ReceiptValid != nil && !*t.ReceiptValid {
+		return "receipt out of serialization"
+	}
+	return ""
 }
 
 // tripDistance prefers the recorded mileage and falls back to the planned

@@ -62,6 +62,8 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 	}
 
 	enrichTripFees(h.DB, trips, hasFinancialAccess)
+	// Receipt-number serial validation drives the remark column.
+	services.EnrichReceiptValidity(h.DB, trips)
 
 	meta := buildExportMeta(c, len(trips))
 

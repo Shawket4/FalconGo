@@ -11,8 +11,9 @@ import (
 )
 
 // LocationsHandler serves the canonical-locations system: terminals with
-// aliases and radius overrides, and drop_off_points as the single source of
-// truth for drop-off pins (set once, referenced everywhere by name).
+// radius overrides, per-company allowlists and receipt serial patterns
+// (see terminals.go), and drop_off_points as the single source of truth for
+// drop-off pins (set once, referenced everywhere by name).
 type LocationsHandler struct {
 	DB *gorm.DB
 }
@@ -30,26 +31,7 @@ func (h *LocationsHandler) GetTerminals(c *fiber.Ctx) error {
 	if err := h.DB.Order("name").Find(&terminals).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-
-	var aliases []Models.TerminalAlias
-	if err := h.DB.Find(&aliases).Error; err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-	aliasesByTerminal := make(map[uint][]Models.TerminalAlias)
-	for _, a := range aliases {
-		a.Terminal = Models.Terminal{}
-		aliasesByTerminal[a.TerminalID] = append(aliasesByTerminal[a.TerminalID], a)
-	}
-
-	type terminalWithAliases struct {
-		Models.Terminal
-		Aliases []Models.TerminalAlias `json:"aliases"`
-	}
-	out := make([]terminalWithAliases, 0, len(terminals))
-	for _, t := range terminals {
-		out = append(out, terminalWithAliases{Terminal: t, Aliases: aliasesByTerminal[t.ID]})
-	}
-	return c.JSON(fiber.Map{"data": out})
+	return c.JSON(fiber.Map{"data": terminals})
 }
 
 func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
@@ -99,53 +81,6 @@ func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"message": "terminal updated", "data": terminal})
-}
-
-func (h *LocationsHandler) CreateTerminalAlias(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
-	}
-
-	var terminal Models.Terminal
-	if err := h.DB.First(&terminal, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "terminal not found"})
-		}
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	var body struct {
-		Alias string `json:"alias"`
-	}
-	if err := c.BodyParser(&body); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-	}
-	body.Alias = strings.TrimSpace(body.Alias)
-	if body.Alias == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "alias is required"})
-	}
-
-	alias := Models.TerminalAlias{Alias: body.Alias, TerminalID: terminal.ID}
-	if err := h.DB.Create(&alias).Error; err != nil {
-		return c.Status(http.StatusConflict).JSON(fiber.Map{"error": "alias already exists or could not be created"})
-	}
-	return c.Status(http.StatusCreated).JSON(fiber.Map{"message": "alias created", "data": alias})
-}
-
-func (h *LocationsHandler) DeleteTerminalAlias(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
-	}
-	res := h.DB.Unscoped().Delete(&Models.TerminalAlias{}, id)
-	if res.Error != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": res.Error.Error()})
-	}
-	if res.RowsAffected == 0 {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "alias not found"})
-	}
-	return c.JSON(fiber.Map{"message": "alias deleted"})
 }
 
 // ---------------------------------------------------------------------------
@@ -221,10 +156,10 @@ func (h *LocationsHandler) UpdateDropOffPoint(c *fiber.Ctx) error {
 	}
 
 	var body struct {
-		Latitude  *float64 `json:"lat"`
-		Longitude *float64 `json:"long"`
-		RadiusM   *float64 `json:"radius_m"`
-		ClearRadius bool   `json:"clear_radius"`
+		Latitude    *float64 `json:"lat"`
+		Longitude   *float64 `json:"long"`
+		RadiusM     *float64 `json:"radius_m"`
+		ClearRadius bool     `json:"clear_radius"`
 		// "manual" (default) or "gps_suggested" when accepting an inbox suggestion.
 		PinSource string `json:"pin_source"`
 	}
@@ -330,9 +265,9 @@ func ensureDropOffPointExists(db *gorm.DB, name string) {
 // ---------------------------------------------------------------------------
 
 // GetLocationsInbox returns the work the dashboard inbox can derive from the
-// database alone: drop-off points without a pin, and terminal name strings
-// (from trips and fee_mappings) that resolve to neither a terminal nor an
-// alias. GPS pin suggestions are served separately by the etit-proxy
+// database alone: drop-off points without a pin. Terminals are picked by id
+// now (see terminals.go), so there is no "unknown terminal names" section any
+// more. GPS pin suggestions are served separately by the etit-proxy
 // calibration API and merged client-side.
 func (h *LocationsHandler) GetLocationsInbox(c *fiber.Ctx) error {
 	var unpinned []Models.DropOffPoint
@@ -340,37 +275,7 @@ func (h *LocationsHandler) GetLocationsInbox(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	type unknownTerminal struct {
-		Name     string `json:"name"`
-		TripRows int64  `json:"trip_rows"`
-	}
-	var unknown []unknownTerminal
-	err := h.DB.Raw(`
-        SELECT src.name, SUM(src.trip_rows) AS trip_rows
-          FROM (
-            SELECT terminal AS name, COUNT(*) AS trip_rows
-              FROM trips
-             WHERE deleted_at IS NULL AND terminal <> ''
-             GROUP BY terminal
-            UNION ALL
-            SELECT terminal AS name, 0 AS trip_rows
-              FROM fee_mappings
-             WHERE deleted_at IS NULL AND terminal <> ''
-             GROUP BY terminal
-          ) src
-         WHERE NOT EXISTS (SELECT 1 FROM terminals t
-                            WHERE t.deleted_at IS NULL AND t.name = src.name)
-           AND NOT EXISTS (SELECT 1 FROM terminal_aliases a
-                            WHERE a.deleted_at IS NULL AND a.alias = src.name)
-         GROUP BY src.name
-         ORDER BY trip_rows DESC
-    `).Scan(&unknown).Error
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
 	return c.JSON(fiber.Map{
 		"unpinned_dropoffs": unpinned,
-		"unknown_terminals": unknown,
 	})
 }

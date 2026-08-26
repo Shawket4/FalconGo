@@ -115,6 +115,11 @@ func (h *FeeMappingHandler) CreateFeeMapping(c *fiber.Ctx) error {
 		ensureDropOffPointExists(h.DB, mapping.DropOffPoint)
 	}
 
+	// Keep the terminal FK in sync with the terminal string.
+	if terminal := resolveTerminalByName(h.DB, mapping.Terminal); terminal != nil {
+		mapping.TerminalID = &terminal.ID
+	}
+
 	// Create the new mapping
 	result = h.DB.Create(&mapping)
 	if result.Error != nil {
@@ -200,8 +205,14 @@ func (h *FeeMappingHandler) UpdateFeeMapping(c *fiber.Ctx) error {
 	if updatedMapping.Company != "" {
 		existingMapping.Company = updatedMapping.Company
 	}
-	if updatedMapping.Terminal != "" {
+	if updatedMapping.Terminal != "" && updatedMapping.Terminal != existingMapping.Terminal {
 		existingMapping.Terminal = updatedMapping.Terminal
+		// Keep the terminal FK in sync with the renamed terminal string.
+		if terminal := resolveTerminalByName(h.DB, existingMapping.Terminal); terminal != nil {
+			existingMapping.TerminalID = &terminal.ID
+		} else {
+			existingMapping.TerminalID = nil
+		}
 	}
 	if updatedMapping.DropOffPoint != "" && updatedMapping.DropOffPoint != existingMapping.DropOffPoint {
 		existingMapping.DropOffPoint = updatedMapping.DropOffPoint

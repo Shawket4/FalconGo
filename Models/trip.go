@@ -15,8 +15,11 @@ type ParentTrip struct {
 	Transporter  string `json:"transporter"`
 	TankCapacity int    `json:"tank_capacity"`
 
-	Company    string `json:"company"`
-	Terminal   string `json:"terminal"`
+	Company  string `json:"company"`
+	Terminal string `json:"terminal"`
+	// FK to the canonical terminals row. The legacy Terminal string stays in
+	// sync (set to the terminal's canonical name) during the transition.
+	TerminalID *uint  `json:"terminal_id" gorm:"index"`
 	Date       string `json:"date"`
 	Author     string `json:"author"`
 	Overwriter string `json:"overwriter"`
@@ -43,8 +46,11 @@ type TripStruct struct {
 	TankCapacity int    `json:"tank_capacity"`
 
 	// Company and related fields for dropdown selection
-	Company      string `json:"company"`
-	Terminal     string `json:"terminal"`       // Added Terminal field (was PickUpPoint)
+	Company  string `json:"company"`
+	Terminal string `json:"terminal"` // Added Terminal field (was PickUpPoint)
+	// FK to the canonical terminals row. The legacy Terminal string stays in
+	// sync (set to the terminal's canonical name) during the transition.
+	TerminalID   *uint  `json:"terminal_id" gorm:"index"`
 	DropOffPoint string `json:"drop_off_point"` // Added DropOffPoint field
 
 	// Location details
@@ -57,10 +63,16 @@ type TripStruct struct {
 	Revenue   float64 `json:"revenue"`
 	Mileage   float64 `json:"mileage"`
 	ReceiptNo string  `json:"receipt_no"`
+	// Set when the receipt number knowingly falls outside the terminal's
+	// serialization pattern (e.g. a manual replacement book).
+	ReceiptOverride bool `json:"receipt_override" gorm:"not null;default:false"`
 
 	// Calculated fields
-	Distance     float64       `json:"distance" gorm:"-"` // Distance from fee mapping, not stored
-	Fee          float64       `json:"fee" gorm:"-"`      // Fee from fee mapping, not stored
+	Distance float64 `json:"distance" gorm:"-"` // Distance from fee mapping, not stored
+	Fee      float64 `json:"fee" gorm:"-"`      // Fee from fee mapping, not stored
+	// Receipt number vs. the terminal's serial pattern for this company:
+	// nil = no active pattern to check against, true/false otherwise.
+	ReceiptValid *bool         `json:"receipt_valid" gorm:"-"`
 	Location     LandMark      `json:"location" gorm:"-"`
 	ParentTrip   *ParentTrip   `json:"parent_trip,omitempty" gorm:"foreignKey:ParentTripID"` // Add this line
 	ReceiptSteps []ReceiptStep `json:"receipt_steps" gorm:"foreignKey:TripID;constraint:OnDelete:CASCADE"`
@@ -184,8 +196,10 @@ type ETITTripRoute struct {
 // FeeMapping represents a mapping between terminals, drop-off points, distance, and fee
 type FeeMapping struct {
 	gorm.Model
-	Company      string  `json:"company"`        // Company associated with this mapping
-	Terminal     string  `json:"terminal"`       // Pickup terminal
+	Company  string `json:"company"`  // Company associated with this mapping
+	Terminal string `json:"terminal"` // Pickup terminal
+	// FK to the canonical terminals row (kept in sync with the Terminal string).
+	TerminalID   *uint   `json:"terminal_id" gorm:"index"`
 	DropOffPoint string  `json:"drop_off_point"` // Drop-off location
 	Distance     float64 `json:"distance"`       // Distance in kilometers
 	Fee          float64 `json:"fee"`            // Associated fee for this mapping

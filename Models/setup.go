@@ -121,6 +121,8 @@ func fixAllSequences() {
 		"trip_legs",
 		"vendors",
 		"vendor_transactions",
+		"terminal_companies",
+		"terminal_receipt_patterns",
 	}
 
 	for _, table := range tables {
@@ -230,10 +232,12 @@ func runAutoMigrations() {
 		&VendorTransaction{},
 	)
 
-	// Phase 12: Canonical locations (set-once terminal/drop-off pins)
+	// Phase 12: Canonical locations (set-once terminal/drop-off pins) and
+	// terminal normalization (per-company allowlists, receipt serial patterns)
 	DB.AutoMigrate(
-		&TerminalAlias{},
 		&DropOffPoint{},
+		&TerminalCompany{},
+		&TerminalReceiptPattern{},
 	)
 
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
@@ -244,6 +248,8 @@ func runAutoMigrations() {
 	createCustomIndexes()
 
 	backfillDropOffPoints()
+
+	migrateTerminalNormalization()
 
 	log.Println("✅ Migrations completed")
 }
@@ -273,6 +279,177 @@ func backfillDropOffPoints() {
     `).Error
 	if err != nil {
 		log.Printf("⚠️ drop_off_points backfill failed: %v", err)
+	}
+}
+
+// terminalNameMappingValues maps every legacy terminal string found in
+// trips/parent_trips/fee_mappings to its canonical terminals.name. Canonical
+// ids are resolved BY NAME in SQL, never hardcoded (production ids are
+// documented as: 1=هايكستب, 2=بدر, 3=تعاون مسطرد, 4=الفيوم, 5=مصر البترول بور
+// سعيد, 6=موبيل بور سعيد, 7=Haykstep, 8=Somed, 9=Agroud, 10=TAQA Suez
+// Terminal, 11=TAQA Alex Terminal). Note 'Haykstep' merges into 'هايكستب' and
+// is soft-deleted after the backfill.
+const terminalNameMappingValues = `
+        ('بدر', 'بدر'),
+        ('هايكستب', 'هايكستب'),
+        ('Haykstep', 'هايكستب'),
+        ('تعاون مسطرد', 'تعاون مسطرد'),
+        ('الفيوم', 'الفيوم'),
+        ('مصر البترول بور سعيد', 'مصر البترول بور سعيد'),
+        ('موبيل بور سعيد', 'موبيل بور سعيد'),
+        ('Somed', 'Somed'),
+        ('Agroud', 'Agroud'),
+        ('Suez', 'TAQA Suez Terminal'),
+        ('طاقة السويس', 'TAQA Suez Terminal'),
+        ('TAQA Suez Terminal', 'TAQA Suez Terminal'),
+        ('Alex', 'TAQA Alex Terminal'),
+        ('TAQA Alex Terminal', 'TAQA Alex Terminal'),
+        ('مسطرد', 'موبيل مسطرد'),
+        ('انابيب البترول بدر', 'انابيب البترول بدر'),
+        ('موبيل مسطرد', 'موبيل مسطرد'),
+        ('موبيل السويس', 'موبيل السويس'),
+        ('التعاون الزقازيق', 'التعاون الزقازيق'),
+        ('بنى سويف', 'بنى سويف'),
+        ('Qena', 'Qena'),
+        ('Assiout', 'Assiout'),
+        ('Menia', 'Menia')`
+
+// migrateTerminalNormalization turns terminals into a picked-by-id entity:
+// FK columns on trips/parent_trips/fee_mappings, missing terminals created,
+// legacy terminal strings backfilled onto the FKs, per-company allowlists
+// seeded from historical data, and per-(terminal, company) receipt-number
+// serial patterns seeded. Additive and idempotent: every statement is safe to
+// run repeatedly, backfills only touch rows where terminal_id IS NULL, and
+// seeds rely on unique indexes + ON CONFLICT DO NOTHING.
+func migrateTerminalNormalization() {
+	backfill := func(table string) string {
+		return fmt.Sprintf(`
+        UPDATE %s AS t
+           SET terminal_id = term.id
+          FROM (VALUES%s
+               ) AS m(src, canonical)
+          JOIN terminals AS term
+            ON term.name = m.canonical AND term.deleted_at IS NULL
+         WHERE t.terminal_id IS NULL
+           AND t.terminal = m.src
+    `, table, terminalNameMappingValues)
+	}
+
+	stmts := []struct {
+		label string
+		sql   string
+	}{
+		// -- FK constraints. The columns themselves are added by AutoMigrate
+		// (ADD COLUMN IF NOT EXISTS semantics); the constraints are added here
+		// because gorm cannot express them without an association field.
+		{"trips.terminal_id fk", `
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_trips_terminal_id') THEN
+                ALTER TABLE trips ADD CONSTRAINT fk_trips_terminal_id
+                    FOREIGN KEY (terminal_id) REFERENCES terminals(id);
+            END IF;
+        END $$`},
+		{"parent_trips.terminal_id fk", `
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_parent_trips_terminal_id') THEN
+                ALTER TABLE parent_trips ADD CONSTRAINT fk_parent_trips_terminal_id
+                    FOREIGN KEY (terminal_id) REFERENCES terminals(id);
+            END IF;
+        END $$`},
+		{"fee_mappings.terminal_id fk", `
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_fee_mappings_terminal_id') THEN
+                ALTER TABLE fee_mappings ADD CONSTRAINT fk_fee_mappings_terminal_id
+                    FOREIGN KEY (terminal_id) REFERENCES terminals(id);
+            END IF;
+        END $$`},
+
+		// -- Uniqueness for receipt patterns. A plain UNIQUE(terminal_id,
+		// company) treats NULL companies as distinct, so the "applies to all
+		// companies" row could be inserted twice; the expression index makes
+		// NULL behave as a real key and powers the upsert in the handler.
+		{"terminal_receipt_patterns unique index", `
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_terminal_receipt_patterns_terminal_company
+        ON terminal_receipt_patterns (terminal_id, COALESCE(company, ''))`},
+
+		// -- Terminals that exist operationally but never had a row. No
+		// coordinates: they get pinned later via the Locations UI.
+		{"missing terminals", `
+        INSERT INTO terminals (created_at, updated_at, name, address, latitude, longitude)
+        VALUES
+            (NOW(), NOW(), 'انابيب البترول بدر', '', 0, 0),
+            (NOW(), NOW(), 'موبيل مسطرد', '', 0, 0),
+            (NOW(), NOW(), 'موبيل السويس', '', 0, 0),
+            (NOW(), NOW(), 'التعاون الزقازيق', '', 0, 0),
+            (NOW(), NOW(), 'بنى سويف', '', 0, 0),
+            (NOW(), NOW(), 'Qena', '', 0, 0),
+            (NOW(), NOW(), 'Assiout', '', 0, 0),
+            (NOW(), NOW(), 'Menia', '', 0, 0)
+        ON CONFLICT (name) DO NOTHING`},
+
+		// -- Backfill the FKs from the legacy terminal strings.
+		{"trips backfill", backfill("trips")},
+		{"parent_trips backfill", backfill("parent_trips")},
+		{"fee_mappings backfill", backfill("fee_mappings")},
+
+		// -- 'Haykstep' was a duplicate of 'هايكستب'; everything now points at
+		// the canonical row, so retire the duplicate.
+		{"soft-delete Haykstep", `
+        UPDATE terminals
+           SET deleted_at = NOW(), updated_at = NOW()
+         WHERE name = 'Haykstep' AND deleted_at IS NULL`},
+
+		// -- Allowlists from observed history: any (terminal, company) pair
+		// that ever produced a trip or has a fee mapping is allowed.
+		{"terminal_companies seed", `
+        INSERT INTO terminal_companies (terminal_id, company, created_at)
+        SELECT src.terminal_id, src.company, NOW()
+          FROM (
+            SELECT DISTINCT terminal_id, company
+              FROM trips
+             WHERE deleted_at IS NULL AND terminal_id IS NOT NULL
+               AND company IS NOT NULL AND company <> ''
+            UNION
+            SELECT DISTINCT terminal_id, company
+              FROM fee_mappings
+             WHERE deleted_at IS NULL AND terminal_id IS NOT NULL
+               AND company IS NOT NULL AND company <> ''
+          ) src
+        ON CONFLICT DO NOTHING`},
+
+		// -- Known receipt-number serializations. Anchored regexes; NULL
+		// company applies to every company at that terminal.
+		{"terminal_receipt_patterns seed", `
+        INSERT INTO terminal_receipt_patterns
+            (terminal_id, company, pattern, description, active, created_at, updated_at)
+        SELECT t.id, m.company, m.pattern, m.description, TRUE, NOW(), NOW()
+          FROM (VALUES
+            ('موبيل بور سعيد', NULL, '^80[0-9]{8}$', 'Mobil 10-digit serial'),
+            ('موبيل السويس', NULL, '^80[0-9]{8}$', 'Mobil 10-digit serial'),
+            ('موبيل مسطرد', NULL, '^80[0-9]{8}$', 'Mobil 10-digit serial'),
+            ('TAQA Alex Terminal', 'TAQA', '^12[0-9]{5}$', 'TAQA Alex 7-digit 12xxxxx'),
+            ('TAQA Suez Terminal', 'TAQA', '^12[0-9]{5}$', 'TAQA Suez 7-digit 12xxxxx'),
+            ('TAQA Suez Terminal', 'Watanya', '^6[12][0-9]{5}$', 'Watanya @ TAQA Suez 7-digit 61/62xxxxx'),
+            ('هايكستب', 'Watanya', '^[789][0-9]{5}$', 'Watanya Haykstep 6-digit'),
+            ('هايكستب', 'Petrol Arrows', '^[78][0-9]{5}$', 'PA Haykstep 6-digit'),
+            ('بدر', 'Watanya', '^1[0-9]{5}$', 'Watanya Badr 6-digit 1xxxxx'),
+            ('بدر', 'Petrol Arrows', '^[0-9]{5}$', 'PA Badr 5-digit'),
+            ('تعاون مسطرد', 'Watanya', '^74[0-9]{4}$', 'Watanya Taawon Mostorod 6-digit'),
+            ('تعاون مسطرد', 'Petrol Arrows', '^132[0-9]{5}$', 'PA Taawon Mostorod 8-digit'),
+            ('مصر البترول بور سعيد', 'Watanya', '^6[0-9]{5}$', 'Misr Petroleum PS 6-digit'),
+            ('الفيوم', 'Watanya', '^[34][0-9]{5}$', 'Fayoum 6-digit'),
+            ('Somed', 'Petrol Arrows', '^[0-9]{4,5}$', 'Somed 4-5 digit'),
+            ('Agroud', 'Petrol Arrows', '^([0-9]{4}|141[0-9]{5})$', 'Agroud 4-digit or 141xxxxx'),
+            ('انابيب البترول بدر', 'Petrol Arrows', '^[0-9]{6}$', 'Pipelines Badr 6-digit')
+          ) AS m(terminal_name, company, pattern, description)
+          JOIN terminals t ON t.name = m.terminal_name
+        ON CONFLICT DO NOTHING`},
+	}
+
+	for _, s := range stmts {
+		if err := DB.Exec(s.sql).Error; err != nil {
+			log.Printf("⚠️ terminal normalization migration (%s) failed: %v", s.label, err)
+		}
 	}
 }
 

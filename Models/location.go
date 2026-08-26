@@ -1,6 +1,10 @@
 package Models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Location struct {
 	gorm.Model
@@ -10,23 +14,53 @@ type Location struct {
 
 type Terminal struct {
 	gorm.Model
-	Name      string   `json:"name" gorm:"unique"`
-	Address   string   `json:"address"`
-	Latitude  float64  `json:"lat"`
-	Longitude float64  `json:"long"`
+	Name      string  `json:"name" gorm:"unique"`
+	Address   string  `json:"address"`
+	Latitude  float64 `json:"lat"`
+	Longitude float64 `json:"long"`
 	// Geofence radius override in meters. NULL means the consumer's default
 	// (trip auditor defaults to 500m for terminals).
 	RadiusM *float64 `json:"radius_m"`
 }
 
-// TerminalAlias maps the free-text terminal strings found in trips and
-// fee_mappings (e.g. "Suez", "طاقة السويس") to a canonical Terminal row.
-type TerminalAlias struct {
-	gorm.Model
-	Alias      string `json:"alias" gorm:"uniqueIndex"`
-	TerminalID uint   `json:"terminal_id" gorm:"index"`
+// TerminalCompany is the per-company allowlist: a terminal can only be picked
+// for a trip when a (terminal, company) row exists here. Seeded from the
+// historical trips/fee_mappings data and extended via POST /api/terminals.
+type TerminalCompany struct {
+	ID         uint      `json:"id" gorm:"primaryKey"`
+	TerminalID uint      `json:"terminal_id" gorm:"not null;uniqueIndex:idx_terminal_companies_terminal_company"`
+	Company    string    `json:"company" gorm:"not null;uniqueIndex:idx_terminal_companies_terminal_company"`
+	CreatedAt  time.Time `json:"created_at"`
 
-	Terminal Terminal `json:"terminal" gorm:"foreignKey:TerminalID"`
+	Terminal Terminal `json:"-" gorm:"foreignKey:TerminalID"`
+}
+
+func (TerminalCompany) TableName() string {
+	return "terminal_companies"
+}
+
+// TerminalReceiptPattern validates receipt numbers per (terminal, company)
+// with an anchored regex. Company NULL means the pattern applies to every
+// company loading at that terminal; a company-specific row wins over the
+// NULL-company row. Uniqueness is enforced by a raw expression index on
+// terminal_id plus company coalesced to the empty string -- see
+// migrateTerminalNormalization -- because a plain UNIQUE(terminal_id, company)
+// treats NULLs as distinct.
+type TerminalReceiptPattern struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	TerminalID  uint      `json:"terminal_id" gorm:"not null;index"`
+	Company     *string   `json:"company"`
+	Pattern     string    `json:"pattern" gorm:"not null"`
+	Description string    `json:"description"`
+	Active      bool      `json:"active" gorm:"default:true"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+
+	Terminal Terminal `json:"-" gorm:"foreignKey:TerminalID"`
+}
+
+func (TerminalReceiptPattern) TableName() string {
+	return "terminal_receipt_patterns"
 }
 
 // DropOffPoint is the single source of truth for drop-off coordinates.
