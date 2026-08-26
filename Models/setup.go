@@ -344,6 +344,20 @@ func migrateTerminalNormalization() {
 		label string
 		sql   string
 	}{
+		// -- Production's terminals table predates gorm and was created with
+		// no primary key at all (only uni_terminals_name), so every
+		// REFERENCES terminals(id) — here and in gorm's AutoMigrate — fails
+		// with SQLSTATE 42830. Give it its missing PK first.
+		{"terminals primary key", `
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                 WHERE conrelid = 'terminals'::regclass AND contype = 'p'
+            ) THEN
+                ALTER TABLE terminals ADD CONSTRAINT terminals_pkey PRIMARY KEY (id);
+            END IF;
+        END $$`},
+
 		// -- The tables themselves. gorm's AutoMigrate has proven fragile
 		// here (a failure on one model silently skips the rest of the
 		// phase), so the schema this migration depends on is created
