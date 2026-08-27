@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,37 +16,65 @@ import (
 // debounces and coalesces server-side, so this is safe to call on every
 // trip mutation. Fire-and-forget: it never blocks or fails the caller, and
 // it is a no-op when ETIT_PROXY_ADMIN_URL / ETIT_PROXY_ADMIN_TOKEN are unset.
+// auditHookSlots caps concurrent notifier goroutines. When the proxy is
+// down every call burns its full timeout; without a cap a busy import
+// session could pile up hundreds of stuck goroutines. Excess notifications
+// are DROPPED (with a log line) — safe, because the proxy's nightly
+// activity sweep re-derives anything the fast path missed.
+var auditHookSlots = make(chan struct{}, 8)
+
 func NotifyTripAudit(dates ...string) {
-	adminURL := os.Getenv("ETIT_PROXY_ADMIN_URL")
-	adminToken := os.Getenv("ETIT_PROXY_ADMIN_TOKEN")
-	if adminURL == "" || adminToken == "" {
+	// Copy before leaving the caller's stack; the caller's slice must not
+	// be retained by the goroutine.
+	datesCopy := append([]string(nil), dates...)
+
+	select {
+	case auditHookSlots <- struct{}{}:
+	default:
+		log.Printf("Warning: trip audit hook: notifier saturated, dropping (nightly sweep will cover)")
 		return
 	}
 
-	// Deduplicate, drop empties, and expand each parseable date by +/- 1 day.
-	seen := make(map[string]bool)
-	expanded := make([]string, 0, len(dates)*3)
-	add := func(d string) {
-		if d != "" && !seen[d] {
-			seen[d] = true
-			expanded = append(expanded, d)
-		}
-	}
-	for _, d := range dates {
-		if d == "" {
-			continue
-		}
-		add(d)
-		if t, err := time.Parse("2006-01-02", d); err == nil {
-			add(t.AddDate(0, 0, -1).Format("2006-01-02"))
-			add(t.AddDate(0, 0, 1).Format("2006-01-02"))
-		}
-	}
-	if len(expanded) == 0 {
-		return
-	}
-
+	// EVERYTHING — env reads, parsing, HTTP — runs off the request path,
+	// and the recover guard means a bug here can never take down the
+	// process (an unrecovered goroutine panic kills all of Falcon).
 	go func() {
+		defer func() {
+			<-auditHookSlots
+			if r := recover(); r != nil {
+				log.Printf("Warning: trip audit hook: recovered panic: %v", r)
+			}
+		}()
+
+		adminURL := os.Getenv("ETIT_PROXY_ADMIN_URL")
+		adminToken := os.Getenv("ETIT_PROXY_ADMIN_TOKEN")
+		if adminURL == "" || adminToken == "" {
+			return
+		}
+
+		// Deduplicate, drop empties, expand each parseable date by +/- 1 day.
+		seen := make(map[string]bool)
+		expanded := make([]string, 0, len(datesCopy)*3)
+		add := func(d string) {
+			if d != "" && !seen[d] {
+				seen[d] = true
+				expanded = append(expanded, d)
+			}
+		}
+		for _, d := range datesCopy {
+			if d == "" {
+				continue
+			}
+			add(d)
+			if t, err := time.Parse("2006-01-02", d); err == nil {
+				add(t.AddDate(0, 0, -1).Format("2006-01-02"))
+				add(t.AddDate(0, 0, 1).Format("2006-01-02"))
+			}
+		}
+		if len(expanded) == 0 {
+			return
+		}
+
 		body, err := json.Marshal(map[string][]string{"dates": expanded})
 		if err != nil {
 			log.Printf("Warning: trip audit hook: failed to marshal dates: %v", err)
@@ -67,6 +96,8 @@ func NotifyTripAudit(dates ...string) {
 			return
 		}
 		defer resp.Body.Close()
+		// Drain so the keep-alive connection can be reused.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 		if resp.StatusCode >= 300 {
 			log.Printf("Warning: trip audit hook: rescan returned status %d", resp.StatusCode)
 		}
