@@ -3552,6 +3552,8 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	oldTripDate := existingTrip.Date
+
 	// Parse the update data
 	updatedTrip := new(Models.TripStruct)
 	if err := c.BodyParser(updatedTrip); err != nil {
@@ -3724,6 +3726,8 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	services.NotifyTripAudit(oldTripDate, existingTrip.Date)
+
 	// Refresh fee mapping data
 	var mapping Models.FeeMapping
 	h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
@@ -3810,6 +3814,8 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 			"error":   result.Error.Error(),
 		})
 	}
+
+	services.NotifyTripAudit(trip.Date)
 
 	// defer func() {
 	// 	go func() {
@@ -5064,6 +5070,8 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	services.NotifyTripAudit(input.ParentTrip.Date)
+
 	wasSetAsCurrent := input.SetAsCurrentTrip && input.ParentTrip.SessionID != nil
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
@@ -5206,6 +5214,8 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
+
+	oldParentDate := existingParent.Date
 
 	// NEW: Check for duplicate receipts in updated/new containers unless force_update is true
 	if !input.ForceUpdate && input.UpdateContainers && len(input.Containers) > 0 {
@@ -5598,6 +5608,8 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		})
 	}
 
+	services.NotifyTripAudit(oldParentDate, existingParent.Date)
+
 	// Fetch updated containers
 	var updatedContainers []Models.TripStruct
 	h.DB.Where("parent_trip_id = ?", uint(id)).
@@ -5682,6 +5694,8 @@ func (h *TripHandler) DeleteParentTrip(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
+
+	services.NotifyTripAudit(parentTrip.Date)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message":            "Parent trip and containers deleted successfully",
