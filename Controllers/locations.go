@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/services"
 	"net/http"
 	"strconv"
 	"strings"
@@ -86,6 +87,11 @@ func (h *LocationsHandler) UpdateTerminal(c *fiber.Ctx) error {
 
 	if err := h.DB.Model(&terminal).Updates(updates).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	// A moved pin or resized fence changes what the trip auditor sees —
+	// re-audit the recent trips departing this terminal.
+	if (body.Latitude != nil && body.Longitude != nil) || body.RadiusM != nil || body.ClearRadius {
+		services.NotifyLocationRescan(h.DB, "terminal", terminal.ID, "")
 	}
 	return c.JSON(fiber.Map{"message": "terminal updated", "data": terminal})
 }
@@ -203,6 +209,11 @@ func (h *LocationsHandler) UpdateDropOffPoint(c *fiber.Ctx) error {
         `, *body.Latitude, *body.Longitude, point.Name).Error; err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
+	}
+	// A moved pin or resized fence changes what the trip auditor sees —
+	// re-audit the recent trips delivering to this point.
+	if (body.Latitude != nil && body.Longitude != nil) || body.RadiusM != nil || body.ClearRadius {
+		services.NotifyLocationRescan(h.DB, "dropoff", 0, point.Name)
 	}
 	return c.JSON(fiber.Map{"message": "drop-off point updated", "data": point})
 }

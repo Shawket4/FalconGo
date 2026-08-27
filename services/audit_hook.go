@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // NotifyTripAudit tells the etit-proxy to re-audit the given trip dates
@@ -101,5 +103,56 @@ func NotifyTripAudit(dates ...string) {
 		if resp.StatusCode >= 300 {
 			log.Printf("Warning: trip audit hook: rescan returned status %d", resp.StatusCode)
 		}
+	}()
+}
+
+
+// locationRescanWindowDays bounds how far back a pin change re-audits.
+// Aligned with the proxy's own activity-sweep horizon; older history can be
+// re-audited with an explicit scan when needed.
+const locationRescanWindowDays = 45
+
+// NotifyLocationRescan re-audits every recent trip day that a location's
+// geofence touches, after its pin or radius changed. kind is "terminal"
+// (uses terminalID) or "dropoff" (uses dropoffName). Same guarantees as
+// NotifyTripAudit: everything off the request path, panic-contained,
+// never blocks the caller.
+func NotifyLocationRescan(db *gorm.DB, kind string, terminalID uint, dropoffName string) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Warning: location rescan hook: recovered panic: %v", r)
+			}
+		}()
+
+		floor := time.Now().AddDate(0, 0, -locationRescanWindowDays).Format("2006-01-02")
+		var dates []string
+		var err error
+		switch kind {
+		case "terminal":
+			err = db.Raw(
+				`SELECT DISTINCT date FROM parent_trips
+				  WHERE deleted_at IS NULL AND terminal_id = ? AND date >= ?`,
+				terminalID, floor,
+			).Scan(&dates).Error
+		case "dropoff":
+			err = db.Raw(
+				`SELECT DISTINCT pt.date FROM parent_trips pt
+				   JOIN trips t ON t.parent_trip_id = pt.id AND t.deleted_at IS NULL
+				  WHERE pt.deleted_at IS NULL AND t.drop_off_point = ? AND pt.date >= ?`,
+				dropoffName, floor,
+			).Scan(&dates).Error
+		default:
+			return
+		}
+		if err != nil {
+			log.Printf("Warning: location rescan hook: date query failed: %v", err)
+			return
+		}
+		if len(dates) == 0 {
+			return
+		}
+		log.Printf("Location pin changed (%s): re-auditing %d trip day(s)", kind, len(dates))
+		NotifyTripAudit(dates...)
 	}()
 }
