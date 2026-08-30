@@ -130,12 +130,95 @@ func oilKmUsed(o Models.OilChange) float64 {
 	return 0
 }
 
+// Severity colours for the km-remaining and status columns. Muted to sit
+// beside the trip export's teal/slate palette rather than shout over it —
+// colPositive is the same green the receipt flags already use.
+const (
+	colOilWarning  = "#B7791F"
+	colOilCritical = "#C0392B"
+)
+
+// oilSeverityStyles indexes [severity][striped]. Severity is 0 good, 1 warning,
+// 2 critical, matching oilSeverity below.
+type oilSeverityStyles struct {
+	number [3][2]int
+	text   [3][2]int
+}
+
+// newOilSeverityStyles mirrors how newTripStyles builds its flag pairs: one
+// style per state per stripe, created once per workbook. A style per cell
+// across a fleet's full history would bloat both the file and the write.
+func newOilSeverityStyles(f *excelize.File) (*oilSeverityStyles, error) {
+	out := &oilSeverityStyles{}
+	var firstErr error
+	make := func(st *excelize.Style) int {
+		id, err := f.NewStyle(st)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		return id
+	}
+	colours := [3]string{colPositive, colOilWarning, colOilCritical}
+	for sev := 0; sev < 3; sev++ {
+		for si, striped := range []bool{false, true} {
+			base := func(numFmt string) *excelize.Style {
+				st := &excelize.Style{
+					Font: &excelize.Font{
+						Size: 10, Bold: sev > 0, Color: colours[sev], Family: fontFamily,
+					},
+					Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+					Border: []excelize.Border{
+						{Type: "bottom", Color: colBorder, Style: 1},
+					},
+				}
+				if numFmt != "" {
+					st.CustomNumFmt = strPtr(numFmt)
+				}
+				if striped {
+					st.Fill = excelize.Fill{Type: "pattern", Color: []string{colAltRow}, Pattern: 1}
+				}
+				return st
+			}
+			out.number[sev][si] = make(base(fmtInt))
+			out.text[sev][si] = make(base(""))
+		}
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return out, nil
+}
+
+// Zero-based positions within a row's values, before the optional leading
+// vehicle column. Named because the two colour-coded cells are addressed by
+// index, and an off-by-one there paints the wrong column with no error.
+const (
+	oilColKmRemaining = 6
+	oilColStatus      = 8
+)
+
+// oilSeverity is the same rule as oilStatus, as an index rather than a label.
+func oilSeverity(kmRemaining float64) int {
+	switch {
+	case kmRemaining <= oilCriticalKm:
+		return 2
+	case kmRemaining <= oilWarningKm:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // BuildOilChangesExcel renders the master sheet plus one sheet per vehicle.
 func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, meta string) ([]byte, error) {
 	l := labels.withDefaults()
 
 	f := excelize.NewFile()
 	styles, err := newTripStyles(f)
+	if err != nil {
+		return nil, err
+	}
+	severity, err := newOilSeverityStyles(f)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +261,7 @@ func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, me
 		_ = f.DeleteSheet("Sheet1")
 	}
 
-	if err := writeOilSheet(f, styles, master, latest, l, l.Title, l.Subtitle, meta, true); err != nil {
+	if err := writeOilSheet(f, styles, severity, master, latest, l, l.Title, l.Subtitle, meta, true); err != nil {
 		return nil, err
 	}
 
@@ -192,7 +275,7 @@ func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, me
 		}
 		history := byPlate[p]
 		sub := fmt.Sprintf("%s — %s", l.Subtitle, p)
-		if err := writeOilSheet(f, styles, name, history, l, p, sub, meta, false); err != nil {
+		if err := writeOilSheet(f, styles, severity, name, history, l, p, sub, meta, false); err != nil {
 			return nil, err
 		}
 	}
@@ -233,6 +316,7 @@ func uniqueSheetName(plate string, used map[string]bool) string {
 func writeOilSheet(
 	f *excelize.File,
 	styles *tripStyles,
+	severity *oilSeverityStyles,
 	sheet string,
 	rows []Models.OilChange,
 	l OilExportLabels,
@@ -368,6 +452,26 @@ func writeOilSheet(
 		for offset, on := range []bool{o.OilFilterChanged, o.FuelFilterChanged, o.WaterFilterChanged} {
 			cell, _ := excelize.CoordinatesToCellName(flagStart+offset+1, row)
 			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, striped))
+		}
+
+		// km remaining and the status word carry the same fact, so they take
+		// the same colour: the column is scanned for what is due, not read.
+		// Indices are derived from the optional leading vehicle column rather
+		// than hardcoded, so adding one cannot silently colour the wrong cell.
+		base := 0
+		if withVehicle {
+			base = 1
+		}
+		sev := oilSeverity(remaining)
+		si := 0
+		if striped {
+			si = 1
+		}
+		if cell, err := excelize.CoordinatesToCellName(base+oilColKmRemaining+1, row); err == nil {
+			_ = f.SetCellStyle(sheet, cell, cell, severity.number[sev][si])
+		}
+		if cell, err := excelize.CoordinatesToCellName(base+oilColStatus+1, row); err == nil {
+			_ = f.SetCellStyle(sheet, cell, cell, severity.text[sev][si])
 		}
 
 		_ = f.SetRowHeight(sheet, row, 20)

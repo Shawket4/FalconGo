@@ -95,3 +95,51 @@ func TestOilExportEmptyStillBuilds(t *testing.T) {
 		t.Fatalf("an empty export should still produce a workbook: %v", err)
 	}
 }
+
+// The two colour-coded cells are addressed by index, so this pins which
+// columns they are: paint the wrong one and the sheet says a healthy truck is
+// overdue, with nothing to indicate anything went wrong.
+func TestOilExportColoursKmRemainingAndStatus(t *testing.T) {
+	records := []Models.OilChange{
+		// 7,500 km into an 8,000 km interval: 500 left, critical.
+		oilRecord(1, "AA-1", "2026-01-01", 100000, 107500, 8000),
+		// 1,000 km in: 7,000 left, good.
+		oilRecord(2, "BB-2", "2026-01-01", 200000, 201000, 8000),
+	}
+	data, err := BuildOilChangesExcel(records, OilExportLabels{}, "meta")
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	f, _ := excelize.OpenReader(bytes.NewReader(data))
+	defer f.Close()
+
+	// Master sheet carries the vehicle column, so km remaining is H and the
+	// status word is J. Rows start at 8.
+	rows, _ := f.GetRows("Fleet")
+	if got := rows[7][oilColKmRemaining+1]; got != "500" {
+		t.Fatalf("H8 should be the critical truck's km remaining, got %q", got)
+	}
+	if got := rows[8][oilColKmRemaining+1]; got != "7,000" {
+		t.Fatalf("H9 should be the healthy truck's km remaining, got %q", got)
+	}
+
+	crit, err := f.GetCellStyle("Fleet", "H8")
+	if err != nil {
+		t.Fatalf("style: %v", err)
+	}
+	good, _ := f.GetCellStyle("Fleet", "H9")
+	if crit == good {
+		t.Error("a critical and a healthy km-remaining cell must not share a style")
+	}
+
+	critStatus, _ := f.GetCellStyle("Fleet", "J8")
+	goodStatus, _ := f.GetCellStyle("Fleet", "J9")
+	if critStatus == goodStatus {
+		t.Error("the status column should be colour-coded alongside km remaining")
+	}
+	// And the colour must follow the severity, not the row: the status cell and
+	// the number beside it are the same fact.
+	if crit == goodStatus || good == critStatus {
+		t.Error("severity styles look transposed between the two rows")
+	}
+}
