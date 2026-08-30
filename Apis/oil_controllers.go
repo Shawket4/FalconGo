@@ -73,6 +73,14 @@ func EditOilChange(c *fiber.Ctx) error {
 	oilChange.SuperVisor = input.SuperVisor
 	oilChange.Mileage = input.Mileage
 	oilChange.OdometerAtChange = input.OdometerAtChange
+	// Copied explicitly, like every other field here: this handler edits a
+	// row it loaded from the database, so anything not assigned keeps its old
+	// value and the edit is silently dropped. Unticking a filter has to
+	// survive, which rules out the usual `Updates` shortcut too — GORM skips
+	// false as a zero value; `Edit()` does a full Save.
+	oilChange.OilFilterChanged = input.OilFilterChanged
+	oilChange.FuelFilterChanged = input.FuelFilterChanged
+	oilChange.WaterFilterChanged = input.WaterFilterChanged
 	overWriterUser := c.Locals("user").(*Models.User)
 	oilChange.Overwriter = overWriterUser.Name
 	if _, err := oilChange.Edit(); err != nil {
