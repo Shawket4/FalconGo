@@ -17,10 +17,19 @@ type OilChange struct {
 	OdometerAtChange float64 `json:"odometer_at_change"`
 	CurrentOdometer  float64 `json:"current_odometer"`
 	ExcelIndex       int
-	Transporter      string  `json:"transporter"`
-	Cost             float64 `json:"cost"`
-	Author           string  `json:"author"`
-	Overwriter       string  `json:"overwriter"`
+	// Which filters were replaced alongside the oil. The paper sheet recorded
+	// this as one free-text note ("تم تغيرزيت وفلاتر" / "بدون فلاتر"), which
+	// cannot answer "when was this truck's water separator last done" — three
+	// booleans can. They default to false, so existing rows read as "oil only",
+	// which is what an unqualified "تم تغير زيت" meant.
+	OilFilterChanged  bool `json:"oil_filter_changed"`
+	FuelFilterChanged bool `json:"fuel_filter_changed"`
+	// فلتر فاصل للمياه / فلتر مكثف — the water separator on the fuel line.
+	WaterFilterChanged bool    `json:"water_filter_changed"`
+	Transporter        string  `json:"transporter"`
+	Cost               float64 `json:"cost"`
+	Author             string  `json:"author"`
+	Overwriter         string  `json:"overwriter"`
 }
 
 func (input *OilChange) Add() (OilChange, error) {
