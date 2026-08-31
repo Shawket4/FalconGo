@@ -7,6 +7,7 @@ import (
 	"Falcon/Models"
 	"Falcon/MultiRouteOptimizer"
 	"Falcon/Notifications"
+	"Falcon/Observability"
 	"Falcon/PetroApp"
 	"Falcon/PreviewData"
 	"Falcon/Scrapper"
@@ -503,7 +504,15 @@ func FiberConfig() {
 
 	app := fiber.New(fiber.Config{
 		Views: engine,
+		// Reports 5xx to Sentry and then defers to Fiber's own handling, so
+		// responses are byte-for-byte what they were. With no SENTRY_DSN the
+		// capture is a no-op.
+		ErrorHandler: Observability.ErrorHandler(nil),
 	})
+
+	// Sentry scope per request. Must precede the routes so handlers run inside
+	// a hub of their own.
+	app.Use(Observability.Middleware())
 
 	// Request logging
 	app.Use(middleware.RequestLogger())

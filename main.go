@@ -1,12 +1,13 @@
 package main
 
 import (
+	"Falcon/Constants"
 	"Falcon/FiberConfig"
 	"Falcon/Migrations"
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/Slack"
 	"Falcon/workers"
-	"Falcon/Constants"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,14 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// version stamps Sentry releases so one deploy's errors can be told from the
+// next one's. Set it at build time with
+//
+//	go build -ldflags "-X main.version=$(git rev-parse --short HEAD)"
+//
+// or override the whole release string with SENTRY_RELEASE.
+var version = "dev"
 
 func main() {
 	Constants.Init()
@@ -28,6 +37,12 @@ func main() {
 	log.Println("========================================")
 	log.Println("Starting Falcon Logistics System")
 	log.Println("========================================")
+
+	// Sentry, if SENTRY_DSN is set. Deferred flush so a crash on the way out
+	// still delivers. With no DSN this installs nothing and the flush is a
+	// no-op, leaving the service exactly as it was.
+	flushSentry := Observability.Init("falcon@" + version)
+	defer flushSentry()
 
 	// ============================================
 	// STEP 2: CREATE REQUIRED DIRECTORIES
@@ -198,7 +213,6 @@ func startBackgroundWorkers() {
 
 	log.Println("✅ All background workers started")
 }
-
 
 // Document expiration checker (uncomment when ready)
 /*
