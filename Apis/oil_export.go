@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -54,8 +55,16 @@ func ExportOilChangesExcel(c *fiber.Ctx) error {
 		plates[r.CarNoPlate] = true
 	}
 
-	data, err := services.BuildOilChangesExcel(
-		records, labels, services.OilExportMeta(len(records), len(plates)))
+	var data []byte
+	var err error
+	// The two halves of an export cost very different amounts; split them so a
+	// slow one says which half was slow.
+	err = Observability.Span(c, "export.build.oil_changes", func() error {
+		var e error
+		data, e = services.BuildOilChangesExcel(
+			records, labels, services.OilExportMeta(len(records), len(plates)))
+		return e
+	})
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to build the spreadsheet",

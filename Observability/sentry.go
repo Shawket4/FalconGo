@@ -109,7 +109,17 @@ func redactQuery(q string) string {
 }
 
 // beforeSend is the compliance control. See the package docs before changing it.
+// ServiceName tags every event so one shared Sentry project can still be
+// filtered per service. Without it you are left inferring the source from the
+// release string or the SDK name.
+const ServiceName = "falcon"
+
 func beforeSend(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
+	if event.Tags == nil {
+		event.Tags = map[string]string{}
+	}
+	event.Tags["service"] = ServiceName
+
 	// Whatever the SDK inferred about the person making the request, drop it.
 	// SendDefaultPII: false already suppresses most of this; clearing it
 	// outright means a future SDK release cannot quietly widen what "default"

@@ -96,3 +96,27 @@ func ErrorHandler(next fiber.ErrorHandler) fiber.ErrorHandler {
 		return next(c, err)
 	}
 }
+
+// Span wraps an expensive step so it appears as a child span on the request's
+// transaction — an export that spends its time in SQL rather than in xlsx
+// generation is otherwise indistinguishable from one that does the reverse.
+//
+// No-op when Sentry is not configured, and no-op when the request has no
+// transaction (sampled out), so it is safe to sprinkle on hot paths.
+func Span(c *fiber.Ctx, operation string, fn func() error) error {
+	hub := fibersentry.GetHubFromContext(c)
+	if hub == nil {
+		return fn()
+	}
+	span := sentry.StartSpan(c.Context(), operation)
+	if span == nil {
+		return fn()
+	}
+	defer span.Finish()
+
+	err := fn()
+	if err != nil {
+		span.Status = sentry.SpanStatusInternalError
+	}
+	return err
+}

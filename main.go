@@ -56,6 +56,13 @@ func main() {
 	// ============================================
 	log.Println("Connecting to database...")
 	Models.Connect()
+
+	// Record slow and failing queries as breadcrumbs, so a 500 arrives carrying
+	// the queries that ran just before it. No-op when Sentry is not configured.
+	if err := Observability.InstrumentDB(Models.DB); err != nil {
+		// Instrumentation is not worth failing a boot over.
+		log.Println("could not instrument DB for Sentry:", err)
+	}
 	log.Println("✅ Database connected")
 
 	if err := Models.RefreshMaterializedViews(); err != nil {

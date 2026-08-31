@@ -34,7 +34,12 @@ jobs:
       - name: Build Go application
         run: |
           # CGO_ENABLED=0 creates a static binary that works on any Linux distro
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main ./main.go
+          # -X main.version stamps the Sentry release, so an error can be
+          # traced to the deploy that introduced it. Without it every build
+          # reports "falcon@dev" and releases are useless.
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+            -ldflags "-X main.version=${GITHUB_SHA::7}" \
+            -o main ./main.go
           chmod +x main
 
       - name: Prepare deployment package

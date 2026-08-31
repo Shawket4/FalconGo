@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -64,7 +65,13 @@ func ExportCarsExcel(c *fiber.Ctx) error {
 	meta := fmt.Sprintf("%s · %d vehicles · %d-day expiry window",
 		time.Now().Format("2 Jan 2006 15:04"), len(cars), horizon)
 
-	data, err := services.BuildCarsExcel(cars, labels, horizon, meta)
+	var data []byte
+	var err error
+	err = Observability.Span(c, "export.build.cars", func() error {
+		var e error
+		data, e = services.BuildCarsExcel(cars, labels, horizon, meta)
+		return e
+	})
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to build the spreadsheet",
