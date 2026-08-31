@@ -17,6 +17,7 @@ package Observability
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -167,6 +168,17 @@ func beforeSend(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
 	return event
 }
 
+// tracesSampleRate is the fraction of requests traced. Anything unparseable or
+// out of range falls back to the default rather than failing a boot on a typo.
+func tracesSampleRate() float64 {
+	if v := strings.TrimSpace(os.Getenv("SENTRY_TRACES_SAMPLE_RATE")); v != "" {
+		if r, err := strconv.ParseFloat(v, 64); err == nil && r >= 0 && r <= 1 {
+			return r
+		}
+	}
+	return 0.5
+}
+
 // Init installs Sentry, or doesn't.
 //
 // Returns a flush function that is always safe to call and to defer. When
@@ -192,10 +204,11 @@ func Init(release string) func() {
 		Release:     release,
 		// Compliance: never send the SDK's idea of "default" personal data.
 		SendDefaultPII: false,
-		// Performance tracing off. This Sentry runs on modest hardware, so
-		// turning it up is a deliberate decision rather than a default.
-		EnableTracing:    false,
-		TracesSampleRate: 0.0,
+		// Tracing on. Env-tunable so the rate can be dropped without a
+		// rebuild — this Sentry runs on modest hardware and tracing is the
+		// part that loads it.
+		EnableTracing:    true,
+		TracesSampleRate: tracesSampleRate(),
 		BeforeSend:       beforeSend,
 	})
 	if err != nil {

@@ -513,6 +513,10 @@ func FiberConfig() {
 	// Sentry scope per request. Must precede the routes so handlers run inside
 	// a hub of their own.
 	app.Use(Observability.Middleware())
+	// Reports 5xx responses that handlers produce WITHOUT returning an error —
+	// which is most of them here. Must sit after the hub middleware so it can
+	// use the request's own hub.
+	app.Use(Observability.CaptureServerErrors())
 
 	// Request logging
 	app.Use(middleware.RequestLogger())

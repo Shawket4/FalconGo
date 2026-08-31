@@ -2,6 +2,7 @@ package Observability
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/contrib/fibersentry"
@@ -21,6 +22,47 @@ func Middleware() fiber.Handler {
 		// the process still reaches Sentry.
 		WaitForDelivery: false,
 	})
+}
+
+// CaptureServerErrors reports any response that leaves with a 5xx status.
+//
+// The ErrorHandler below only sees handlers that RETURN an error. This service
+// mostly does not: 264 call sites answer with c.Status(500).JSON(...) and
+// return nil, so Fiber's error path is never entered and every one of those
+// faults was invisible. This middleware reads the status after the handler has
+// run, which catches both styles.
+//
+// Deliberately status-based rather than error-based: by this point there may be
+// no error value left to report, so the event carries the route and status. The
+// detail stays in the service log, because a response body is not something we
+// can key-redact and must never be attached.
+func CaptureServerErrors() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		err := c.Next()
+
+		// A handler that returned an error is reported by ErrorHandler, which
+		// has the error itself and is strictly more useful. Don't double-report.
+		if err != nil {
+			return err
+		}
+
+		if c.Response().StatusCode() >= fiber.StatusInternalServerError {
+			hub := fibersentry.GetHubFromContext(c)
+			capture := sentry.CaptureMessage
+			if hub != nil {
+				capture = hub.CaptureMessage
+			}
+			sentry.WithScope(func(scope *sentry.Scope) {
+				scope.SetTag("http.status", strconv.Itoa(c.Response().StatusCode()))
+				scope.SetTag("http.route", c.Route().Path)
+				scope.SetTag("http.method", c.Method())
+				scope.SetLevel(sentry.LevelError)
+				capture(c.Method() + " " + c.Route().Path + " responded " +
+					strconv.Itoa(c.Response().StatusCode()))
+			})
+		}
+		return nil
+	}
 }
 
 // ErrorHandler reports server faults and hands everything else to Fiber.
