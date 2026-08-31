@@ -50,6 +50,7 @@ type OilExportLabels struct {
 	Status           string `json:"status"`
 	Cost             string `json:"cost"`
 	Filters          string `json:"filters"`
+	Due              string `json:"due"`
 	OilFilter        string `json:"oil_filter"`
 	FuelFilter       string `json:"fuel_filter"`
 	WaterFilter      string `json:"water_filter"`
@@ -86,6 +87,7 @@ func (l OilExportLabels) withDefaults() OilExportLabels {
 	l.Status = def(l.Status, "Status")
 	l.Cost = def(l.Cost, "Cost")
 	l.Filters = def(l.Filters, "Filters")
+	l.Due = def(l.Due, "Due")
 	l.OilFilter = def(l.OilFilter, "Oil Filter")
 	l.FuelFilter = def(l.FuelFilter, "Fuel Filter")
 	l.WaterFilter = def(l.WaterFilter, "Water Separator")
@@ -108,6 +110,53 @@ const (
 	oilCriticalKm = 1500.0
 	oilWarningKm  = 3000.0
 )
+
+// How many oil changes one filter element serves before it must be replaced.
+// MUST match FILTER_SERVICE_LIFE_CYCLES in the frontend's
+// entities/oil-change/schemas.ts. The chip on the screen and the cell in this
+// sheet naming different trucks would be worse than either being wrong.
+const filterServiceLifeCycles = 2
+
+// filterCycles is how many oil changes each element has served at a given
+// record, that record included.
+type filterCycles struct{ oil, fuel int }
+
+// filterCyclesSeries walks one vehicle's records, newest first, and answers for
+// each: how many changes had the fitted element already served at that point.
+//
+// Walked from the oldest forward, so a replacement resets to 1 and everything
+// after inherits its predecessor plus one. An element never replaced anywhere
+// in the records we hold reports how many we can see -- a floor rather than a
+// measurement, which only ever understates, the safe direction for a prompt.
+func filterCyclesSeries(newestFirst []Models.OilChange) []filterCycles {
+	out := make([]filterCycles, len(newestFirst))
+	oil, fuel := 0, 0
+	for i := len(newestFirst) - 1; i >= 0; i-- {
+		if newestFirst[i].OilFilterChanged {
+			oil = 1
+		} else {
+			oil++
+		}
+		if newestFirst[i].FuelFilterChanged {
+			fuel = 1
+		} else {
+			fuel++
+		}
+		out[i] = filterCycles{oil: oil, fuel: fuel}
+	}
+	return out
+}
+
+// filterCellState: 0 replaced, 1 still within life, 2 due at the next change.
+func filterCellState(replaced bool, cycles int) int {
+	if replaced {
+		return 0
+	}
+	if cycles >= filterServiceLifeCycles {
+		return 2
+	}
+	return 1
+}
 
 func oilStatus(kmRemaining float64, l OilExportLabels) string {
 	switch {
@@ -238,17 +287,18 @@ func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, me
 	sort.Strings(plates)
 
 	latest := make([]Models.OilChange, 0, len(plates))
+	latestCycles := make([]filterCycles, 0, len(plates))
+	series := map[string][]filterCycles{}
 	for _, p := range plates {
+		// Newest first by ID, the same rule selectLatestPerCar uses on the
+		// client: dates repeat, and IDs are monotonic per insert. Cycles are
+		// counted in this order, so the sheet and the screen agree.
 		rows := byPlate[p]
-		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Date > rows[j].Date })
-		best := rows[0]
-		for _, r := range rows {
-			if r.ID > best.ID {
-				best = r
-			}
-		}
-		latest = append(latest, best)
+		sort.SliceStable(rows, func(i, j int) bool { return rows[i].ID > rows[j].ID })
 		byPlate[p] = rows
+		series[p] = filterCyclesSeries(rows)
+		latest = append(latest, rows[0])
+		latestCycles = append(latestCycles, series[p][0])
 	}
 
 	master := sanitizeSheetName(l.Master)
@@ -261,7 +311,7 @@ func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, me
 		_ = f.DeleteSheet("Sheet1")
 	}
 
-	if err := writeOilSheet(f, styles, severity, master, latest, l, l.Title, l.Subtitle, meta, true); err != nil {
+	if err := writeOilSheet(f, styles, severity, master, latest, latestCycles, l, l.Title, l.Subtitle, meta, true); err != nil {
 		return nil, err
 	}
 
@@ -275,7 +325,7 @@ func BuildOilChangesExcel(records []Models.OilChange, labels OilExportLabels, me
 		}
 		history := byPlate[p]
 		sub := fmt.Sprintf("%s — %s", l.Subtitle, p)
-		if err := writeOilSheet(f, styles, severity, name, history, l, p, sub, meta, false); err != nil {
+		if err := writeOilSheet(f, styles, severity, name, history, series[p], l, p, sub, meta, false); err != nil {
 			return nil, err
 		}
 	}
@@ -319,6 +369,8 @@ func writeOilSheet(
 	severity *oilSeverityStyles,
 	sheet string,
 	rows []Models.OilChange,
+	// Aligned with rows: what the fitted element had served at that record.
+	cycles []filterCycles,
 	l OilExportLabels,
 	title, subtitle, meta string,
 	withVehicle bool,
@@ -410,8 +462,12 @@ func writeOilSheet(
 	_ = f.AutoFilter(sheet, fmt.Sprintf("A%d:%s%d", headerRow, lastCol, headerRow), nil)
 
 	row := headerRow + 1
-	for _, o := range rows {
+	for i, o := range rows {
 		striped := (row-headerRow)%2 == 0
+		cyc := filterCycles{oil: 1, fuel: 1}
+		if i < len(cycles) {
+			cyc = cycles[i]
+		}
 		used := oilKmUsed(o)
 		remaining := o.Mileage - used
 
@@ -429,8 +485,8 @@ func writeOilSheet(
 			remaining,
 			o.Mileage,
 			oilStatus(remaining, l),
-			boolLabel(o.OilFilterChanged, l),
-			boolLabel(o.FuelFilterChanged, l),
+			filterLabel(o.OilFilterChanged, cyc.oil, l),
+			filterLabel(o.FuelFilterChanged, cyc.fuel, l),
 			boolLabel(o.WaterFilterChanged, l),
 			o.Cost,
 		)
@@ -445,14 +501,19 @@ func writeOilSheet(
 			_ = f.SetCellStyle(sheet, cell, cell, styles.cell(cols[i].kind, striped))
 		}
 
-		// The three filter columns are scanned, not read, so they take the same
-		// on/off colouring the receipt flags get in the trip export. They sit
-		// immediately before the cost column.
+		// The filter columns are scanned, not read. Oil and fuel carry three
+		// states, so they take the severity palette the km-remaining column
+		// uses -- red means the next change must replace it. The water
+		// separator has no cycle count, so it keeps the plain on/off flag.
 		flagStart := len(values) - 4
-		for offset, on := range []bool{o.OilFilterChanged, o.FuelFilterChanged, o.WaterFilterChanged} {
-			cell, _ := excelize.CoordinatesToCellName(flagStart+offset+1, row)
-			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, striped))
-		}
+		oilCell, _ := excelize.CoordinatesToCellName(flagStart+1, row)
+		fuelCell, _ := excelize.CoordinatesToCellName(flagStart+2, row)
+		waterCell, _ := excelize.CoordinatesToCellName(flagStart+3, row)
+		_ = f.SetCellStyle(sheet, oilCell, oilCell,
+			filterStyle(severity, styles, filterCellState(o.OilFilterChanged, cyc.oil), striped))
+		_ = f.SetCellStyle(sheet, fuelCell, fuelCell,
+			filterStyle(severity, styles, filterCellState(o.FuelFilterChanged, cyc.fuel), striped))
+		_ = f.SetCellStyle(sheet, waterCell, waterCell, styles.flag(o.WaterFilterChanged, striped))
 
 		// km remaining and the status word carry the same fact, so they take
 		// the same colour: the column is scanned for what is due, not read.
@@ -496,6 +557,37 @@ func writeOilSheet(
 	}
 
 	return nil
+}
+
+// filterStyle maps the three filter states onto styles that already exist:
+// replaced reuses the trip export's positive flag, due reuses the critical end
+// of the severity palette, and still-serviceable is the muted off flag.
+func filterStyle(sev *oilSeverityStyles, styles *tripStyles, state int, striped bool) int {
+	si := 0
+	if striped {
+		si = 1
+	}
+	switch state {
+	case 0:
+		return styles.flag(true, striped)
+	case 2:
+		return sev.text[2][si]
+	default:
+		return styles.flag(false, striped)
+	}
+}
+
+// filterLabel says which of the three states a cell is in. A due element names
+// how many changes it has served, because "Due (7)" and "Due (2)" are not the
+// same conversation with a workshop.
+func filterLabel(replaced bool, cycles int, l OilExportLabels) string {
+	if replaced {
+		return l.Yes
+	}
+	if cycles >= filterServiceLifeCycles {
+		return fmt.Sprintf("%s (%d)", l.Due, cycles)
+	}
+	return l.No
 }
 
 func boolLabel(v bool, l OilExportLabels) string {
