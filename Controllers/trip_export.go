@@ -45,7 +45,7 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 		Order("date DESC, receipt_no DESC").
 		Preload("ReceiptSteps")
 
-	query = applyTripExportFilters(query, c)
+	query = h.applyTripExportFilters(query, c)
 
 	var trips []Models.TripStruct
 	if err := query.Find(&trips).Error; err != nil {
@@ -94,7 +94,7 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 // The client resolves filters across three different URLs (/trips, /trips/date,
 // /trips/company/:company); the export accepts them all on one endpoint so the
 // exported set cannot diverge from the table the user is looking at.
-func applyTripExportFilters(query *gorm.DB, c *fiber.Ctx) *gorm.DB {
+func (h *TripHandler) applyTripExportFilters(query *gorm.DB, c *fiber.Ctx) *gorm.DB {
 	if search := c.Query("search", ""); search != "" {
 		p := "%" + search + "%"
 		query = query.Where(
@@ -113,6 +113,21 @@ func applyTripExportFilters(query *gorm.DB, c *fiber.Ctx) *gorm.DB {
 
 	if company := c.Query("company", ""); company != "" {
 		query = query.Where("company = ?", company)
+	}
+
+	// Receipt status: pending / in_garage / in_office.
+	//
+	// This calls the LIST endpoint's own filter rather than restating the SQL.
+	// The predicates are not obvious -- "in garage" means the most recent
+	// receipt step is Garage, not merely that a Garage step exists -- and a
+	// second copy would drift from the page it is supposed to mirror.
+	//
+	// It was missing entirely: the client has always sent receipt_status, the
+	// export ignored it, and buildExportMeta printed "receipts: pending" in the
+	// banner regardless. So filtering the page to pending and exporting gave
+	// you every trip in the range, under a heading claiming otherwise.
+	if rs := c.Query("receipt_status", ""); rs != "" {
+		query = h.applyReceiptStatusFilter(query, rs)
 	}
 
 	// `date` is stored as YYYY-MM-DD text, which compares correctly as a string
