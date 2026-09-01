@@ -75,8 +75,28 @@ func normalise(key string) string {
 
 // IsSensitive reports whether a field name carries personal data. Exported so
 // the HTTP layer can use the same judgement the scrubber does.
+// Keys that match a denylist entry but are not personal.
+//
+// "name" has to stay a fragment — it is what catches driver_name, first_name,
+// full_name and the rest — but it also matches the SDK's own metadata and the
+// tags this module sets itself. APEX-7 arrived with job.name, os.name and
+// runtime.name all redacted, which meant the event could not say which job had
+// failed: the scrubber had eaten the one tag that made it actionable.
+//
+// Exact matches only, and only for keys whose value is a machine's word for
+// itself. device.name is deliberately absent — that one is "Shawket's iPhone".
+var allowExact = []string{
+	"jobname", "osname", "runtimename", "browsername", "sdkname",
+	"servicename", "rustname", "gonamespace",
+}
+
 func IsSensitive(key string) bool {
 	k := normalise(key)
+	for _, a := range allowExact {
+		if k == a {
+			return false
+		}
+	}
 	for _, e := range redactExact {
 		if k == e {
 			return true

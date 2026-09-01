@@ -267,6 +267,28 @@ func runAutoMigrations() {
 // without any pinned mapping get a NULL pin and surface in the dashboard's
 // "needs attention" inbox. Idempotent: existing rows are never overwritten.
 func backfillDropOffPoints() {
+	// The pins moved to drop_off_points and fee_mappings.latitude/longitude
+	// were dropped once every row had been carried across. This backfill reads
+	// those columns, so on any database that has had that migration it can only
+	// fail — which it did, on every boot, quietly, until the startup reporting
+	// went in and it turned up as APEX-7.
+	//
+	// Guarded rather than deleted: a database that has NOT been migrated yet
+	// still needs this to run, and the check is what tells the two apart.
+	var legacyColumns int64
+	if err := DB.Raw(`
+        SELECT COUNT(*) FROM information_schema.columns
+         WHERE table_name = 'fee_mappings' AND column_name IN ('latitude', 'longitude')
+    `).Scan(&legacyColumns).Error; err != nil {
+		log.Printf("⚠️ drop_off_points backfill: could not check for legacy columns: %v", err)
+		Observability.ReportJobFailure("startup", "drop_off_points_backfill_probe", err)
+		return
+	}
+	if legacyColumns == 0 {
+		// Already migrated; there is nothing left to carry across.
+		return
+	}
+
 	err := DB.Exec(`
         INSERT INTO drop_off_points (created_at, updated_at, name, latitude, longitude, pin_source)
         SELECT NOW(), NOW(), src.drop_off_point, src.lat, src.lng,

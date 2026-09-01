@@ -123,3 +123,27 @@ func TestInitIsInertWithoutADsn(t *testing.T) {
 	}
 	flush()
 }
+
+// APEX-7 arrived with job.name redacted, so the event could not say which job
+// had failed. The scrubber had eaten the tag that made it actionable.
+func TestMachineMetadataKeysSurvive(t *testing.T) {
+	for _, key := range []string{
+		"job.name", "os.name", "runtime.name", "browser.name", "sdk.name", "service.name",
+	} {
+		if IsSensitive(key) {
+			t.Errorf("%s should not be redacted — it names a machine, not a person", key)
+		}
+	}
+}
+
+// And the half that must keep working: these name people.
+func TestPersonNameKeysAreStillRedacted(t *testing.T) {
+	for _, key := range []string{
+		"driver_name", "first_name", "full_name", "DriverName", "user_name",
+		"device.name", "filename", "customer",
+	} {
+		if !IsSensitive(key) {
+			t.Errorf("%s must be redacted", key)
+		}
+	}
+}
