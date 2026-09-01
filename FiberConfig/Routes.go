@@ -242,6 +242,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	piles := api.Group("/receipt-piles", middleware.Verify(3))
 	piles.Get("/", receiptPilesHandler.GetReceiptPiles)
 	piles.Get("/export", receiptPilesHandler.ExportReceiptPiles)
+	// One drop-off's receipts, per terminal, in the fee report's order.
+	piles.Get("/drop-off", receiptPilesHandler.GetDropOffDetail)
 
 	// Single trip operations
 	trips.Get("/:id", tripHandler.GetTrip)

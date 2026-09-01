@@ -104,6 +104,61 @@ func (h *ReceiptPilesHandler) plan(req pileRequest) (services.PilePlan, error) {
 	return plan, nil
 }
 
+// GetDropOffDetail serves one drop-off's receipts, split per terminal, in the
+// exact order the Watanya fee report prints them.
+//
+// A separate call rather than part of the plan: the plan already carries every
+// receipt in the range as a flat list per drop-off, and inlining the priced,
+// per-terminal breakdown for all ~100 drop-offs would multiply that payload for
+// a view of one. The drawer asks when it opens.
+func (h *ReceiptPilesHandler) GetDropOffDetail(c *fiber.Ctx) error {
+	req, err := parsePileRequest(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	name := strings.TrimSpace(c.Query("drop_off_point"))
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "drop_off_point is required",
+		})
+	}
+
+	var trips []Models.TripStruct
+	err = h.DB.
+		Select("receipt_no, drop_off_point, terminal, date, car_no_plate, driver_name, tank_capacity, mileage").
+		Where("company = ? AND drop_off_point = ? AND date BETWEEN ? AND ?",
+			pilesCompany, name, req.StartDate, req.EndDate).
+		Find(&trips).Error
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Database error: " + err.Error(),
+		})
+	}
+
+	// The fee mappings for this drop-off only. The report indexes every
+	// Watanya mapping; one drop-off needs a handful.
+	var mappings []Models.FeeMapping
+	if err := h.DB.Where("company = ? AND drop_off_point = ?", pilesCompany, name).
+		Find(&mappings).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve fee mappings: " + err.Error(),
+		})
+	}
+	feeByKey := make(map[string]services.FeeInfo, len(mappings))
+	for _, m := range mappings {
+		feeByKey[m.Terminal+"|"+m.DropOffPoint] = services.FeeInfo{
+			Distance:  m.Distance,
+			FeeIndex:  int(m.Fee),
+			ActualFee: services.WatanyaBandRates[int(m.Fee)],
+		}
+	}
+
+	detail := services.BuildDropOffDetail(name, trips, feeByKey)
+	detail.StartDate = req.StartDate
+	detail.EndDate = req.EndDate
+	return c.JSON(detail)
+}
+
 // GetReceiptPiles serves the plan as JSON, for the dashboard module.
 func (h *ReceiptPilesHandler) GetReceiptPiles(c *fiber.Ctx) error {
 	req, err := parsePileRequest(c)

@@ -648,3 +648,186 @@ func greedyCut(weights []int, capacity int) []int {
 	}
 	return append(bounds, len(weights))
 }
+
+/* -------------------------------------------------------------------------- */
+/* Report ordering                                                             */
+/*                                                                            */
+/* The Watanya fee report (Controllers/trip.go) lays a drop-off out as one     */
+/* table per terminal, and the drop-off drawer on the piles screen mirrors     */
+/* that exactly — a filer working from the screen and a clerk working from the */
+/* workbook must see the same receipts in the same order, or the screen is     */
+/* worse than useless.                                                        */
+/*                                                                            */
+/* These are the report's rules, extracted so both callers share one           */
+/* definition rather than two copies that agree today. wtBuildGroups calls     */
+/* them too; a change here changes both.                                       */
+/* -------------------------------------------------------------------------- */
+
+// SortReportNames orders drop-off or terminal names the way the report does.
+//
+// Plain byte-order sort, NOT a locale collation. That is what `sort.Strings`
+// gives and therefore what the workbook has always shown; switching to Arabic
+// collation would reorder every table in a report people reconcile by eye.
+func SortReportNames(names []string) {
+	sort.Strings(names)
+}
+
+// SortReportTrips orders the receipts inside one terminal's table: by date,
+// then by receipt number. Both are string comparisons — dates are stored as
+// YYYY-MM-DD text, which sorts chronologically, and receipt numbers are not
+// always numeric.
+func SortReportTrips(trips []Models.TripStruct) {
+	sort.SliceStable(trips, func(i, j int) bool {
+		if trips[i].Date != trips[j].Date {
+			return trips[i].Date < trips[j].Date
+		}
+		return trips[i].ReceiptNo < trips[j].ReceiptNo
+	})
+}
+
+/* -------------------------------------------------------------------------- */
+/* One drop-off, laid out as the report lays it out                            */
+/* -------------------------------------------------------------------------- */
+
+// WatanyaBandRates maps a fee band (1..15) to its EGP per 1,000 litres. Same
+// table as the report's wtFeeIndexToAmount; a band outside it earns nothing,
+// which is deliberate — an unpriced band is a data-entry error, and inventing
+// a rate would quietly bill a guess.
+var WatanyaBandRates = map[int]float64{
+	1: 104.5, 2: 122.1, 3: 129.8, 4: 156.2, 5: 183.7,
+	6: 196.9, 7: 210.1, 8: 235.4, 9: 261.8, 10: 288.2,
+	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
+}
+
+// DropOffReceipt is one row of a terminal's table, carrying the same columns
+// the report prints.
+type DropOffReceipt struct {
+	Seq          int     `json:"seq"`
+	Date         string  `json:"date"`
+	ReceiptNo    string  `json:"receipt_no"`
+	DriverName   string  `json:"driver_name"`
+	CarNoPlate   string  `json:"car_no_plate"`
+	TankCapacity int     `json:"tank_capacity"`
+	Mileage      float64 `json:"mileage"`
+	ActualFee    float64 `json:"actual_fee"`
+	Cost         float64 `json:"cost"`
+}
+
+// DropOffTerminalTable is one terminal's table within a drop-off.
+type DropOffTerminalTable struct {
+	Terminal  string  `json:"terminal"`
+	Distance  float64 `json:"distance"`
+	FeeIndex  int     `json:"fee_index"`
+	ActualFee float64 `json:"actual_fee"`
+	/**
+	 * Absent from the workbook entirely: the terminal↔drop-off pair has no fee
+	 * mapping, so the report skips it. The paper still exists, so it is
+	 * reported here and flagged rather than dropped.
+	 */
+	Unmapped      bool             `json:"unmapped"`
+	Receipts      []DropOffReceipt `json:"receipts"`
+	ReceiptCount  int              `json:"receipt_count"`
+	TotalCapacity int              `json:"total_capacity"`
+	TotalCost     float64          `json:"total_cost"`
+}
+
+// DropOffDetail is the whole answer for one drop-off in one range.
+type DropOffDetail struct {
+	DropOffPoint  string                 `json:"drop_off_point"`
+	StartDate     string                 `json:"start_date"`
+	EndDate       string                 `json:"end_date"`
+	Terminals     []DropOffTerminalTable `json:"terminals"`
+	ReceiptCount  int                    `json:"receipt_count"`
+	TotalCapacity int                    `json:"total_capacity"`
+	TotalCost     float64                `json:"total_cost"`
+	/** Receipts in tables the report omits — the sum over unmapped terminals. */
+	UnmappedReceipts int `json:"unmapped_receipts"`
+}
+
+// BuildDropOffDetail groups one drop-off's trips into per-terminal tables in
+// the report's order.
+//
+// The ONE deliberate difference from the workbook: the report drops a trip
+// whose terminal↔drop-off pair has no fee mapping, because it cannot price it.
+// Dropping it here would be a filing error — the receipt is in the box whether
+// or not anyone can bill it — so those tables are kept, marked `unmapped`, and
+// sorted last so the priced tables read in exactly the report's order above
+// them.
+func BuildDropOffDetail(
+	dropOff string,
+	trips []Models.TripStruct,
+	feeByKey map[string]FeeInfo,
+) DropOffDetail {
+	detail := DropOffDetail{DropOffPoint: dropOff}
+
+	byTerminal := make(map[string][]Models.TripStruct)
+	for _, t := range trips {
+		if strings.TrimSpace(t.ReceiptNo) == "" {
+			continue
+		}
+		byTerminal[t.Terminal] = append(byTerminal[t.Terminal], t)
+	}
+
+	names := make([]string, 0, len(byTerminal))
+	for name := range byTerminal {
+		names = append(names, name)
+	}
+	SortReportNames(names)
+
+	var mapped, unmapped []DropOffTerminalTable
+	for _, terminal := range names {
+		list := byTerminal[terminal]
+		SortReportTrips(list)
+
+		fee, priced := feeByKey[terminal+"|"+dropOff]
+		table := DropOffTerminalTable{
+			Terminal:  terminal,
+			Distance:  fee.Distance,
+			FeeIndex:  fee.FeeIndex,
+			ActualFee: fee.ActualFee,
+			Unmapped:  !priced,
+		}
+		for i, t := range list {
+			// Same arithmetic as the report: litres × rate per 1,000 litres.
+			cost := float64(t.TankCapacity) * fee.ActualFee / 1000.0
+			table.Receipts = append(table.Receipts, DropOffReceipt{
+				Seq:          i + 1,
+				Date:         t.Date,
+				ReceiptNo:    t.ReceiptNo,
+				DriverName:   t.DriverName,
+				CarNoPlate:   t.CarNoPlate,
+				TankCapacity: t.TankCapacity,
+				Mileage:      t.Mileage,
+				ActualFee:    fee.ActualFee,
+				Cost:         cost,
+			})
+			table.TotalCapacity += t.TankCapacity
+			table.TotalCost += cost
+		}
+		table.ReceiptCount = len(table.Receipts)
+
+		if priced {
+			mapped = append(mapped, table)
+		} else {
+			unmapped = append(unmapped, table)
+		}
+	}
+
+	detail.Terminals = append(mapped, unmapped...)
+	for _, table := range detail.Terminals {
+		detail.ReceiptCount += table.ReceiptCount
+		detail.TotalCapacity += table.TotalCapacity
+		detail.TotalCost += table.TotalCost
+		if table.Unmapped {
+			detail.UnmappedReceipts += table.ReceiptCount
+		}
+	}
+	return detail
+}
+
+// FeeInfo is the priced route metadata a table carries.
+type FeeInfo struct {
+	Distance  float64
+	FeeIndex  int
+	ActualFee float64
+}

@@ -2683,7 +2683,9 @@ func wtBuildGroups(
 	for d := range buckets {
 		dropOffNames = append(dropOffNames, d)
 	}
-	sort.Strings(dropOffNames)
+	// Shared with the receipt-piles drop-off drawer, which mirrors this
+	// layout — see services.SortReportNames.
+	services.SortReportNames(dropOffNames)
 
 	var groups []wtDropOffGroup
 	var summaries []WatanyaReportSummary
@@ -2696,7 +2698,7 @@ func wtBuildGroups(
 		for t := range terminals {
 			terminalNames = append(terminalNames, t)
 		}
-		sort.Strings(terminalNames)
+		services.SortReportNames(terminalNames)
 
 		group := wtDropOffGroup{DropOffPoint: dropOff}
 
@@ -2709,12 +2711,7 @@ func wtBuildGroups(
 			fi := feeInfoByKey[key]
 
 			// ── Sort by date, then receipt number ────────────────────────────
-			sort.Slice(tripList, func(i, j int) bool {
-				if tripList[i].Date != tripList[j].Date {
-					return tripList[i].Date < tripList[j].Date
-				}
-				return tripList[i].ReceiptNo < tripList[j].ReceiptNo
-			})
+			services.SortReportTrips(tripList)
 
 			var totalCapacity int
 			for _, t := range tripList {

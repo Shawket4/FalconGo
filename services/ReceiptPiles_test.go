@@ -368,3 +368,134 @@ func TestPlanReportsTheFloor(t *testing.T) {
 		t.Errorf("heaviest pile %d is below the floor %d", plan.HeaviestPile, plan.FloorWeight)
 	}
 }
+
+/* -------------------------------------------------------------------------- */
+/* Drop-off detail — must match the fee report                                 */
+/* -------------------------------------------------------------------------- */
+
+func detailTrip(terminal, date, receipt string, capacity int) Models.TripStruct {
+	return Models.TripStruct{
+		Company:      "Watanya",
+		DropOffPoint: "حلوان 1",
+		Terminal:     terminal,
+		Date:         date,
+		ReceiptNo:    receipt,
+		TankCapacity: capacity,
+		DriverName:   "سائق",
+		CarNoPlate:   "ف ل ص 4317",
+	}
+}
+
+// The report sorts terminal names with sort.Strings and the receipts inside
+// each by date then receipt number. Both are pinned here because the drawer
+// exists to mirror the workbook, and a divergence would be invisible until
+// someone reconciled the two by eye.
+func TestBuildDropOffDetailMatchesReportOrder(t *testing.T) {
+	trips := []Models.TripStruct{
+		detailTrip("هايكستب", "2026-07-20", "894505", 1000),
+		detailTrip("بدر", "2026-07-14", "144653", 2000),
+		detailTrip("بدر", "2026-07-02", "143958", 3000),
+		// Same day as the line above it, so the receipt number decides.
+		detailTrip("بدر", "2026-07-02", "143900", 1500),
+		detailTrip("هايكستب", "2026-07-07", "890987", 500),
+	}
+	fees := map[string]FeeInfo{
+		"بدر|حلوان 1":     {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
+		"هايكستب|حلوان 1": {Distance: 90, FeeIndex: 2, ActualFee: WatanyaBandRates[2]},
+	}
+
+	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+
+	// Terminals in byte order, exactly as sort.Strings gives the report.
+	want := []string{"بدر", "هايكستب"}
+	SortReportNames(want)
+	if len(detail.Terminals) != 2 {
+		t.Fatalf("got %d terminal tables, want 2", len(detail.Terminals))
+	}
+	for i, w := range want {
+		if detail.Terminals[i].Terminal != w {
+			t.Errorf("terminal %d is %q, want %q", i, detail.Terminals[i].Terminal, w)
+		}
+	}
+
+	badr := detail.Terminals[0]
+	if badr.Terminal != "بدر" {
+		badr = detail.Terminals[1]
+	}
+	gotReceipts := make([]string, 0, len(badr.Receipts))
+	for _, r := range badr.Receipts {
+		gotReceipts = append(gotReceipts, r.ReceiptNo)
+	}
+	// 07-02 before 07-14, and within 07-02 the lower receipt number first.
+	wantReceipts := []string{"143900", "143958", "144653"}
+	for i, w := range wantReceipts {
+		if gotReceipts[i] != w {
+			t.Errorf("receipt %d is %q, want %q (got %v)", i, gotReceipts[i], w, gotReceipts)
+		}
+	}
+	// Seq is 1-based and follows the sorted order, like the report's "#".
+	for i, r := range badr.Receipts {
+		if r.Seq != i+1 {
+			t.Errorf("seq %d on row %d, want %d", r.Seq, i, i+1)
+		}
+	}
+}
+
+// Cost is litres x rate per 1,000 litres, the same arithmetic the report uses.
+func TestBuildDropOffDetailPricesLikeTheReport(t *testing.T) {
+	trips := []Models.TripStruct{detailTrip("بدر", "2026-07-01", "1", 20000)}
+	fees := map[string]FeeInfo{
+		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
+	}
+	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+
+	want := 20000 * 156.2 / 1000.0 // band 4
+	if got := detail.Terminals[0].Receipts[0].Cost; got != want {
+		t.Errorf("cost %v, want %v", got, want)
+	}
+	if detail.TotalCost != want || detail.TotalCapacity != 20000 {
+		t.Errorf("totals %v / %d, want %v / 20000", detail.TotalCost, detail.TotalCapacity, want)
+	}
+}
+
+// The report skips a terminal with no fee mapping because it cannot price it.
+// The paper still exists, so the drawer keeps it, flags it, and sorts it after
+// every priced table -- which leaves the priced ones in the report's order.
+func TestBuildDropOffDetailKeepsUnmappedTerminalsLast(t *testing.T) {
+	trips := []Models.TripStruct{
+		// Sorts BEFORE بدر by byte order, so if it were not moved to the end it
+		// would displace the priced table and break the mirror.
+		detailTrip("الاسكندرية", "2026-07-01", "999", 1000),
+		detailTrip("بدر", "2026-07-01", "111", 1000),
+	}
+	fees := map[string]FeeInfo{
+		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
+	}
+	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+
+	if detail.Terminals[0].Terminal != "بدر" || detail.Terminals[0].Unmapped {
+		t.Errorf("first table is %q (unmapped=%v), want the priced بدر",
+			detail.Terminals[0].Terminal, detail.Terminals[0].Unmapped)
+	}
+	if !detail.Terminals[1].Unmapped {
+		t.Error("the unpriced table is not flagged unmapped")
+	}
+	if detail.UnmappedReceipts != 1 {
+		t.Errorf("unmapped receipts %d, want 1", detail.UnmappedReceipts)
+	}
+	// An unpriced table earns nothing rather than guessing a band.
+	if detail.Terminals[1].TotalCost != 0 {
+		t.Errorf("unpriced table costed %v, want 0", detail.Terminals[1].TotalCost)
+	}
+}
+
+func TestBuildDropOffDetailSkipsBlankReceipts(t *testing.T) {
+	trips := []Models.TripStruct{
+		detailTrip("بدر", "2026-07-01", "111", 1000),
+		detailTrip("بدر", "2026-07-02", "  ", 1000),
+	}
+	detail := BuildDropOffDetail("حلوان 1", trips, map[string]FeeInfo{})
+	if detail.ReceiptCount != 1 {
+		t.Errorf("counted %d receipts, want 1", detail.ReceiptCount)
+	}
+}
