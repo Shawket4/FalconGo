@@ -3450,6 +3450,8 @@ func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
 			"error":   result.Error.Error(),
 		})
 	}
+	// Pin comes from drop_off_points; fee_mappings no longer stores one.
+	_ = Models.HydrateFeeMappingCoord(h.DB, &mapping)
 
 	// Get terminal location
 	var Terminal Models.Terminal
@@ -3740,6 +3742,8 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Distance = mapping.Distance
 		existingTrip.Fee = mapping.Fee
 	}
+	// Pin comes from drop_off_points; fee_mappings no longer stores one.
+	_ = Models.HydrateFeeMappingCoord(h.DB, &mapping)
 	existingTrip.ReceiptValid = services.ReceiptValidity(h.DB, existingTrip.TerminalID, existingTrip.Company, existingTrip.ReceiptNo)
 	var Terminal Models.Terminal
 	if err := Models.DB.Model(&Models.Terminal{}).Where("name = ?", existingTrip.Terminal).First(&Terminal).Error; err != nil {
@@ -4037,12 +4041,16 @@ func (h *TripHandler) GetDriverTrips(c *fiber.Ctx) error {
 					containerTrip.Company, containerTrip.Terminal, containerTrip.DropOffPoint).
 					First(&mapping)
 
+				// Pin comes from drop_off_points; fee_mappings no longer stores
+				// one. Must run BEFORE the coordinates are read below.
+				_ = Models.HydrateFeeMappingCoord(h.DB, &mapping)
+
 				if mapping.ID > 0 {
 					containerTrip.Distance = mapping.Distance
 					containerTrip.Fee = mapping.Fee
 					totalRevenue += mapping.Fee
 
-					// Populate location from fee mapping
+					// Populate location from the canonical pin
 					containerTrip.Location = Models.LandMark{
 						Name:      containerTrip.DropOffPoint,
 						Latitude:  fmt.Sprintf("%f", mapping.Latitude),
@@ -4196,7 +4204,8 @@ func (h *TripHandler) GetDriverTrips(c *fiber.Ctx) error {
 				trip.Fee = mapping.Fee
 				totalRevenue += mapping.Fee
 
-				// Populate location from fee mapping
+				// Populate location from the canonical pin
+				_ = Models.HydrateFeeMappingCoord(h.DB, &mapping)
 				trip.Location = Models.LandMark{
 					Name:      trip.DropOffPoint,
 					Latitude:  fmt.Sprintf("%f", mapping.Latitude),

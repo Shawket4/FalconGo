@@ -89,9 +89,9 @@ func TestEmptyExportStillBuilds(t *testing.T) {
 
 func TestSheetNameIsSanitised(t *testing.T) {
 	cases := map[string]string{
-		"Trips":                            "Trips",
-		"A/B:C":                            "A B C",
-		"":                                 "Sheet1",
+		"Trips":                                 "Trips",
+		"A/B:C":                                 "A B C",
+		"":                                      "Sheet1",
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", // 31 max
 	}
 	for in, want := range cases {

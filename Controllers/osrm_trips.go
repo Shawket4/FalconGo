@@ -103,9 +103,10 @@ func (h *OSRMEnrichmentHandler) UpdateDropOffLocation(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// The canonical pin lives in drop_off_points; a pin set here applies to
-	// every mapping sharing this drop-off name. Legacy per-mapping columns
-	// are kept in sync during the transition.
+	// The canonical pin lives in drop_off_points, and a pin set here applies to
+	// every mapping sharing this drop-off name. The assignments above are
+	// in-memory only now — Latitude/Longitude are gorm:"-" — so this write is
+	// the one that persists.
 	if err := syncDropOffPin(h.DB, mapping.DropOffPoint, body.Lat, body.Lng, "manual"); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

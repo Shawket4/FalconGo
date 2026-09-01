@@ -555,7 +555,13 @@ func (s *TripSummaryService) detectDeliveryVisits(parentTrip Models.ParentTrip, 
 			containerTrip.Company, containerTrip.Terminal, containerTrip.DropOffPoint).
 			First(&feeMapping).Error
 
-		if err != nil || feeMapping.Latitude == 0 || feeMapping.Longitude == 0 {
+		if err != nil {
+			log.Printf("     Container %d: No coordinates available", idx+1)
+			continue
+		}
+		// The pin lives on drop_off_points; this table no longer carries one.
+		if err := Models.HydrateFeeMappingCoord(s.DB, &feeMapping); err != nil ||
+			feeMapping.Latitude == 0 || feeMapping.Longitude == 0 {
 			log.Printf("     Container %d: No coordinates available", idx+1)
 			continue
 		}

@@ -2,7 +2,6 @@ package Models
 
 import "gorm.io/gorm"
 
-
 type PetroAppStation struct {
 	gorm.Model
 	Name string  `json:"name"`

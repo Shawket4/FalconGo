@@ -8,12 +8,12 @@ import (
 
 type Loan struct {
 	gorm.Model
-	DriverID    *uint   `json:"driver_id" gorm:"index"`
-	EmployeeID  *uint   `json:"employee_id" gorm:"index"`
-	Amount      float64 `json:"amount" validate:"required,gt=0"`
-	Method      string  `json:"method"`
-	Date        string  `json:"date"`
-	IsPaid      bool    `json:"is_paid" gorm:"not null;default:false"`
+	DriverID   *uint   `json:"driver_id" gorm:"index"`
+	EmployeeID *uint   `json:"employee_id" gorm:"index"`
+	Amount     float64 `json:"amount" validate:"required,gt=0"`
+	Method     string  `json:"method"`
+	Date       string  `json:"date"`
+	IsPaid     bool    `json:"is_paid" gorm:"not null;default:false"`
 
 	// Kind distinguishes money that is arithmetically identical but means
 	// different things:
@@ -25,8 +25,8 @@ type Loan struct {
 	//
 	// Defaulted to 'advance' so historical rows keep their existing meaning
 	// without a backfill pass being required for correctness.
-	Kind string `json:"kind" gorm:"type:varchar(16);not null;default:'advance';index"`
-	Description string  `json:"description" gorm:"type:text"` // Optional note about the loan
+	Kind        string `json:"kind" gorm:"type:varchar(16);not null;default:'advance';index"`
+	Description string `json:"description" gorm:"type:text"` // Optional note about the loan
 
 	// Relationships
 	Driver   *Driver   `json:"driver,omitempty" gorm:"foreignKey:DriverID"`

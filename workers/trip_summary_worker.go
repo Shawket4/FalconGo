@@ -281,7 +281,12 @@ func (w *TripSummaryWorker) checkAllDeliveriesCompleted(trip Models.ParentTrip, 
 			containerTrip.Company, containerTrip.Terminal, containerTrip.DropOffPoint).
 			First(&feeMapping).Error
 
-		if err != nil || feeMapping.Latitude == 0 || feeMapping.Longitude == 0 {
+		if err != nil {
+			continue
+		}
+		// The pin lives on drop_off_points; this table no longer carries one.
+		if err := Models.HydrateFeeMappingCoord(w.DB, &feeMapping); err != nil ||
+			feeMapping.Latitude == 0 || feeMapping.Longitude == 0 {
 			continue
 		}
 

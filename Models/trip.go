@@ -203,8 +203,17 @@ type FeeMapping struct {
 	DropOffPoint string  `json:"drop_off_point"` // Drop-off location
 	Distance     float64 `json:"distance"`       // Distance in kilometers
 	Fee          float64 `json:"fee"`            // Associated fee for this mapping
-	Latitude     float64 `json:"lat"`
-	Longitude    float64 `json:"long"`
+	// Coordinates are NOT stored on this table. drop_off_points is the
+	// canonical home for a pin, and a copy here went stale the moment someone
+	// corrected one — enrichment then routed to yesterday's location while the
+	// locations screen showed today's.
+	//
+	// They stay on the struct, and stay in the JSON, because the fee-mappings
+	// screen uses them for the "located" badge, the stats, the export column
+	// and the pin dialog. They are populated by HydrateFeeMappingCoords, not
+	// by the database.
+	Latitude     float64 `json:"lat" gorm:"-"`
+	Longitude    float64 `json:"long" gorm:"-"`
 	OSRMDistance float64 `json:"osrm_distance"`
 	OSRMDuration float64 `json:"osrm_duration"` // Duration in minutes
 }

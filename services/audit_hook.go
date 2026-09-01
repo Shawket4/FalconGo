@@ -106,7 +106,6 @@ func NotifyTripAudit(dates ...string) {
 	}()
 }
 
-
 // locationRescanWindowDays bounds how far back a pin change re-audits.
 // Aligned with the proxy's own activity-sweep horizon; older history can be
 // re-audited with an explicit scan when needed.

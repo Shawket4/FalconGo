@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"time"
 
-	"Falcon/Models" // Adjust the import path to match your project
 	"Falcon/AbstractFunctions"
+	"Falcon/Models" // Adjust the import path to match your project
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 	"github.com/pgvector/pgvector-go"
+	"gorm.io/gorm"
 )
 
 // CreateServiceInvoice creates a new service invoice
@@ -327,7 +327,7 @@ func UpdateServiceInvoice(c *fiber.Ctx) error {
 	}
 
 	// 3. Generate vectors for all items in the request
-	// We do this BEFORE starting the transaction to avoid holding DB locks 
+	// We do this BEFORE starting the transaction to avoid holding DB locks
 	// while waiting for the TEI Docker container to respond.
 	embeddings, err := generateEmbeddingsForItems(req.InspectionItems)
 	if err != nil {
@@ -467,7 +467,6 @@ func DeleteServiceInvoice(c *fiber.Ctx) error {
 	})
 }
 
-
 // ============================================================================
 // REQUEST/RESPONSE TYPES
 // ============================================================================
@@ -481,7 +480,6 @@ type SearchServiceRequest struct {
 	Limit       int    `json:"limit" query:"limit"`
 	Page        int    `json:"page" query:"page"`
 }
-
 
 type InspectionItemResponse struct {
 	ID        uint    `json:"id"`
@@ -517,12 +515,12 @@ type CarSummary struct {
 }
 
 type SearchResponse struct {
-	Success       bool              `json:"success"`
-	Query         string            `json:"query"`
-	TotalMatches  int               `json:"total_matches"`
-	InvoiceCount  int               `json:"invoice_count"`
-	Results       []InvoiceResponse `json:"results"`
-	SearchTime    string            `json:"search_time"`
+	Success      bool              `json:"success"`
+	Query        string            `json:"query"`
+	TotalMatches int               `json:"total_matches"`
+	InvoiceCount int               `json:"invoice_count"`
+	Results      []InvoiceResponse `json:"results"`
+	SearchTime   string            `json:"search_time"`
 }
 
 type ErrorResponse struct {
@@ -530,7 +528,6 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 	Code    string `json:"code,omitempty"`
 }
-
 
 // ============================================================================
 // MAIN HANDLER
@@ -746,12 +743,9 @@ func SearchServiceInvoices(c *fiber.Ctx) error {
 	})
 }
 
-
-
 // ============================================================================
 // UTILITIES
 // ============================================================================
-
 
 func sortByMatchCount(results []InvoiceResponse) {
 	for i := 0; i < len(results)-1; i++ {
@@ -762,7 +756,6 @@ func sortByMatchCount(results []InvoiceResponse) {
 		}
 	}
 }
-
 
 func generateEmbeddingsForItems(items []Models.InspectionItemRequest) ([][]float32, error) {
 	var texts []string

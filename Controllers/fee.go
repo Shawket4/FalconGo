@@ -37,6 +37,13 @@ func (h *FeeMappingHandler) GetAllFeeMappings(c *fiber.Ctx) error {
 		})
 	}
 
+	// lat/long come from drop_off_points, not from this table. The screen uses
+	// them for the "located" badge, the stats and the pin dialog, so the JSON
+	// keeps them — they are just sourced from the row that owns them now.
+	if err := Models.HydrateFeeMappingCoords(h.DB, mappings); err != nil {
+		log.Printf("Warning: fee mappings: could not hydrate coordinates: %v", err)
+	}
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Fee mappings retrieved successfully",
 		"data":    mappings,
@@ -103,16 +110,12 @@ func (h *FeeMappingHandler) CreateFeeMapping(c *fiber.Ctx) error {
 		})
 	}
 
-	// Coordinates come from the canonical drop_off_points table: reuse the
-	// shared pin when one exists, otherwise register the name (unpinned) so
-	// it appears in the locations inbox.
+	// Register the drop-off name if it is new, so it appears in the locations
+	// inbox for someone to pin. Coordinates are NOT copied onto the mapping:
+	// drop_off_points owns the pin, and a copy here went stale as soon as
+	// anyone corrected it.
 	var point Models.DropOffPoint
-	if err := h.DB.Where("name = ?", mapping.DropOffPoint).First(&point).Error; err == nil {
-		if point.Latitude != nil && point.Longitude != nil {
-			mapping.Latitude = *point.Latitude
-			mapping.Longitude = *point.Longitude
-		}
-	} else {
+	if err := h.DB.Where("name = ?", mapping.DropOffPoint).First(&point).Error; err != nil {
 		ensureDropOffPointExists(h.DB, mapping.DropOffPoint)
 	}
 
@@ -222,18 +225,12 @@ func (h *FeeMappingHandler) UpdateFeeMapping(c *fiber.Ctx) error {
 	}
 	if updatedMapping.DropOffPoint != "" && updatedMapping.DropOffPoint != existingMapping.DropOffPoint {
 		existingMapping.DropOffPoint = updatedMapping.DropOffPoint
-		// Renamed to a different drop-off: adopt the canonical pin when one
-		// exists, otherwise register the new name for the locations inbox.
+		// Renamed to a different drop-off: register the new name for the
+		// locations inbox if it is unknown. No coordinates are copied —
+		// drop_off_points owns the pin and is read at serve time.
 		var point Models.DropOffPoint
-		if err := h.DB.Where("name = ?", updatedMapping.DropOffPoint).First(&point).Error; err == nil {
-			if point.Latitude != nil && point.Longitude != nil {
-				existingMapping.Latitude = *point.Latitude
-				existingMapping.Longitude = *point.Longitude
-			}
-		} else {
+		if err := h.DB.Where("name = ?", updatedMapping.DropOffPoint).First(&point).Error; err != nil {
 			ensureDropOffPointExists(h.DB, updatedMapping.DropOffPoint)
-			existingMapping.Latitude = 0
-			existingMapping.Longitude = 0
 		}
 	}
 	existingMapping.Distance = updatedMapping.Distance

@@ -1285,8 +1285,17 @@ func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
 		return "", false
 	}
 
+	// Pins live on drop_off_points; this table no longer carries them.
+	if err := Models.HydrateFeeMappingCoords(Models.DB, feeMappings); err != nil {
+		log.Printf("Error hydrating fee mapping coordinates: %v", err)
+		return "", false
+	}
+
 	// Check each drop-off point (500m radius)
 	for _, mapping := range feeMappings {
+		if mapping.Latitude == 0 && mapping.Longitude == 0 {
+			continue // unpinned: (0,0) is the Gulf of Guinea, not a match
+		}
 		distance := calculateDistance(lat, lng, mapping.Latitude, mapping.Longitude)
 		if distance <= 0.5 { // 500 meters radius
 			return mapping.DropOffPoint, true

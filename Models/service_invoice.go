@@ -1,9 +1,9 @@
 package Models
 
 import (
-	"time"
 	"github.com/pgvector/pgvector-go"
 	"gorm.io/gorm"
+	"time"
 )
 
 type ServiceInvoice struct {
