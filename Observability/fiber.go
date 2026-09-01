@@ -24,6 +24,25 @@ func Middleware() fiber.Handler {
 	})
 }
 
+// captureMessage reports on the request's own hub, with the tags applied to
+// that hub's scope.
+//
+// This is not a stylistic wrapper. sentry.WithScope pushes a scope onto the
+// CURRENT hub, which is the global one; fibersentry gives each request its own
+// hub off the context. Configuring the global scope and then capturing on the
+// request hub sets tags on one scope and reports through another, and the tags
+// are silently dropped — the event still arrives, which is why it looks like it
+// works. Both halves must be the same hub.
+func captureMessage(hub *sentry.Hub, message string, configure func(*sentry.Scope)) {
+	if hub == nil {
+		hub = sentry.CurrentHub()
+	}
+	hub.WithScope(func(scope *sentry.Scope) {
+		configure(scope)
+		hub.CaptureMessage(message)
+	})
+}
+
 // CaptureServerErrors reports any response that leaves with a 5xx status.
 //
 // The ErrorHandler below only sees handlers that RETURN an error. This service
@@ -40,14 +59,6 @@ func CaptureServerErrors() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		err := c.Next()
 
-		// A handler that returned an error is reported by ErrorHandler, which
-		// has the error itself and is strictly more useful. Don't double-report.
-		if err != nil {
-			return err
-		}
-
-		status := c.Response().StatusCode()
-
 		// Unrouted 404s are worth knowing about; "record not found" 404s are
 		// not. A request that matched no route at all means a client is asking
 		// for something this service does not serve — a stale frontend build,
@@ -56,38 +67,50 @@ func CaptureServerErrors() fiber.Handler {
 		//
 		// c.Route().Path is "/" for unmatched requests, which is how the two
 		// are told apart without touching every handler.
+		//
+		// This is checked BEFORE handing the error on, because Fiber reports an
+		// unmatched route by RETURNING fiber.ErrNotFound from c.Next() rather
+		// than by setting a status. Behind the early return below, this branch
+		// was unreachable and no unrouted 404 was ever reported.
+		status := c.Response().StatusCode()
+		var fe *fiber.Error
+		if errors.As(err, &fe) {
+			status = fe.Code
+		}
+
 		if status == fiber.StatusNotFound && c.Route().Path == "/" && c.Path() != "/" {
-			hub := fibersentry.GetHubFromContext(c)
-			capture := sentry.CaptureMessage
-			if hub != nil {
-				capture = hub.CaptureMessage
-			}
-			sentry.WithScope(func(scope *sentry.Scope) {
-				scope.SetTag("http.status", "404")
-				scope.SetTag("http.method", c.Method())
-				// The path, not the route: there is no route, and the path is
-				// the whole point of the report.
-				scope.SetTag("http.path", c.Path())
-				scope.SetLevel(sentry.LevelWarning)
-				capture("no route for " + c.Method() + " " + c.Path())
-			})
-			return nil
+			captureMessage(
+				fibersentry.GetHubFromContext(c),
+				"no route for "+c.Method()+" "+c.Path(),
+				func(scope *sentry.Scope) {
+					scope.SetTag("http.status", "404")
+					scope.SetTag("http.method", c.Method())
+					// The path, not the route: there is no route, and the path
+					// is the whole point of the report.
+					scope.SetTag("http.path", c.Path())
+					scope.SetLevel(sentry.LevelWarning)
+				},
+			)
+			return err
+		}
+
+		// A handler that returned an error is reported by ErrorHandler, which
+		// has the error itself and is strictly more useful. Don't double-report.
+		if err != nil {
+			return err
 		}
 
 		if status >= fiber.StatusInternalServerError {
-			hub := fibersentry.GetHubFromContext(c)
-			capture := sentry.CaptureMessage
-			if hub != nil {
-				capture = hub.CaptureMessage
-			}
-			sentry.WithScope(func(scope *sentry.Scope) {
-				scope.SetTag("http.status", strconv.Itoa(status))
-				scope.SetTag("http.route", c.Route().Path)
-				scope.SetTag("http.method", c.Method())
-				scope.SetLevel(sentry.LevelError)
-				capture(c.Method() + " " + c.Route().Path + " responded " +
-					strconv.Itoa(status))
-			})
+			captureMessage(
+				fibersentry.GetHubFromContext(c),
+				c.Method()+" "+c.Route().Path+" responded "+strconv.Itoa(status),
+				func(scope *sentry.Scope) {
+					scope.SetTag("http.status", strconv.Itoa(status))
+					scope.SetTag("http.route", c.Route().Path)
+					scope.SetTag("http.method", c.Method())
+					scope.SetLevel(sentry.LevelError)
+				},
+			)
 		}
 		return nil
 	}
