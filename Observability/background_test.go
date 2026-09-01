@@ -1,6 +1,7 @@
 package Observability
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -79,9 +80,16 @@ func TestJobFailureCarriesTheJobAndStage(t *testing.T) {
 	if e.Tags["job.name"] != "vehicle_scraper" || e.Tags["job.stage"] != "login" {
 		t.Errorf("tags = %v", e.Tags)
 	}
-	// The error's message must not ride along: these carry upstream URLs.
-	if got := e.Message; got != "background job failed: vehicle_scraper at login" {
-		t.Errorf("message carried more than the shape: %q", got)
+	// The message now rides along — sanitized. The diagnosis must survive and
+	// the credential must not.
+	if !strings.Contains(e.Message, "timeout") {
+		t.Errorf("lost the diagnosis: %q", e.Message)
+	}
+	if !strings.Contains(e.Message, "fms-gps.etit-eg.com") {
+		t.Errorf("lost the host: %q", e.Message)
+	}
+	if strings.Contains(e.Message, "hunter2") {
+		t.Errorf("exported a credential: %q", e.Message)
 	}
 }
 

@@ -10,15 +10,19 @@ import "github.com/getsentry/sentry-go"
 // disk or a missing uploads directory is therefore silent until somebody goes
 // looking for a document that was never stored.
 //
-// The document TYPE is reported and nothing else. The error's message carries
-// the destination path, which ends in the uploader's original filename, and
-// those are routinely a person's name. The scrubber redacts by key and cannot
-// clean a message, so the message must not be attached — compliance control,
-// do not add the error here.
-func ReportFailedUpload(document string) {
+// The error's message carries the destination path, which ends in the
+// uploader's original filename, and those are routinely a person's name. It
+// goes through SanitizeMessage before it is attached — that is what makes the
+// difference between "no such file or directory" (which is the diagnosis) and
+// exporting somebody's name. Do not attach err.Error() raw.
+func ReportFailedUpload(document string, err error) {
 	sentry.WithScope(func(scope *sentry.Scope) {
 		scope.SetTag("upload.document", document)
+		detail := ""
+		if err != nil {
+			detail = ": " + SanitizeMessage(err.Error())
+		}
 		scope.SetLevel(sentry.LevelError)
-		sentry.CaptureMessage("failed to save uploaded document: " + document)
+		sentry.CaptureMessage("failed to save uploaded document: " + document + detail)
 	})
 }

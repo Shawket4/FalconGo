@@ -49,9 +49,12 @@ func TestRedactionReachesNestedValues(t *testing.T) {
 	if trip["id"] != 7 {
 		t.Error("non-sensitive values must be left alone")
 	}
-	driver := trip["driver"].(map[string]interface{})
-	if driver["name"] != redacted || driver["phone"] != redacted {
-		t.Errorf("nested driver was not redacted: %v", driver)
+	// A sensitive key takes its whole subtree with it, rather than being walked
+	// into and cleaned field by field. Costs the ids underneath; means a
+	// personal value under an innocent-looking key cannot survive inside a
+	// container we already know is personal.
+	if trip["driver"] != redacted {
+		t.Errorf("the driver subtree was not redacted: %v", trip["driver"])
 	}
 	stop := trip["stops"].([]interface{})[0].(map[string]interface{})
 	if stop["latitude"] != redacted || stop["longitude"] != redacted {

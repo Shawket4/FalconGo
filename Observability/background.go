@@ -16,21 +16,23 @@ import (
 // that had nothing to do. The vehicle scraper failing to log in is live
 // tracking quietly going stale until somebody notices the map is old.
 //
-// The job and the stage it stopped at are the actionable part, and the error's
-// TYPE is attached rather than its message: these errors come back from HTTP
+// The job, the stage it stopped at and the error itself are all attached. The
+// message goes through SanitizeMessage first: these errors come back from HTTP
 // clients and carry request URLs, which for the upstreams here include
-// identifiers and sometimes credentials in the query string. The scrubber
-// redacts by key and cannot clean a message, so the message stays in the
-// service log where it is already written. Compliance control.
+// credentials in the query string, and the scrubber redacts by key and cannot
+// clean free text. Sanitizing the text is what makes it safe to send — do not
+// attach err.Error() raw.
 func ReportJobFailure(job, stage string, err error) {
 	sentry.WithScope(func(scope *sentry.Scope) {
 		scope.SetTag("job.name", job)
 		scope.SetTag("job.stage", stage)
+		detail := ""
 		if err != nil {
 			scope.SetTag("job.error_type", fmt.Sprintf("%T", err))
+			detail = ": " + SanitizeMessage(err.Error())
 		}
 		scope.SetLevel(sentry.LevelError)
-		sentry.CaptureMessage("background job failed: " + job + " at " + stage)
+		sentry.CaptureMessage("background job failed: " + job + " at " + stage + detail)
 	})
 }
 

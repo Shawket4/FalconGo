@@ -35,11 +35,31 @@ var redactFragments = []string{
 	"phone", "mobile", "email", "name", "address", "password", "passwd",
 	"secret", "token", "authorization", "cookie", "session",
 	"latitude", "longitude", "national", "ssn",
+	// Payload-bearing field names. An upstream body is not ours to export and
+	// cannot be cleaned once it is a string, so the value is dropped wherever
+	// one of these names appears.
+	"body", "payload", "response_text", "html",
+	// Value-of-a-payload key names. "text" is what a messaging API calls the
+	// thing a person wrote. Not the word for a Sentry breadcrumb's own field,
+	// which redacting would blank the trail.
+	"text", "caption", "content",
 }
 
 // Keys that are personal in full but too short to match as substrings — "lat"
-// would otherwise match "plate" and "translate".
-var redactExact = []string{"lat", "lng", "lon", "long", "coords", "gps"}
+// would otherwise match "plate" and "translate", and "pass" would match
+// "passenger" and "bypass".
+//
+// The credential names here are the short forms the long ones miss: the
+// denylist had "password" and "passwd" but not "pass", which is what a login
+// query string actually uses.
+var redactExact = []string{
+	"lat", "lng", "lon", "long", "coords", "gps",
+	"pass", "pwd", "user", "auth", "apikey", "sig", "jwt", "otp", "pin", "creds",
+	// Keys whose VALUE is a person's name. "driver_name" is already caught by
+	// the "name" fragment; a bare "driver" is not, and that is what an upstream
+	// form body uses. Exact, so "driver_id" still comes through.
+	"driver", "employee", "owner", "contact", "person", "customer",
+}
 
 const redacted = "[redacted]"
 
