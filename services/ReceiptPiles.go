@@ -158,11 +158,17 @@ type PileReceipt struct {
 
 // PileDropOff is one drop-off name inside a pile.
 type PileDropOff struct {
-	Name         string        `json:"name"`
-	Letter       string        `json:"letter"`
-	ReceiptCount int           `json:"receipt_count"`
-	Terminals    []string      `json:"terminals"`
-	Receipts     []PileReceipt `json:"receipts"`
+	Name         string   `json:"name"`
+	Letter       string   `json:"letter"`
+	ReceiptCount int      `json:"receipt_count"`
+	Terminals    []string `json:"terminals"`
+	// Never serialised. The workbook writer reads these in-process, but the
+	// JSON plan is fetched again on every mode switch and box-count step, and
+	// no client reads them -- the screen shows counts, and opening a drop-off
+	// calls /receipt-piles/drop-off for the priced, per-terminal version.
+	// Inlining them cost 136 KB a request, most of it driver names and plates
+	// going to a phone that renders none of it.
+	Receipts []PileReceipt `json:"-"`
 }
 
 // PileLetter is one letter's slice of a pile — kept as its own level because
