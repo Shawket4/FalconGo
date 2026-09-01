@@ -2,12 +2,10 @@ package PetroApp
 
 import (
 	"Falcon/Models"
-	"encoding/json"
-	"fmt"
+	"Falcon/services"
 	"log"
 	"net/http"
 	"sort"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -116,33 +114,13 @@ func enrichWithOSRMData(stations *[]StationWithDistance, originLat, originLng fl
 
 // Alternative approach using OSRM route service (if you prefer individual calls)
 func getOSRMRouteData(originLat, originLng, destLat, destLng float64) (float64, float64, error) {
-	url := fmt.Sprintf("http://localhost:5000/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
-		originLng, originLat, destLng, destLat)
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, 0, fmt.Errorf("OSRM returned status %d", resp.StatusCode)
-	}
-
-	var osrmResp OSRMResponse
-	if err := json.NewDecoder(resp.Body).Decode(&osrmResp); err != nil {
-		return 0, 0, err
-	}
-
-	if osrmResp.Code != "Ok" || len(osrmResp.Routes) == 0 {
-		return 0, 0, fmt.Errorf("no route found")
-	}
-
-	route := osrmResp.Routes[0]
-	return route.Distance / 1000, route.Duration / 60, nil
+	// Through etit-proxy, so fuel-station distances are measured by the same
+	// rules as everything else. This was the last place in the codebase that
+	// built its own OSRM URL.
+	//
+	// restricted=false here, unlike the fee mappings: this ranks nearby petrol
+	// stations for a driver who is already out on the road, so the question is
+	// how far the station actually is, not how far it is by a route that is
+	// legal at every hour.
+	return services.Route(originLat, originLng, destLat, destLng, false)
 }
-

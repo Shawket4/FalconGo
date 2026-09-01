@@ -2,10 +2,9 @@ package Controllers
 
 import (
 	"Falcon/Models"
-	"encoding/json"
+	"Falcon/services"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -29,32 +28,18 @@ type osrmRoute struct {
 	Duration float64 `json:"duration"`
 }
 
+// fetchOSRMRoute asks etit-proxy, which owns the routing rules.
+//
+// This used to build its own http://localhost:5000/route/v1/driving URL. That
+// call never applied the `exclude` for time-gated truck roads that etit-proxy
+// applies, so a fee mapping's stored distance and the trip audit's expected
+// distance disagreed for the same two points — the audit flagged trips against
+// a number produced by different rules.
+//
+// restricted=true: a reference distance should describe a route the tanker may
+// drive at any hour. See services.Route.
 func fetchOSRMRoute(originLat, originLng, destLat, destLng float64) (distanceKm, durationMin float64, err error) {
-	url := fmt.Sprintf(
-		"http://localhost:5000/route/v1/driving/%.6f,%.6f;%.6f,%.6f?overview=false",
-		originLng, originLat, destLng, destLat,
-	)
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return 0, 0, fmt.Errorf("OSRM request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, 0, fmt.Errorf("OSRM returned status %d", resp.StatusCode)
-	}
-
-	var result osrmResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return 0, 0, fmt.Errorf("OSRM decode error: %w", err)
-	}
-	if result.Code != "Ok" || len(result.Routes) == 0 {
-		return 0, 0, fmt.Errorf("no OSRM route found")
-	}
-
-	return result.Routes[0].Distance / 1000, result.Routes[0].Duration / 60, nil
+	return services.Route(originLat, originLng, destLat, destLng, true)
 }
 
 // PUT /fee-mappings/:id/location
@@ -146,7 +131,15 @@ func (h *OSRMEnrichmentHandler) UpdateDropOffLocation(c *fiber.Ctx) error {
 // Refreshes OSRM data for all mappings that have lat/lng set.
 func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 	var mappings []Models.FeeMapping
-	if err := h.DB.Where("latitude != 0 AND longitude != 0").Find(&mappings).Error; err != nil {
+	// Every mapping whose drop-off has a canonical pin — NOT the lat/lng cached
+	// on fee_mappings. That cache is written once at create time and goes stale
+	// the moment someone corrects a pin in the locations screen, so enriching
+	// from it routed to yesterday's coordinates.
+	if err := h.DB.
+		Joins("JOIN drop_off_points ON drop_off_points.name = fee_mappings.drop_off_point").
+		Where("drop_off_points.deleted_at IS NULL").
+		Where("drop_off_points.latitude IS NOT NULL AND drop_off_points.longitude IS NOT NULL").
+		Find(&mappings).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -167,6 +160,22 @@ func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 		}
 		terminalCache[name] = &t
 		return &t, nil
+	}
+
+	dropOffCache := map[string]*Models.DropOffPoint{}
+	loadDropOff := func(name string) (*Models.DropOffPoint, error) {
+		if p, ok := dropOffCache[name]; ok {
+			return p, nil
+		}
+		var p Models.DropOffPoint
+		if err := h.DB.Where("name = ?", name).First(&p).Error; err != nil {
+			return nil, err
+		}
+		if p.Latitude == nil || p.Longitude == nil {
+			return nil, fmt.Errorf("unpinned")
+		}
+		dropOffCache[name] = &p
+		return &p, nil
 	}
 
 	type result struct {
@@ -196,7 +205,17 @@ func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 			continue
 		}
 
-		osrmDist, osrmDuration, err := fetchOSRMRoute(terminal.Latitude, terminal.Longitude, m.Latitude, m.Longitude)
+		// Drop-off coordinates from the canonical row, for the same reason the
+		// query above selects on it.
+		point, err := loadDropOff(m.DropOffPoint)
+		if err != nil {
+			r.Error = fmt.Sprintf("drop-off '%s' has no pin: %v", m.DropOffPoint, err)
+			results = append(results, r)
+			continue
+		}
+
+		osrmDist, osrmDuration, err := fetchOSRMRoute(
+			terminal.Latitude, terminal.Longitude, *point.Latitude, *point.Longitude)
 		if err != nil {
 			r.Error = fmt.Sprintf("OSRM error: %v", err)
 			results = append(results, r)

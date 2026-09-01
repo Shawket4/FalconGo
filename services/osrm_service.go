@@ -7,16 +7,30 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 )
 
 type OSRMService struct {
 	BaseURL string
 }
 
+// NewOSRMService talks to OSRM directly, and is the one caller that still
+// does.
+//
+// It uses OSRM's /trip/v1 service — travelling-salesman ordering for
+// multi-drop rounds — which etit-proxy's client does not expose; that client
+// covers /route/v1 and /match/v1 only. Everything that MEASURES a distance now
+// goes through services.Route so the time-gated exclude is applied once; this
+// one ORDERS stops, where that rule matters less.
+//
+// The base URL is read from the same OSRM_URL etit-proxy uses, so the two
+// cannot end up pointed at different instances by accident.
 func NewOSRMService() *OSRMService {
-	return &OSRMService{
-		BaseURL: "http://localhost:5000",
+	base := os.Getenv("OSRM_URL")
+	if base == "" {
+		base = "http://localhost:5000"
 	}
+	return &OSRMService{BaseURL: base}
 }
 
 // ============================================================================

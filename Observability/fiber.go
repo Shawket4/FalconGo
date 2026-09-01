@@ -46,19 +46,47 @@ func CaptureServerErrors() fiber.Handler {
 			return err
 		}
 
-		if c.Response().StatusCode() >= fiber.StatusInternalServerError {
+		status := c.Response().StatusCode()
+
+		// Unrouted 404s are worth knowing about; "record not found" 404s are
+		// not. A request that matched no route at all means a client is asking
+		// for something this service does not serve — a stale frontend build,
+		// a typo'd path, a renamed endpoint nobody updated. A 404 from a
+		// handler that looked something up and found nothing is ordinary.
+		//
+		// c.Route().Path is "/" for unmatched requests, which is how the two
+		// are told apart without touching every handler.
+		if status == fiber.StatusNotFound && c.Route().Path == "/" && c.Path() != "/" {
 			hub := fibersentry.GetHubFromContext(c)
 			capture := sentry.CaptureMessage
 			if hub != nil {
 				capture = hub.CaptureMessage
 			}
 			sentry.WithScope(func(scope *sentry.Scope) {
-				scope.SetTag("http.status", strconv.Itoa(c.Response().StatusCode()))
+				scope.SetTag("http.status", "404")
+				scope.SetTag("http.method", c.Method())
+				// The path, not the route: there is no route, and the path is
+				// the whole point of the report.
+				scope.SetTag("http.path", c.Path())
+				scope.SetLevel(sentry.LevelWarning)
+				capture("no route for " + c.Method() + " " + c.Path())
+			})
+			return nil
+		}
+
+		if status >= fiber.StatusInternalServerError {
+			hub := fibersentry.GetHubFromContext(c)
+			capture := sentry.CaptureMessage
+			if hub != nil {
+				capture = hub.CaptureMessage
+			}
+			sentry.WithScope(func(scope *sentry.Scope) {
+				scope.SetTag("http.status", strconv.Itoa(status))
 				scope.SetTag("http.route", c.Route().Path)
 				scope.SetTag("http.method", c.Method())
 				scope.SetLevel(sentry.LevelError)
 				capture(c.Method() + " " + c.Route().Path + " responded " +
-					strconv.Itoa(c.Response().StatusCode()))
+					strconv.Itoa(status))
 			})
 		}
 		return nil

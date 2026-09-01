@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/services"
 	"fmt"
 	"log"
 	"net/http"
@@ -129,6 +130,11 @@ func (h *FeeMappingHandler) CreateFeeMapping(c *fiber.Ctx) error {
 		})
 	}
 
+	// Route it now, so a new mapping has an OSRM distance without anyone
+	// remembering to run the bulk enrich. Fire-and-forget: a slow or absent
+	// routing service must not fail a create.
+	services.EnrichFeeMappingOSRM(h.DB, mapping.ID)
+
 	return c.Status(http.StatusCreated).JSON(fiber.Map{
 		"message": "Fee mapping created successfully",
 		"data":    mapping,
@@ -240,6 +246,10 @@ func (h *FeeMappingHandler) UpdateFeeMapping(c *fiber.Ctx) error {
 			"error":   result.Error.Error(),
 		})
 	}
+
+	// Re-route it: the terminal or drop-off may have changed, which changes
+	// the distance. Fire-and-forget, as on create.
+	services.EnrichFeeMappingOSRM(h.DB, existingMapping.ID)
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Fee mapping updated successfully",

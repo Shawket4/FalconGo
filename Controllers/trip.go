@@ -4,7 +4,6 @@ import (
 	"Falcon/Models"
 	"Falcon/services"
 	"Falcon/utils"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -2527,14 +2526,14 @@ const (
 	wtDetailPageLimit  = 50 // max rows per printed page in the detail sheet
 	wtSummaryPageLimit = 50 // max rows per printed page in the summary sheet
 )
- 
+
 // wtFeeIndexToAmount maps a fee index (1-15) to its EGP-per-1 000-litre amount.
 var wtFeeIndexToAmount = map[int]float64{
 	1: 104.5, 2: 122.1, 3: 129.8, 4: 156.2, 5: 183.7,
 	6: 196.9, 7: 210.1, 8: 235.4, 9: 261.8, 10: 288.2,
 	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
 }
- 
+
 // wtPalette holds every hex color used in the report.
 var wtPalette = struct {
 	HeaderBg, HeaderText, AltRow, Border string
@@ -2550,17 +2549,17 @@ var wtPalette = struct {
 	AccentBlue: "4A90A4",
 	SubtotalBg: "D4E6ED",
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Domain types
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 // DateRangeRequest is the JSON body for all date-filtered endpoints.
 type DateRangeRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 }
- 
+
 // WatanyaReportSummary is a single row in the summary sheet.
 // IsSubtotal marks group-subtotal rows (no ID, no terminal, no fee info).
 type WatanyaReportSummary struct {
@@ -2575,14 +2574,14 @@ type WatanyaReportSummary struct {
 	Cost          float64
 	IsSubtotal    bool
 }
- 
+
 // wtFeeInfo bundles the fee metadata attached to a Terminal↔DropOff route.
 type wtFeeInfo struct {
 	Distance  float64
 	FeeIndex  int
 	ActualFee float64
 }
- 
+
 // wtRouteTable is one table block in the detail sheet (one terminal/drop-off pair).
 type wtRouteTable struct {
 	Terminal string
@@ -2591,18 +2590,18 @@ type wtRouteTable struct {
 	Fee      wtFeeInfo
 	RowCount int // pre-calculated rows this table occupies on the sheet
 }
- 
+
 // wtDropOffGroup collects all route tables that share the same drop-off point.
 type wtDropOffGroup struct {
 	DropOffPoint string
 	Tables       []wtRouteTable
 	TotalRows    int
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Handler
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	// ── 1. Parse request ─────────────────────────────────────────────────────
 	var req DateRangeRequest
@@ -2612,22 +2611,22 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	if req.StartDate == "" || req.EndDate == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Start date and end date are required"})
 	}
- 
+
 	// ── 2. Fetch data ─────────────────────────────────────────────────────────
 	var trips []Models.TripStruct
 	if err := h.DB.Where("company = ? AND date BETWEEN ? AND ?",
 		"Watanya", req.StartDate, req.EndDate).Find(&trips).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error: " + err.Error()})
 	}
- 
+
 	var feeMappings []Models.FeeMapping
 	if err := h.DB.Where("company = ?", "Watanya").Find(&feeMappings).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve fee mappings: " + err.Error()})
 	}
- 
+
 	// ── 3. Build hierarchy & summaries ───────────────────────────────────────
 	groups, summaries := wtBuildGroups(trips, feeMappings)
- 
+
 	// ── 4. Render Excel ───────────────────────────────────────────────────────
 	filePath, err := wtRenderExcel(groups, summaries, req)
 	if err != nil {
@@ -2635,28 +2634,28 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	}
 	return c.SendFile(filePath, true)
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Business logic
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 // wtBuildGroups organises trips into the DropOff→Terminal hierarchy and
 // produces the flat summary rows (including subtotals) for the summary sheet.
 func wtBuildGroups(
 	trips []Models.TripStruct,
 	feeMappings []Models.FeeMapping,
 ) ([]wtDropOffGroup, []WatanyaReportSummary) {
- 
+
 	// Index fee mappings by "Terminal|DropOffPoint"
 	feeByKey := make(map[string]Models.FeeMapping, len(feeMappings))
 	for _, m := range feeMappings {
 		feeByKey[m.Terminal+"|"+m.DropOffPoint] = m
 	}
- 
+
 	// Bucket trips: DropOff → Terminal → []Trip
 	buckets := make(map[string]map[string][]Models.TripStruct)
 	feeInfoByKey := make(map[string]wtFeeInfo)
- 
+
 	for _, trip := range trips {
 		key := trip.Terminal + "|" + trip.DropOffPoint
 		fm, ok := feeByKey[key]
@@ -2676,37 +2675,37 @@ func wtBuildGroups(
 		buckets[trip.DropOffPoint][trip.Terminal] = append(
 			buckets[trip.DropOffPoint][trip.Terminal], trip)
 	}
- 
+
 	// Build sorted groups
 	dropOffNames := make([]string, 0, len(buckets))
 	for d := range buckets {
 		dropOffNames = append(dropOffNames, d)
 	}
 	sort.Strings(dropOffNames)
- 
+
 	var groups []wtDropOffGroup
 	var summaries []WatanyaReportSummary
 	idCounter := 1
- 
+
 	for _, dropOff := range dropOffNames {
 		terminals := buckets[dropOff]
- 
+
 		terminalNames := make([]string, 0, len(terminals))
 		for t := range terminals {
 			terminalNames = append(terminalNames, t)
 		}
 		sort.Strings(terminalNames)
- 
+
 		group := wtDropOffGroup{DropOffPoint: dropOff}
- 
+
 		var groupTrips, groupCapacity int
 		var groupCost float64
- 
+
 		for _, terminal := range terminalNames {
 			tripList := terminals[terminal]
 			key := terminal + "|" + dropOff
 			fi := feeInfoByKey[key]
- 
+
 			// ── Sort by date, then receipt number ────────────────────────────
 			sort.Slice(tripList, func(i, j int) bool {
 				if tripList[i].Date != tripList[j].Date {
@@ -2714,13 +2713,13 @@ func wtBuildGroups(
 				}
 				return tripList[i].ReceiptNo < tripList[j].ReceiptNo
 			})
- 
+
 			var totalCapacity int
 			for _, t := range tripList {
 				totalCapacity += t.TankCapacity
 			}
 			cost := float64(totalCapacity) * fi.ActualFee / 1000.0
- 
+
 			table := wtRouteTable{
 				Terminal: terminal,
 				DropOff:  dropOff,
@@ -2729,7 +2728,7 @@ func wtBuildGroups(
 				RowCount: len(tripList) + wtTableOverhead,
 			}
 			group.Tables = append(group.Tables, table)
- 
+
 			summaries = append(summaries, WatanyaReportSummary{
 				ID:            idCounter,
 				DropOffPoint:  dropOff,
@@ -2742,12 +2741,12 @@ func wtBuildGroups(
 				Cost:          cost,
 			})
 			idCounter++
- 
+
 			groupTrips += len(tripList)
 			groupCapacity += totalCapacity
 			groupCost += cost
 		}
- 
+
 		// Subtotal row for this drop-off
 		summaries = append(summaries, WatanyaReportSummary{
 			DropOffPoint:  dropOff,
@@ -2756,7 +2755,7 @@ func wtBuildGroups(
 			Cost:          groupCost,
 			IsSubtotal:    true,
 		})
- 
+
 		// Pre-calculate total rows this group occupies in the detail sheet
 		group.TotalRows = 0
 		for _, t := range group.Tables {
@@ -2765,17 +2764,17 @@ func wtBuildGroups(
 		if len(group.Tables) > 1 {
 			group.TotalRows += (len(group.Tables) - 1) * wtInterTableSpace
 		}
- 
+
 		groups = append(groups, group)
 	}
- 
+
 	return groups, summaries
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Excel rendering
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 func wtRenderExcel(
 	groups []wtDropOffGroup,
 	summaries []WatanyaReportSummary,
@@ -2786,18 +2785,18 @@ func wtRenderExcel(
 	if err != nil {
 		return "", fmt.Errorf("failed to create styles: %w", err)
 	}
- 
+
 	if err := wtWriteSummarySheet(f, styles, summaries, req); err != nil {
 		return "", err
 	}
 	if err := wtWriteDetailSheet(f, styles, groups); err != nil {
 		return "", err
 	}
- 
+
 	// Activate summary sheet
 	idx, _ := f.GetSheetIndex("Summary")
 	f.SetActiveSheet(idx)
- 
+
 	// Shared print settings
 	orientation := "portrait"
 	paperSize := 9 // A4
@@ -2810,7 +2809,7 @@ func wtRenderExcel(
 		f.SetPageLayout(sheet, layout)
 		f.SetPageMargins(sheet, margins)
 	}
- 
+
 	timestamp := time.Now().Format("20060102_150405")
 	filePath := filepath.Join(os.TempDir(), fmt.Sprintf("watanya_report_%s.xlsx", timestamp))
 	if err := f.SaveAs(filePath); err != nil {
@@ -2818,11 +2817,11 @@ func wtRenderExcel(
 	}
 	return filePath, nil
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Style registry
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 type wtStyles struct {
 	Title, Subtitle                  int
 	Header                           int
@@ -2832,12 +2831,12 @@ type wtStyles struct {
 	TableTitle, TableHeader          int
 	DetailData, DetailAlt, DetailTot int
 }
- 
+
 func wtBuildStyles(f *excelize.File) (wtStyles, error) {
 	p := wtPalette
 	var s wtStyles
 	var err error
- 
+
 	make := func(style *excelize.Style) int {
 		if err != nil {
 			return 0
@@ -2848,7 +2847,7 @@ func wtBuildStyles(f *excelize.File) (wtStyles, error) {
 		}
 		return id
 	}
- 
+
 	centerMiddle := &excelize.Alignment{Horizontal: "center", Vertical: "center"}
 	centerWrap := &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true}
 	cairo := func(size float64, bold bool, color string) *excelize.Font {
@@ -2860,7 +2859,7 @@ func wtBuildStyles(f *excelize.File) (wtStyles, error) {
 	bottomBorder := func(color string, style int) []excelize.Border {
 		return []excelize.Border{{Type: "bottom", Color: color, Style: style}}
 	}
- 
+
 	s.Title = make(&excelize.Style{
 		Font:      cairo(20, true, p.HeaderBg),
 		Alignment: centerMiddle,
@@ -2932,14 +2931,14 @@ func wtBuildStyles(f *excelize.File) (wtStyles, error) {
 		Alignment: centerMiddle,
 		Border:    []excelize.Border{{Type: "top", Color: p.AccentBlue, Style: 2}},
 	})
- 
+
 	return s, err
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Summary sheet
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 func wtWriteSummarySheet(
 	f *excelize.File,
 	s wtStyles,
@@ -2948,13 +2947,13 @@ func wtWriteSummarySheet(
 ) error {
 	const sheet = "Summary"
 	f.SetSheetName("Sheet1", sheet)
- 
+
 	headers := []string{"#", "Drop-off Point", "Terminal", "Trips", "Capacity (L)", "Distance", "Fee Idx", "Fee Amt", "Total Cost"}
- 
+
 	// ── Title / subtitle / spacer / header rows ───────────────────────────────
 	const firstDataRow = 5
 	const headerRow = 4
- 
+
 	merge := func(from, to string) { f.MergeCell(sheet, from, to) }
 	set := func(cell, val interface{}) {
 		if s, ok := val.(string); ok {
@@ -2963,34 +2962,34 @@ func wtWriteSummarySheet(
 			f.SetCellValue(sheet, fmt.Sprint(cell), val)
 		}
 	}
- 
+
 	merge("A1", "I1")
 	f.SetCellValue(sheet, "A1", "Watanya Trips Report")
 	f.SetCellStyle(sheet, "A1", "I1", s.Title)
 	f.SetRowHeight(sheet, 1, 32)
- 
+
 	merge("A2", "I2")
 	f.SetCellValue(sheet, "A2", fmt.Sprintf("%s  —  %s", req.StartDate, req.EndDate))
 	f.SetCellStyle(sheet, "A2", "I2", s.Subtitle)
 	f.SetRowHeight(sheet, 2, 24)
- 
+
 	f.SetRowHeight(sheet, 3, 12) // spacer
- 
+
 	for i, h := range headers {
 		f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, headerRow), h)
 	}
 	f.SetCellStyle(sheet, "A4", "I4", s.Header)
 	f.SetRowHeight(sheet, headerRow, 28)
- 
+
 	// ── Data rows ─────────────────────────────────────────────────────────────
 	type stationPos struct{ start, end int }
 	var positions []stationPos
 	var stationStart int
- 
+
 	currentRow := firstDataRow
 	dataRowIdx := 0
 	currentDropOff := ""
- 
+
 	for _, row := range summaries {
 		if row.IsSubtotal {
 			label := fmt.Sprintf("Subtotal: %s", row.DropOffPoint)
@@ -3000,7 +2999,7 @@ func wtWriteSummarySheet(
 			f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Subtotal)
 			f.SetRowHeight(sheet, currentRow, 26)
- 
+
 			positions = append(positions, stationPos{stationStart, currentRow})
 			dataRowIdx = 0
 			currentDropOff = ""
@@ -3029,7 +3028,7 @@ func wtWriteSummarySheet(
 		}
 		currentRow++
 	}
- 
+
 	// ── Grand total row ───────────────────────────────────────────────────────
 	var grandTrips, grandCapacity int
 	var grandCost float64
@@ -3046,14 +3045,14 @@ func wtWriteSummarySheet(
 	f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), grandCost)
 	f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Total)
 	f.SetRowHeight(sheet, currentRow, 28)
- 
+
 	// ── Column widths ─────────────────────────────────────────────────────────
 	minWidths := []float64{5, 18, 16, 8, 14, 10, 9, 10, 12}
 	cols := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I"}
 	for i, col := range cols {
 		f.SetColWidth(sheet, col, col, minWidths[i])
 	}
- 
+
 	// ── Page breaks – keep each drop-off group on the same page ──────────────
 	pageStart := firstDataRow
 	for _, pos := range positions {
@@ -3062,14 +3061,14 @@ func wtWriteSummarySheet(
 			pageStart = pos.start
 		}
 	}
- 
+
 	return nil
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Detail sheet
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 func wtWriteDetailSheet(
 	f *excelize.File,
 	s wtStyles,
@@ -3077,7 +3076,7 @@ func wtWriteDetailSheet(
 ) error {
 	const sheet = "Trip Details"
 	f.NewSheet(sheet)
- 
+
 	// Fixed column widths (portrait A4)
 	for col, w := range map[string]float64{
 		"A": 4, "B": 11, "C": 11, "D": 17,
@@ -3085,17 +3084,17 @@ func wtWriteDetailSheet(
 	} {
 		f.SetColWidth(sheet, col, col, w)
 	}
- 
+
 	tripHeaders := []string{"#", "Date", "Receipt", "Driver", "Plate", "Capacity", "Mileage", "Fee", "Cost"}
- 
+
 	type groupPos struct{ start, end int }
 	var groupPositions []groupPos
- 
+
 	row := 1
- 
+
 	for gi, group := range groups {
 		groupStart := row
- 
+
 		for ti, table := range group.Tables {
 			// Title: "Terminal  ←  DropOff" (RTL Arabic convention)
 			title := fmt.Sprintf("%s  ←  %s", table.Terminal, table.DropOff)
@@ -3104,7 +3103,7 @@ func wtWriteDetailSheet(
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableTitle)
 			f.SetRowHeight(sheet, row, 22)
 			row++
- 
+
 			// Header row
 			for i, h := range tripHeaders {
 				f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, row), h)
@@ -3112,7 +3111,7 @@ func wtWriteDetailSheet(
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableHeader)
 			f.SetRowHeight(sheet, row, 18)
 			row++
- 
+
 			// Data rows (already sorted by date then receipt in wtBuildGroups)
 			dataStart := row
 			for i, trip := range table.Trips {
@@ -3134,7 +3133,7 @@ func wtWriteDetailSheet(
 				f.SetRowHeight(sheet, row, 16)
 				row++
 			}
- 
+
 			// Total row
 			f.SetCellValue(sheet, fmt.Sprintf("B%d", row), "TOTAL")
 			f.SetCellFormula(sheet, fmt.Sprintf("F%d", row), fmt.Sprintf("SUM(F%d:F%d)", dataStart, row-1))
@@ -3143,19 +3142,19 @@ func wtWriteDetailSheet(
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.DetailTot)
 			f.SetRowHeight(sheet, row, 18)
 			row++
- 
+
 			if ti < len(group.Tables)-1 {
 				row += wtInterTableSpace
 			}
 		}
- 
+
 		groupEnd := row - 1
 		if gi < len(groups)-1 {
 			row += 3
 		}
 		groupPositions = append(groupPositions, groupPos{groupStart, groupEnd})
 	}
- 
+
 	// ── Page breaks – keep each drop-off group on the same page ──────────────
 	pageStart := 1
 	for _, pos := range groupPositions {
@@ -3164,14 +3163,14 @@ func wtWriteDetailSheet(
 			pageStart = pos.start
 		}
 	}
- 
+
 	return nil
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
- 
+
 // ptr returns a pointer to v, for use with excelize options structs.
 func ptr[T any](v T) *T { return &v }
 
@@ -3224,29 +3223,33 @@ type RouteResult struct {
 }
 
 func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
-	// Get route from OSRM
-	osrmURL := fmt.Sprintf("http://localhost:5000/route/v1/driving/%f,%f;%f,%f?overview=full&steps=false",
-		startLng, startLat, endLng, endLat)
-
-	fmt.Println("OSRM URL:", osrmURL)
-
-	resp, err := http.Get(osrmURL)
+	// Through etit-proxy, which owns the routing rules. This used to build its
+	// own http://localhost:5000 URL with no `exclude`, so the route drawn on
+	// the trip map could follow time-gated roads the audit's own routing
+	// avoids — the picture disagreed with the number beside it.
+	distanceKm, durationMin, geometry, err := services.RouteWithGeometry(
+		startLat, startLng, endLat, endLng, true)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	// Rebuilt in OSRM's shape because generateGoogleMapsURLFromOSRM and the
+	// trip-details handler both read it that way: metres and seconds, with the
+	// polyline under routes[0].geometry.
+	result := map[string]interface{}{
+		"code": "Ok",
+		"routes": []interface{}{
+			map[string]interface{}{
+				"distance": distanceKm * 1000,
+				"duration": durationMin * 60,
+				"geometry": geometry,
+			},
+		},
 	}
-
-	// Generate Waze URL from OSRM data
-	googleMapsURL := generateGoogleMapsURLFromOSRM(result)
 
 	return &RouteResult{
 		OSRMData:      result,
-		GoogleMapsURL: googleMapsURL,
+		GoogleMapsURL: generateGoogleMapsURLFromOSRM(result),
 	}, nil
 }
 
