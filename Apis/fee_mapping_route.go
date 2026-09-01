@@ -57,7 +57,7 @@ func FeeMappingRoute(c *fiber.Ctx) error {
 	// and suppresses the line otherwise, which is the honest picture — a line
 	// drawn to an unpinned end would be a line to (0, 0).
 	if (terminal.Latitude != 0 || terminal.Longitude != 0) && point.Latitude != nil && point.Longitude != nil {
-		km, min, geometry, err := services.RouteWithGeometry(
+		km, min, geometry, err := services.RouteWithGeometryCtx(c.UserContext(),
 			terminal.Latitude, terminal.Longitude, *point.Latitude, *point.Longitude, true)
 		if err == nil {
 			body["route_data"] = fiber.Map{

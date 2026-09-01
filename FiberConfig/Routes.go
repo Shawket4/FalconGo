@@ -530,6 +530,10 @@ func FiberConfig() {
 	// which is most of them here. Must sit after the hub middleware so it can
 	// use the request's own hub.
 	app.Use(Observability.CaptureServerErrors())
+	// Joins the caller's trace, so a frontend error and the backend error that
+	// caused it are one trace rather than two issues with a similar timestamp.
+	// After the hub middleware, which is what makes the hub available.
+	app.Use(Observability.ContinueTrace())
 
 	// Request logging
 	app.Use(middleware.RequestLogger())
@@ -541,9 +545,12 @@ func FiberConfig() {
 
 	// CORS
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://apextransport.ddns.net, http://localhost:3000, http://localhost:5173, http://192.168.1.7:5174, tauri://localhost, https://tauri.localhost",
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type",
+		AllowOrigins: "https://apextransport.ddns.net, http://localhost:3000, http://localhost:5173, http://192.168.1.7:5174, tauri://localhost, https://tauri.localhost",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+		// sentry-trace and baggage carry the caller's trace id. They are not
+		// CORS-safelisted, so without them here the browser strips them at
+		// preflight and every request looks like the start of a new trace.
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage",
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))

@@ -1,7 +1,9 @@
 package services
 
 import (
+	"Falcon/Observability"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,9 +34,24 @@ func Route(fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm,
 	return km, min, err
 }
 
+// RouteCtx is Route, carrying the caller's trace to etit-proxy.
+//
+// Pass a request's context and the hop shows up on the same Sentry trace as
+// the request that caused it; without it etit-proxy opens a trace of its own
+// and the two halves of one operation are unconnected.
+func RouteCtx(ctx context.Context, fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm, durationMin float64, err error) {
+	km, min, _, err := RouteWithGeometryCtx(ctx, fromLat, fromLng, toLat, toLng, restricted)
+	return km, min, err
+}
+
 // RouteWithGeometry is Route plus the polyline, for callers that draw the road
 // rather than only measuring it.
 func RouteWithGeometry(fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm, durationMin float64, geometry string, err error) {
+	return RouteWithGeometryCtx(context.Background(), fromLat, fromLng, toLat, toLng, restricted)
+}
+
+// RouteWithGeometryCtx is RouteWithGeometry, carrying the caller's trace.
+func RouteWithGeometryCtx(ctx context.Context, fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm, durationMin float64, geometry string, err error) {
 	adminURL := os.Getenv("ETIT_PROXY_ADMIN_URL")
 	adminToken := os.Getenv("ETIT_PROXY_ADMIN_TOKEN")
 	if adminURL == "" || adminToken == "" {
@@ -58,6 +75,7 @@ func RouteWithGeometry(fromLat, fromLng, toLat, toLng float64, restricted bool) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Admin-Token", adminToken)
+	Observability.PropagateTrace(ctx, req)
 
 	// Longer than the audit hook's 3s: this one is synchronous and a caller is
 	// waiting on the number, where the hook is fire-and-forget.

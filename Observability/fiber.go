@@ -159,7 +159,10 @@ func Span(c *fiber.Ctx, operation string, fn func() error) error {
 	if hub == nil {
 		return fn()
 	}
-	span := sentry.StartSpan(c.Context(), operation)
+	// UserContext, not Context: ContinueTrace puts the transaction on the
+	// former, and a span started from the fasthttp context has no parent and
+	// silently never appears on the trace.
+	span := sentry.StartSpan(c.UserContext(), operation)
 	if span == nil {
 		return fn()
 	}

@@ -5,6 +5,7 @@ import (
 	"Falcon/Observability"
 	"Falcon/services"
 	"Falcon/utils"
+	"context"
 	"fmt"
 	"log"
 	"math"
@@ -3223,12 +3224,12 @@ type RouteResult struct {
 	GoogleMapsURL string                 `json:"googe_maps_url"`
 }
 
-func getRouteFromOSRM(startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
+func getRouteFromOSRM(ctx context.Context, startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
 	// Through etit-proxy, which owns the routing rules. This used to build its
 	// own http://localhost:5000 URL with no `exclude`, so the route drawn on
 	// the trip map could follow time-gated roads the audit's own routing
 	// avoids — the picture disagreed with the number beside it.
-	distanceKm, durationMin, geometry, err := services.RouteWithGeometry(
+	distanceKm, durationMin, geometry, err := services.RouteWithGeometryCtx(ctx,
 		startLat, startLng, endLat, endLng, true)
 	if err != nil {
 		return nil, err
@@ -3480,7 +3481,7 @@ func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
 			"lng": mapping.Longitude,
 		},
 		"route_data": func() map[string]interface{} {
-			osrmData, err := getRouteFromOSRM(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+			osrmData, err := getRouteFromOSRM(c.UserContext(), Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 			if err != nil {
 				log.Printf("OSRM error: %v", err)
 				// Fallback to simple calculation
@@ -3763,7 +3764,7 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 			"lng": mapping.Longitude,
 		},
 		"route_data": func() map[string]interface{} {
-			osrmData, err := getRouteFromOSRM(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
+			osrmData, err := getRouteFromOSRM(c.UserContext(), Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 			if err != nil {
 				log.Printf("OSRM error: %v", err)
 				// Fallback to simple calculation
