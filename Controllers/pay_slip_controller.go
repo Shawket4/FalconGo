@@ -1026,7 +1026,15 @@ func (psc *PaySlipController) DuplicatePaySlip(c *fiber.Ctx) error {
 			IsAPIFetched: false,
 			DisplayOrder: item.DisplayOrder,
 		}
-		tx.Create(&newItem)
+		// Checked, like the pay slip itself above. Unchecked, a failed copy
+		// left the loop running, the transaction committing and the caller
+		// reading "duplicated successfully" over a pay slip missing a line.
+		if err := tx.Create(&newItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to duplicate pay slip income items",
+			})
+		}
 	}
 
 	// Copy adjustments (if recurring)
@@ -1038,7 +1046,12 @@ func (psc *PaySlipController) DuplicatePaySlip(c *fiber.Ctx) error {
 			Note:         item.Note + " (from previous period)",
 			DisplayOrder: item.DisplayOrder,
 		}
-		tx.Create(&newItem)
+		if err := tx.Create(&newItem).Error; err != nil {
+			tx.Rollback()
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to duplicate pay slip adjustments",
+			})
+		}
 	}
 
 	// Commit

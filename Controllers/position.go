@@ -55,8 +55,12 @@ func AssignTireToPosition(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to assign tire to position"})
 	}
 
-	// Commit the transaction
-	tx.Commit()
+	// Commit the transaction. Checked, like every step above it — an
+	// unchecked commit answers "assigned successfully" over a transaction
+	// that rolled back, and the tire is still on its old position.
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to assign tire to position"})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Tire assigned successfully"})
 }

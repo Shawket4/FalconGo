@@ -4,6 +4,7 @@ import (
 	"Falcon/Controllers"
 	"Falcon/Database"
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/Scrapper"
 	"archive/tar"
 	"compress/gzip"
@@ -13,9 +14,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
@@ -494,6 +495,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicense.Filename)
 		if err := c.SaveFile(carLicense, fmt.Sprintf("./CarLicenses/%s", filename)); err != nil {
 			log.Println("Error saving CarLicense:", err)
+			Observability.ReportFailedUpload("CarLicense")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to save car license image",
 			})
@@ -506,6 +508,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicenseBack.Filename)
 		if err := c.SaveFile(carLicenseBack, fmt.Sprintf("./CarLicensesBack/%s", filename)); err != nil {
 			log.Println("Error saving CarLicenseBack:", err)
+			Observability.ReportFailedUpload("CarLicenseBack")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to save car license back image",
 			})
@@ -518,6 +521,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicense.Filename)
 		if err := c.SaveFile(calibrationLicense, fmt.Sprintf("./CalibrationLicenses/%s", filename)); err != nil {
 			log.Println("Error saving CalibrationLicense:", err)
+			Observability.ReportFailedUpload("CalibrationLicense")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to save calibration license image",
 			})
@@ -530,6 +534,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicenseBack.Filename)
 		if err := c.SaveFile(calibrationLicenseBack, fmt.Sprintf("./CalibrationLicensesBack/%s", filename)); err != nil {
 			log.Println("Error saving CalibrationLicenseBack:", err)
+			Observability.ReportFailedUpload("CalibrationLicenseBack")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"message": "Failed to save calibration license back image",
 			})
@@ -543,6 +548,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicense.Filename)
 			if err := c.SaveFile(tankLicense, fmt.Sprintf("./TankLicenses/%s", filename)); err != nil {
 				log.Println("Error saving TankLicense:", err)
+				Observability.ReportFailedUpload("TankLicense")
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"message": "Failed to save tank license image",
 				})
@@ -554,6 +560,7 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicenseBack.Filename)
 			if err := c.SaveFile(tankLicenseBack, fmt.Sprintf("./TankLicensesBack/%s", filename)); err != nil {
 				log.Println("Error saving TankLicenseBack:", err)
+				Observability.ReportFailedUpload("TankLicenseBack")
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"message": "Failed to save tank license back image",
 				})
@@ -831,6 +838,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicense.Filename)
 		if err := c.SaveFile(carLicense, fmt.Sprintf("./uploads/car-licenses/%s", filename)); err != nil {
 			log.Println("Error saving CarLicense:", err)
+			Observability.ReportFailedUpload("CarLicense")
 		} else {
 			if car.CarLicenseImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/car-licenses/%s", car.CarLicenseImageName))
@@ -844,6 +852,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicenseBack.Filename)
 		if err := c.SaveFile(carLicenseBack, fmt.Sprintf("./uploads/car-licenses-back/%s", filename)); err != nil {
 			log.Println("Error saving CarLicenseBack:", err)
+			Observability.ReportFailedUpload("CarLicenseBack")
 		} else {
 			if car.CarLicenseImageNameBack != "" {
 				os.Remove(fmt.Sprintf("./uploads/car-licenses-back/%s", car.CarLicenseImageNameBack))
@@ -857,6 +866,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicense.Filename)
 		if err := c.SaveFile(calibrationLicense, fmt.Sprintf("./uploads/calibration-licenses/%s", filename)); err != nil {
 			log.Println("Error saving CalibrationLicense:", err)
+			Observability.ReportFailedUpload("CalibrationLicense")
 		} else {
 			if car.CalibrationLicenseImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/calibration-licenses/%s", car.CalibrationLicenseImageName))
@@ -870,6 +880,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicenseBack.Filename)
 		if err := c.SaveFile(calibrationLicenseBack, fmt.Sprintf("./uploads/calibration-licenses-back/%s", filename)); err != nil {
 			log.Println("Error saving CalibrationLicenseBack:", err)
+			Observability.ReportFailedUpload("CalibrationLicenseBack")
 		} else {
 			if car.CalibrationLicenseImageNameBack != "" {
 				os.Remove(fmt.Sprintf("./uploads/calibration-licenses-back/%s", car.CalibrationLicenseImageNameBack))
@@ -884,6 +895,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicense.Filename)
 			if err := c.SaveFile(tankLicense, fmt.Sprintf("./uploads/tank-licenses/%s", filename)); err != nil {
 				log.Println("Error saving TankLicense:", err)
+				Observability.ReportFailedUpload("TankLicense")
 			} else {
 				if car.TankLicenseImageName != "" {
 					os.Remove(fmt.Sprintf("./uploads/tank-licenses/%s", car.TankLicenseImageName))
@@ -896,6 +908,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicenseBack.Filename)
 			if err := c.SaveFile(tankLicenseBack, fmt.Sprintf("./uploads/tank-licenses-back/%s", filename)); err != nil {
 				log.Println("Error saving TankLicenseBack:", err)
+				Observability.ReportFailedUpload("TankLicenseBack")
 			} else {
 				if car.TankLicenseImageNameBack != "" {
 					os.Remove(fmt.Sprintf("./uploads/tank-licenses-back/%s", car.TankLicenseImageNameBack))
@@ -958,6 +971,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), idLicense.Filename)
 		if err := c.SaveFile(idLicense, fmt.Sprintf("./uploads/driver-id-licenses/%s", filename)); err != nil {
 			log.Println("Error saving IDLicense:", err)
+			Observability.ReportFailedUpload("IDLicense")
 		} else {
 			if driver.IDLicenseImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/driver-id-licenses/%s", driver.IDLicenseImageName))
@@ -971,6 +985,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), idLicenseBack.Filename)
 		if err := c.SaveFile(idLicenseBack, fmt.Sprintf("./uploads/driver-id-licenses-back/%s", filename)); err != nil {
 			log.Println("Error saving IDLicenseBack:", err)
+			Observability.ReportFailedUpload("IDLicenseBack")
 		} else {
 			if driver.IDLicenseImageNameBack != "" {
 				os.Remove(fmt.Sprintf("./uploads/driver-id-licenses-back/%s", driver.IDLicenseImageNameBack))
@@ -984,6 +999,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), driverLicense.Filename)
 		if err := c.SaveFile(driverLicense, fmt.Sprintf("./uploads/driver-licenses/%s", filename)); err != nil {
 			log.Println("Error saving DriverLicense:", err)
+			Observability.ReportFailedUpload("DriverLicense")
 		} else {
 			if driver.DriverLicenseImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/driver-licenses/%s", driver.DriverLicenseImageName))
@@ -997,6 +1013,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), driverLicenseBack.Filename)
 		if err := c.SaveFile(driverLicenseBack, fmt.Sprintf("./uploads/driver-licenses-back/%s", filename)); err != nil {
 			log.Println("Error saving DriverLicenseBack:", err)
+			Observability.ReportFailedUpload("DriverLicenseBack")
 		} else {
 			if driver.DriverLicenseImageNameBack != "" {
 				os.Remove(fmt.Sprintf("./uploads/driver-licenses-back/%s", driver.DriverLicenseImageNameBack))
@@ -1010,6 +1027,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), safetyLicense.Filename)
 		if err := c.SaveFile(safetyLicense, fmt.Sprintf("./uploads/safety-licenses/%s", filename)); err != nil {
 			log.Println("Error saving SafetyLicense:", err)
+			Observability.ReportFailedUpload("SafetyLicense")
 		} else {
 			if driver.SafetyLicenseImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/safety-licenses/%s", driver.SafetyLicenseImageName))
@@ -1023,6 +1041,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), drugTest.Filename)
 		if err := c.SaveFile(drugTest, fmt.Sprintf("./uploads/drug-tests/%s", filename)); err != nil {
 			log.Println("Error saving DrugTest:", err)
+			Observability.ReportFailedUpload("DrugTest")
 		} else {
 			if driver.DrugTestImageName != "" {
 				os.Remove(fmt.Sprintf("./uploads/drug-tests/%s", driver.DrugTestImageName))
