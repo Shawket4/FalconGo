@@ -30,7 +30,10 @@ func SetupPerformanceOptimizations() {
 	configurePostgresSettings()
 
 	// 5. Schedule materialized view refresh
-	go refreshMaterializedViewsPeriodically()
+	go func() {
+		defer Observability.Guard("materialized_view_refresh")
+		refreshMaterializedViewsPeriodically()
+	}()
 
 	log.Println("✅ Performance optimizations complete")
 }
@@ -188,15 +191,27 @@ func refreshMaterializedViewsPeriodically() {
 		}
 
 		// CONCURRENTLY = non-blocking refresh
+		failed := 0
 		if err := DB.Exec(`REFRESH MATERIALIZED VIEW CONCURRENTLY active_sessions_with_last_location`).Error; err != nil {
 			log.Printf("   ⚠️  Error refreshing active_sessions_with_last_location: %v", err)
+			Observability.ReportJobFailure("materialized_view_refresh", "active_sessions_with_last_location", err)
+			failed++
 		}
 
 		if err := DB.Exec(`REFRESH MATERIALIZED VIEW CONCURRENTLY session_location_summaries`).Error; err != nil {
 			log.Printf("   ⚠️  Error refreshing session_location_summaries: %v", err)
+			Observability.ReportJobFailure("materialized_view_refresh", "session_location_summaries", err)
+			failed++
 		}
 
-		log.Println("   ✅ Materialized views refreshed")
+		// Say what happened. This logged success unconditionally, so a refresh
+		// that had been failing for a week announced "✅ refreshed" every five
+		// minutes while the dashboard served the same stale numbers.
+		if failed > 0 {
+			log.Printf("   ⚠️  Materialized view refresh: %d of 2 failed", failed)
+		} else {
+			log.Println("   ✅ Materialized views refreshed")
+		}
 	}
 }
 
@@ -215,6 +230,7 @@ func createPartialIndexes() {
 		WHERE deleted_at IS NULL
 	`).Error; err != nil {
 		log.Printf("   ⚠️  Warning creating idx_location_pings_session_time: %v", err)
+		Observability.ReportJobFailure("startup", "create_index.idx_location_pings_session_time", err)
 	} else {
 		log.Println("   ✅ Created idx_location_pings_session_time")
 	}
@@ -226,6 +242,7 @@ func createPartialIndexes() {
 		WHERE speed IS NOT NULL AND deleted_at IS NULL
 	`).Error; err != nil {
 		log.Printf("   ⚠️  Warning creating idx_location_pings_with_speed: %v", err)
+		Observability.ReportJobFailure("startup", "create_index.idx_location_pings_with_speed", err)
 	} else {
 		log.Println("   ✅ Created idx_location_pings_with_speed")
 	}
@@ -237,6 +254,7 @@ func createPartialIndexes() {
 		WHERE deleted_at IS NULL
 	`).Error; err != nil {
 		log.Printf("   ⚠️  Warning creating idx_location_pings_time_session: %v", err)
+		Observability.ReportJobFailure("startup", "create_index.idx_location_pings_time_session", err)
 	} else {
 		log.Println("   ✅ Created idx_location_pings_time_session")
 	}
@@ -248,6 +266,7 @@ func createPartialIndexes() {
 		WHERE session_id IS NOT NULL AND deleted_at IS NULL
 	`).Error; err != nil {
 		log.Printf("   ⚠️  Warning creating idx_location_pings_session: %v", err)
+		Observability.ReportJobFailure("startup", "create_index.idx_location_pings_session", err)
 	} else {
 		log.Println("   ✅ Created idx_location_pings_session")
 	}

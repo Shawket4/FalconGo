@@ -1,6 +1,7 @@
 package Models
 
 import (
+	"Falcon/Observability"
 	"fmt"
 	"log"
 	"os"
@@ -243,6 +244,7 @@ func runAutoMigrations() {
 		// rest; migrateTerminalNormalization() creates the terminal tables
 		// with raw SQL regardless, so log loudly and continue.
 		log.Printf("phase-12 AutoMigrate: %v", err)
+		Observability.ReportJobFailure("startup", "automigrate_phase12", err)
 	}
 
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
@@ -284,6 +286,7 @@ func backfillDropOffPoints() {
     `).Error
 	if err != nil {
 		log.Printf("⚠️ drop_off_points backfill failed: %v", err)
+		Observability.ReportJobFailure("startup", "drop_off_points_backfill", err)
 	}
 }
 
@@ -516,6 +519,7 @@ func migrateTerminalNormalization() {
 	for _, s := range stmts {
 		if err := DB.Exec(s.sql).Error; err != nil {
 			log.Printf("⚠️ terminal normalization migration (%s) failed: %v", s.label, err)
+			Observability.ReportJobFailure("startup", "terminal_normalization", err)
 		}
 	}
 }

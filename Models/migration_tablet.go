@@ -1,6 +1,7 @@
 package Models
 
 import (
+	"Falcon/Observability"
 	"fmt"
 	"log"
 	"time"
@@ -314,6 +315,7 @@ func CreateLegacySessions(db *gorm.DB) error {
 
 		if err := db.Create(&session).Error; err != nil {
 			log.Printf("⚠️  Failed to create session: %v", err)
+			Observability.ReportJobFailure("session_migration", "create_session", err)
 			errorCount++
 			continue
 		}

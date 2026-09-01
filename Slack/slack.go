@@ -679,6 +679,7 @@ func MonitorViolationsChannel() {
 			if err := ProcessViolationMessage(msg.Text); err != nil {
 				if err.Error() != "no violations found in message" {
 					log.Printf("❌ Error processing message: %v", err)
+					Observability.ReportJobFailure("slack_violation_monitor", "process_message", err)
 				} else {
 					log.Printf("ℹ️  Message is not a violation (might be regular chat)")
 				}
@@ -802,6 +803,7 @@ func processStoppedChannelUpdate() {
 
 	if err := Models.DB.Preload("Driver").Where("slack_status IN ?", stoppedStatuses).Find(&stoppedCars).Error; err != nil {
 		log.Printf("Error fetching stopped cars: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "fetch_stopped_cars", err)
 		return
 	}
 
@@ -956,6 +958,7 @@ func processBatchedUpdate(companyKey string) {
 	var allCars []Models.Car
 	if err := Models.DB.Preload("Driver").Where("LOWER(operating_company) = ?", companyKey).Find(&allCars).Error; err != nil {
 		log.Printf("Error fetching cars for company %s: %v", companyKey, err)
+		Observability.ReportJobFailure("slack_fleet_update", "fetch_company_cars", err)
 		return
 	}
 
@@ -1030,6 +1033,7 @@ func UpdateStoppedVehiclesChannel() {
 
 	if err := Models.DB.Preload("Driver").Where("slack_status IN ?", stoppedStatuses).Find(&stoppedCars).Error; err != nil {
 		log.Printf("Error fetching stopped cars: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "fetch_stopped_cars", err)
 		return
 	}
 
@@ -1291,12 +1295,14 @@ func checkDropOffPoints(lat, lng float64, company string) (string, bool) {
 	// Get all fee mappings for this company
 	if err := Models.DB.Where("company = ?", company).Find(&feeMappings).Error; err != nil {
 		log.Printf("Error fetching fee mappings: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "fetch_fee_mappings", err)
 		return "", false
 	}
 
 	// Pins live on drop_off_points; this table no longer carries them.
 	if err := Models.HydrateFeeMappingCoords(Models.DB, feeMappings); err != nil {
 		log.Printf("Error hydrating fee mapping coordinates: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "hydrate_fee_mapping_coords", err)
 		return "", false
 	}
 

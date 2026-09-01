@@ -130,8 +130,8 @@ func GetFuelEvents(c *fiber.Ctx) error {
 	// Execute the query
 	if err := query.Find(&FuelEvents).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "could not load fuel events",
 		})
 	}
 
@@ -341,8 +341,8 @@ func AddFuelEvent(c *fiber.Ctx) error {
 	var inputJson Models.FuelEvent
 	if err := c.BodyParser(&inputJson); err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
 		})
 	}
 
@@ -360,15 +360,15 @@ func AddFuelEvent(c *fiber.Ctx) error {
 	inputJson.Method = "Manual"
 	if err := Models.DB.Create(&inputJson).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "could not save fuel event",
 		})
 	}
 
 	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", car.ID).UpdateColumn("last_fuel_odometer", inputJson.OdometerAfter).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "could not update the car odometer",
 		})
 	}
 	if err := Models.RecalculateMileage(car.ID); err != nil {
@@ -383,8 +383,8 @@ func EditFuelEvent(c *fiber.Ctx) error {
 	var inputJson Models.FuelEvent
 	if err := c.BodyParser(&inputJson); err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
 		})
 	}
 	var car Models.Car
@@ -405,14 +405,14 @@ func EditFuelEvent(c *fiber.Ctx) error {
 
 	if err := Models.DB.Save(&inputJson).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "could not save fuel event",
 		})
 	}
 	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", car.ID).UpdateColumn("last_fuel_odometer", inputJson.OdometerAfter).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "could not update the car odometer",
 		})
 	}
 	var lastFuelEvent Models.FuelEvent
@@ -439,8 +439,8 @@ func DeleteFuelEvent(c *fiber.Ctx) error {
 	}
 	if err := c.BodyParser(&inputJson); err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
 		})
 	}
 

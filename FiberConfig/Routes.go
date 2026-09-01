@@ -32,6 +32,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	locationsHandler := Controllers.NewLocationsHandler(db)
 	osrm := Controllers.NewOSRMEnrichmentHandler(db)
 	tripHandler := Controllers.NewTripHandler(db)
+	receiptPilesHandler := Controllers.NewReceiptPilesHandler(db)
 	vendorController := Controllers.NewVendorController(db)
 	transactionController := Controllers.NewTransactionController(db)
 	vendorAnalyticsController := Controllers.NewAnalyticsController(db)
@@ -230,6 +231,17 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Get("/date", tripHandler.GetTripsByDate)
 	trips.Get("/company/:company", tripHandler.GetTripsByCompany)
 	trips.Post("/watanya/export_report", middleware.Verify(3), tripHandler.GetWatanyaTripsReport)
+
+	// ============================================
+	// RECEIPT PILES (Watanya)
+	// ============================================
+	// Its own group, not under /trips/watanya: this is a filing plan for the
+	// returned paper, not part of the fee report, and it is called from its own
+	// screen. Permission 3 to match the report -- the plan names every drop-off
+	// point and receipt number for the range.
+	piles := api.Group("/receipt-piles", middleware.Verify(3))
+	piles.Get("/", receiptPilesHandler.GetReceiptPiles)
+	piles.Get("/export", receiptPilesHandler.ExportReceiptPiles)
 
 	// Single trip operations
 	trips.Get("/:id", tripHandler.GetTrip)

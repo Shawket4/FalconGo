@@ -2,7 +2,6 @@ package Controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -151,8 +150,8 @@ func RegisterDriver(c *fiber.Ctx) error {
 	data.IsApproved = true
 	if err := Models.DB.Create(&data).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": fmt.Sprintf("Error On Saving User To DB: %v", err.Error()),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error On Saving User To DB",
 		})
 	}
 
@@ -183,8 +182,8 @@ func UpdateDriver(c *fiber.Ctx) error {
 	driver.PIN = nil
 	if err := Models.DB.Save(&driver).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": fmt.Sprintf("Error On Saving User To DB: %v", err.Error()),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error On Saving User To DB",
 		})
 	}
 	return c.JSON(fiber.Map{
@@ -196,8 +195,8 @@ func FetchUsers(c *fiber.Ctx) error {
 	var users []Models.User
 	if err := Models.DB.Find(&users).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": fmt.Sprintf("Error On Fetching Users From DB: %v", err.Error()),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error On Fetching Users From DB",
 		})
 	}
 	return c.JSON(users)
@@ -389,8 +388,8 @@ func UpdateUser(c *fiber.Ctx) error {
 
 	if err := Models.DB.Save(&user).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": fmt.Sprintf("Error On Saving User To DB: %v", err.Error()),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error On Saving User To DB",
 		})
 	}
 
@@ -408,8 +407,8 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	if err := Models.DB.Where("id = ?", input.Id).Delete(&Models.User{}).Error; err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": fmt.Sprintf("Error On Deleting User From DB: %v", err.Error()),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error On Deleting User From DB",
 		})
 	}
 

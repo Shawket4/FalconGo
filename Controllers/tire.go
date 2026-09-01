@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -275,6 +276,7 @@ func processHighContrast(img image.Image, tempDir, name string) string {
 	err := imaging.Save(sharpImg, outputPath)
 	if err != nil {
 		log.Printf("Failed to save image: %v", err)
+		Observability.ReportJobFailure("tire_ocr", "save_sharpened_image", err)
 		return ""
 	}
 
@@ -307,6 +309,7 @@ func processEdgeEnhanced(img image.Image, tempDir, name string) string {
 	err := imaging.Save(finalImg, outputPath)
 	if err != nil {
 		log.Printf("Failed to save processed image: %v", err)
+		Observability.ReportJobFailure("tire_ocr", "save_processed_image", err)
 		return ""
 	}
 
@@ -346,12 +349,14 @@ func processBinarized(img image.Image, tempDir, name string) string {
 	file, err := os.Create(outputPath)
 	if err != nil {
 		log.Printf("Failed to create file: %v", err)
+		Observability.ReportJobFailure("tire_ocr", "create_output_file", err)
 		return ""
 	}
 	defer file.Close()
 
 	if err := jpeg.Encode(file, binaryImg, &jpeg.Options{Quality: 100}); err != nil {
 		log.Printf("Failed to save image: %v", err)
+		Observability.ReportJobFailure("tire_ocr", "encode_image", err)
 		return ""
 	}
 

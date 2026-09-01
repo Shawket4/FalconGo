@@ -1,6 +1,7 @@
 package services
 
 import (
+	"Falcon/Observability"
 	"log"
 
 	"Falcon/Models"
@@ -43,6 +44,7 @@ func EnrichFeeMappingOSRM(db *gorm.DB, mappingID uint) {
 		var m Models.FeeMapping
 		if err := db.First(&m, mappingID).Error; err != nil {
 			log.Printf("Warning: fee mapping OSRM enrich: load id=%d: %v", mappingID, err)
+			Observability.ReportJobFailure("fee_mapping_osrm", "load_mapping", err)
 			return
 		}
 
@@ -71,6 +73,7 @@ func EnrichFeeMappingOSRM(db *gorm.DB, mappingID uint) {
 		)
 		if err != nil {
 			log.Printf("Warning: fee mapping OSRM enrich: id=%d: %v", mappingID, err)
+			Observability.ReportJobFailure("fee_mapping_osrm", "route", err)
 			return
 		}
 
@@ -81,6 +84,7 @@ func EnrichFeeMappingOSRM(db *gorm.DB, mappingID uint) {
 				"osrm_duration": durationMin,
 			}).Error; err != nil {
 			log.Printf("Warning: fee mapping OSRM enrich: save id=%d: %v", mappingID, err)
+			Observability.ReportJobFailure("fee_mapping_osrm", "save_distance", err)
 		}
 	}()
 }

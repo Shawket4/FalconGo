@@ -90,6 +90,7 @@ func main() {
 	// ============================================
 	if err := ensureDriverPINs(); err != nil {
 		log.Printf("⚠️  Warning: PIN generation had issues: %v", err)
+		Observability.ReportJobFailure("startup", "ensure_driver_pins", err)
 		// Don't fail - app can still run
 	}
 

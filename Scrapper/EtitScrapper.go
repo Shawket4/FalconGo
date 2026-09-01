@@ -864,8 +864,8 @@ func GetVehicleMileageHistory(c *fiber.Ctx) error {
 	err := c.BodyParser(&data)
 	if err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"error": err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
 		})
 	}
 	fmt.Println(len(VehicleStatusList))

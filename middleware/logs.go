@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -77,6 +78,7 @@ func LoggingMiddleware(config ...LogConfig) fiber.Handler {
 	if cfg.File {
 		if err := os.MkdirAll("logs", 0755); err != nil {
 			log.Printf("Error creating logs directory: %v\n", err)
+			Observability.ReportJobFailure("logging", "create_logs_dir", err)
 		}
 	}
 
@@ -266,6 +268,7 @@ func logToFile(filePath, message string) {
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		log.Printf("Error opening log file: %v\n", err)
+		Observability.ReportJobFailure("logging", "open_log_file", err)
 		return
 	}
 	defer file.Close()

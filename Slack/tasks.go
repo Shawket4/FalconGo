@@ -29,6 +29,7 @@ func ValidateOilChangeTask() (bool, string, []string) {
 	var activeCars []Models.Car
 	if err := Models.DB.Where("id != ?", 15).Find(&activeCars).Error; err != nil {
 		log.Printf("Error fetching active cars: %v", err)
+		Observability.ReportJobFailure("slack_daily_tasks", "fetch_active_cars", err)
 		return false, "Error fetching vehicle records from database", nil
 	}
 
@@ -548,10 +549,12 @@ func ScheduleTaskCreationAndSlack() {
 	// Create tasks and send to Slack at 6 AM
 	if err := CreateDailyTasks(); err != nil {
 		log.Printf("Error creating daily tasks at 6 AM: %v", err)
+		Observability.ReportJobFailure("slack_daily_tasks", "create_tasks_6am", err)
 	}
 
 	if err := SendDailyTasksToSlack(); err != nil {
 		log.Printf("Error sending daily tasks to Slack at 6 AM: %v", err)
+		Observability.ReportJobFailure("slack_daily_tasks", "send_to_slack_6am", err)
 	} else {
 		log.Printf("Daily tasks sent to Slack at 6 AM")
 	}
@@ -561,10 +564,12 @@ func ScheduleTaskCreationAndSlack() {
 	for range ticker.C {
 		if err := CreateDailyTasks(); err != nil {
 			log.Printf("Error creating daily tasks: %v", err)
+			Observability.ReportJobFailure("slack_daily_tasks", "create_tasks", err)
 		}
 
 		if err := SendDailyTasksToSlack(); err != nil {
 			log.Printf("Error sending daily tasks to Slack: %v", err)
+			Observability.ReportJobFailure("slack_daily_tasks", "send_to_slack", err)
 		} else {
 			log.Printf("Daily tasks sent to Slack at 6 AM")
 		}
@@ -621,6 +626,7 @@ func StartSlackTaskListener() error {
 							response, err := ProcessSlackTaskCommand(ev.Text, ev.Channel, ev.User)
 							if err != nil {
 								log.Printf("Error processing command: %v", err)
+								Observability.ReportJobFailure("slack_task_listener", "process_command", err)
 								continue
 							}
 
@@ -631,6 +637,7 @@ func StartSlackTaskListener() error {
 								)
 								if err != nil {
 									log.Printf("Error sending response: %v", err)
+									Observability.ReportJobFailure("slack_task_listener", "send_response", err)
 								}
 
 								// Update pinned message if task was completed
@@ -641,6 +648,7 @@ func StartSlackTaskListener() error {
 									slackClient := NewSlackClient(botToken)
 									if err := slackClient.SendAndPinWithCleanupTasks(TASK_CHANNEL_ID, updatedMessage); err != nil {
 										log.Printf("Error updating pinned message: %v", err)
+										Observability.ReportJobFailure("slack_task_listener", "update_pinned_message", err)
 									}
 								}
 							}

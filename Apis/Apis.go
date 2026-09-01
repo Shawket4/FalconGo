@@ -707,6 +707,7 @@ func GetTransporterProfileData(c *fiber.Ctx) error {
 			query, err := db.Query("SELECT * FROM `Transporters` WHERE 1;")
 			if err != nil {
 				log.Println(err.Error())
+				Observability.ReportJobFailure("transporters", "query", err)
 			}
 			defer query.Close()
 			var Transporters []Transporter
@@ -1930,6 +1931,7 @@ func SyncCarLastFuelOdometer(c *fiber.Ctx) error {
 		// Update the car's last_fuel_odometer
 		if err := Models.DB.Model(&car).Update("last_fuel_odometer", lastFuelEvent.OdometerAfter).Error; err != nil {
 			log.Printf("Error updating car %s last_fuel_odometer: %v", car.CarNoPlate, err)
+			Observability.ReportJobFailure("fuel_odometer_sync", "update_last_fuel_odometer", err)
 			results[car.CarNoPlate] = map[string]interface{}{
 				"status":  "error",
 				"message": "Failed to update odometer",
@@ -1985,6 +1987,7 @@ func SyncCarMileages(c *fiber.Ctx) error {
 	for _, car := range cars {
 		if err := Models.RecalculateMileage(car.ID); err != nil {
 			log.Printf("Error recalculating mileage for car %s: %v", car.CarNoPlate, err)
+			Observability.ReportJobFailure("fuel_odometer_sync", "recalculate_mileage", err)
 			errorCount++
 		} else {
 			updatedCount++

@@ -2,6 +2,7 @@ package Apis
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"errors"
 	"log"
 	"strconv"
@@ -35,6 +36,7 @@ func CreateOilChange(c *fiber.Ctx) error {
 	}
 	if err := Models.RecalculateMileage(car.ID); err != nil {
 		log.Println("Error updating car mileage:", err)
+		Observability.ReportJobFailure("oil_change", "recalculate_mileage", err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -89,6 +91,7 @@ func EditOilChange(c *fiber.Ctx) error {
 	}
 	if err := Models.RecalculateMileage(car.ID); err != nil {
 		log.Println("Error updating car mileage:", err)
+		Observability.ReportJobFailure("oil_change", "recalculate_mileage", err)
 	}
 
 	return c.JSON(fiber.Map{
@@ -134,6 +137,7 @@ func DeleteOilChange(c *fiber.Ctx) error {
 	}
 	if err := Models.RecalculateMileage(oilChange.CarID); err != nil {
 		log.Println("Error updating car mileage:", err)
+		Observability.ReportJobFailure("oil_change", "recalculate_mileage", err)
 	}
 
 	return c.JSON(fiber.Map{

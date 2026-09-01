@@ -2,6 +2,7 @@ package Slack
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"fmt"
 	"log"
 	"math"
@@ -994,6 +995,7 @@ func ProcessViolationMessage(text string) error {
 		// If not found (err != nil), it's a new violation - save it
 		if err := SaveViolationToDB(&violation); err != nil {
 			log.Printf("❌ Failed to save violation for %s: %v", violation.PlateNumber, err)
+			Observability.ReportJobFailure("speed_violations", "save_violation", err)
 			continue
 		}
 	}

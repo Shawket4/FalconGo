@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/utils"
 	"fmt"
 	"log"
@@ -437,7 +438,12 @@ func (ctrl *SessionController) EndSession(c *fiber.Ctx) error {
 
 	// Trigger materialized view refresh after ending session
 	if Models.MaterializedViewsExist() {
-		go Models.RefreshMaterializedViews()
+		go func() {
+			defer Observability.Guard("materialized_view_refresh")
+			if err := Models.RefreshMaterializedViews(); err != nil {
+				Observability.ReportJobFailure("materialized_view_refresh", "after_session_end", err)
+			}
+		}()
 	}
 
 	return utils.SuccessMessageResponse(c, "Session ended successfully")

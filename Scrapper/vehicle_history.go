@@ -55,6 +55,7 @@ func GetVehicleHistoryData(vehicleID string, fromDate, toDate string) ([]Structs
 			err := json.Unmarshal([]byte(formattedJson), &data)
 			if err != nil {
 				log.Println("Error parsing formatted JSON:", err.Error())
+				Observability.ReportJobFailure("vehicle_history", "parse_formatted_json", err)
 				return
 			}
 
@@ -63,6 +64,7 @@ func GetVehicleHistoryData(vehicleID string, fromDate, toDate string) ([]Structs
 			err = json.Unmarshal([]byte(finalJson), &historyData)
 			if err != nil {
 				log.Println("Error parsing history data:", err.Error())
+				Observability.ReportJobFailure("vehicle_history", "parse_history_data", err)
 				return
 			}
 		})
@@ -77,6 +79,7 @@ func GetVehicleHistoryData(vehicleID string, fromDate, toDate string) ([]Structs
 
 		if err != nil {
 			log.Println("Error formatting JSON:", err.Error())
+			Observability.ReportJobFailure("vehicle_history", "format_json", err)
 			return
 		}
 
