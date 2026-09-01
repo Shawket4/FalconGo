@@ -4285,11 +4285,11 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			query = query.Where("driver_name = ?", "غير مسجل")
+			query = query.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			query = query.Where("drop_off_point = ?", "غير مسجل")
+			query = query.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			query = query.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 
@@ -4311,11 +4311,11 @@ func (h *TripHandler) GetAllTrips(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+			countQuery = countQuery.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 	if receiptStatus != "" {
@@ -4406,11 +4406,11 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			query = query.Where("driver_name = ?", "غير مسجل")
+			query = query.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			query = query.Where("drop_off_point = ?", "غير مسجل")
+			query = query.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			query = query.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 
@@ -4430,11 +4430,11 @@ func (h *TripHandler) GetTripsByCompany(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+			countQuery = countQuery.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 	if receiptStatus != "" {
@@ -4532,11 +4532,11 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			query = query.Where("driver_name = ?", "غير مسجل")
+			query = query.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			query = query.Where("drop_off_point = ?", "غير مسجل")
+			query = query.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			query = query.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 
@@ -4559,11 +4559,11 @@ func (h *TripHandler) GetTripsByDate(c *fiber.Ctx) error {
 	if missingData != "" {
 		switch missingData {
 		case "driver":
-			countQuery = countQuery.Where("driver_name = ?", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ?", unregisteredDropOff)
 		case "route":
-			countQuery = countQuery.Where("drop_off_point = ?", "غير مسجل")
+			countQuery = countQuery.Where("drop_off_point = ?", unregisteredDropOff)
 		case "any":
-			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+			countQuery = countQuery.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 		}
 	}
 	if receiptStatus != "" {
@@ -4877,7 +4877,7 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 			})
 		}
 
-		if container.DropOffPoint == "غير مسجل" {
+		if container.DropOffPoint == unregisteredDropOff {
 			continue
 		}
 
@@ -5439,18 +5439,49 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 				})
 			}
 
+			// The drop-off to price against is the one the caller is SENDING,
+			// not the one currently stored.
+			//
+			// This block runs before the per-container updates below, so
+			// reading DropOffPoint off the database row gives the pre-edit
+			// value. A request that changes the terminal AND corrects a
+			// drop-off in the same call was rejected against the old
+			// drop-off — the very edit that would have made it valid is
+			// applied thirty lines further down.
+			incoming := map[uint]string{}
+			if input.UpdateContainers {
+				for _, ic := range input.Containers {
+					if ic.ID != 0 && ic.DropOffPoint != "" {
+						incoming[ic.ID] = ic.DropOffPoint
+					}
+				}
+			}
+
 			for _, container := range containers {
+				dropOff := container.DropOffPoint
+				if sent, ok := incoming[container.ID]; ok {
+					dropOff = sent
+				}
+
+				// Same guard the per-container block below uses. Without it
+				// the two paths disagreed: one rejected the unregistered
+				// placeholder, the other deliberately skipped it.
+				if dropOff == unregisteredDropOff {
+					continue
+				}
+
 				var mapping Models.FeeMapping
-				err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
-					existingParent.Company, existingParent.Terminal, container.DropOffPoint).
+				err := tx.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+					existingParent.Company, existingParent.Terminal, dropOff).
 					First(&mapping).Error
 
 				if err != nil {
 					if err == gorm.ErrRecordNotFound {
 						tx.Rollback()
+						reportMissingFeeMapping(existingParent.Company, existingParent.Terminal, dropOff)
 						return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 							"message": fmt.Sprintf("No mapping found for %s -> %s (container ID: %d)",
-								existingParent.Terminal, container.DropOffPoint, container.ID),
+								existingParent.Terminal, dropOff, container.ID),
 						})
 					}
 					tx.Rollback()
@@ -5486,16 +5517,19 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 
 				if container.DropOffPoint != "" {
 					containerUpdate["drop_off_point"] = container.DropOffPoint
-					if container.DropOffPoint != "غير مسجل" {
-						// Recalculate fee and distance for this drop-off point
+					if container.DropOffPoint != unregisteredDropOff {
+						// Recalculate fee and distance for this drop-off point.
+						// Read through tx, not h.DB: this transaction has
+						// already written rows these figures depend on.
 						var mapping Models.FeeMapping
-						err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+						err := tx.Where("company = ? AND terminal = ? AND drop_off_point = ?",
 							existingParent.Company, existingParent.Terminal, container.DropOffPoint).
 							First(&mapping).Error
 
 						if err != nil {
 							if err == gorm.ErrRecordNotFound {
 								tx.Rollback()
+								reportMissingFeeMapping(existingParent.Company, existingParent.Terminal, container.DropOffPoint)
 								return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 									"message": fmt.Sprintf("No mapping found for %s -> %s",
 										existingParent.Terminal, container.DropOffPoint),
@@ -5555,7 +5589,7 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					})
 				}
 
-				if container.DropOffPoint == "غير مسجل" {
+				if container.DropOffPoint == unregisteredDropOff {
 					continue
 				}
 

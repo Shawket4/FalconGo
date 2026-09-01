@@ -104,11 +104,11 @@ func (h *TripHandler) applyTripExportFilters(query *gorm.DB, c *fiber.Ctx) *gorm
 
 	switch c.Query("missing_data", "") {
 	case "driver":
-		query = query.Where("driver_name = ?", "غير مسجل")
+		query = query.Where("driver_name = ?", unregisteredDropOff)
 	case "route":
-		query = query.Where("drop_off_point = ?", "غير مسجل")
+		query = query.Where("drop_off_point = ?", unregisteredDropOff)
 	case "any":
-		query = query.Where("driver_name = ? OR drop_off_point = ?", "غير مسجل", "غير مسجل")
+		query = query.Where("driver_name = ? OR drop_off_point = ?", unregisteredDropOff, unregisteredDropOff)
 	}
 
 	if company := c.Query("company", ""); company != "" {
