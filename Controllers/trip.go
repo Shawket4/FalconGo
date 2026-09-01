@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/services"
 	"Falcon/utils"
 	"fmt"
@@ -4974,6 +4975,7 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		if err := tx.Model(&Models.Car{}).Where("id = ?", input.ParentTrip.CarID).
 			Update("driver_id", input.ParentTrip.DriverID).Error; err != nil {
 			log.Println("Warning: Failed to update car driver assignment:", err)
+			Observability.ReportJobFailure("trip_write", "car_driver_assignment", err)
 		}
 	}
 
@@ -5055,6 +5057,7 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 						existingTrip.SessionID = nil
 						if err := tx.Save(&existingTrip).Error; err != nil {
 							log.Printf("⚠️  Warning: Failed to unlink old trip %d: %v", existingTrip.ID, err)
+							Observability.ReportJobFailure("trip_write", "unlink_old_trip", err)
 						} else {
 							log.Printf("✅ Unlinked old ParentTrip %d from session %d (moved to history)",
 								existingTrip.ID, session.ID)
@@ -5064,6 +5067,7 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 					input.ParentTrip.SessionID = &session.ID
 					if err := tx.Save(&input.ParentTrip).Error; err != nil {
 						log.Printf("⚠️  Warning: Failed to link trip to session: %v. Trip will be created without current status.", err)
+						Observability.ReportJobFailure("trip_write", "link_trip_session", err)
 						input.ParentTrip.SessionID = nil
 					} else {
 						log.Printf("✅ Linked ParentTrip %d to session %d (set as current trip)",

@@ -3,6 +3,7 @@ package Apis
 import (
 	"Falcon/Constants"
 	"Falcon/Models"
+	"Falcon/Observability"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -372,6 +373,7 @@ func AddFuelEvent(c *fiber.Ctx) error {
 	}
 	if err := Models.RecalculateMileage(car.ID); err != nil {
 		log.Println("Error updating car mileage:", err)
+		Observability.ReportJobFailure("fuel_event", "recalculate_mileage", err)
 	}
 	PushOdometerToServiceAsync(inputJson.CarID, inputJson.OdometerAfter)
 	return c.JSON(inputJson)
@@ -426,6 +428,7 @@ func EditFuelEvent(c *fiber.Ctx) error {
 
 	if err := Models.RecalculateMileage(car.ID); err != nil {
 		log.Println("Error updating car mileage:", err)
+		Observability.ReportJobFailure("fuel_event", "recalculate_mileage", err)
 	}
 	return c.JSON(inputJson)
 }
@@ -454,6 +457,7 @@ func DeleteFuelEvent(c *fiber.Ctx) error {
 	if fuelEvent.CarID != 0 {
 		if err := Models.RecalculateMileage(fuelEvent.CarID); err != nil {
 			log.Println("Error updating car mileage:", err)
+			Observability.ReportJobFailure("fuel_event", "recalculate_mileage", err)
 		}
 	}
 
@@ -468,7 +472,7 @@ func PushOdometerToServiceAsync(carID uint, odometer int) {
 		if err := godotenv.Load(".env"); err != nil {
 			log.Printf("⚠️  Error loading .env file: %v", err)
 		}
-		
+
 		serviceURL := os.Getenv("PETROAPP_SERVICE_URL")
 		if serviceURL == "" {
 			serviceURL = Constants.PetroAppServiceURL
@@ -478,28 +482,28 @@ func PushOdometerToServiceAsync(carID uint, odometer int) {
 			log.Println("Warning: PETROAPP_SERVICE_URL is not set, skipping odometer push")
 			return
 		}
-		
+
 		url := serviceURL + "/odometer/push"
-		
+
 		payload := map[string]interface{}{
 			"db_car_id": carID,
 			"odometer":  odometer,
 		}
-		
+
 		payloadBytes, err := json.Marshal(payload)
 		if err != nil {
 			log.Printf("Error marshaling odometer push payload: %v\n", err)
 			return
 		}
-		
+
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
 		if err != nil {
 			log.Printf("Error creating odometer push request: %v\n", err)
 			return
 		}
-		
+
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		apiKey := os.Getenv("PETROAPP_SERVICE_API_KEY")
 		if apiKey == "" {
 			apiKey = Constants.PetroAppServiceAPIKey
@@ -507,7 +511,7 @@ func PushOdometerToServiceAsync(carID uint, odometer int) {
 		if apiKey != "" {
 			req.Header.Set("X-Api-Key", apiKey)
 		}
-		
+
 		client := &http.Client{Timeout: 10 * time.Second}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -515,7 +519,7 @@ func PushOdometerToServiceAsync(carID uint, odometer int) {
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			log.Printf("Warning: petroapp service returned status %d for odometer push\n", resp.StatusCode)
 		} else {

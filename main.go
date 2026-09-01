@@ -67,6 +67,7 @@ func main() {
 
 	if err := Models.RefreshMaterializedViews(); err != nil {
 		log.Printf("Warning: Failed to refresh materialized views: %v", err)
+		Observability.ReportJobFailure("startup", "refresh_materialized_views", err)
 	}
 	// ============================================
 	// STEP 4: RUN MIGRATIONS (CRITICAL!)

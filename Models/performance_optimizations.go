@@ -1,6 +1,7 @@
 package Models
 
 import (
+	"Falcon/Observability"
 	"fmt"
 	"log"
 	"time"
@@ -14,6 +15,7 @@ func SetupPerformanceOptimizations() {
 	// 1. Create materialized views
 	if err := createMaterializedViews(); err != nil {
 		log.Printf("❌ Failed to create materialized views: %v", err)
+		Observability.ReportJobFailure("startup", "create_materialized_views", err)
 		log.Println("⚠️  Skipping performance optimizations")
 		return
 	}

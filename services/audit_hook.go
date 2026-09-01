@@ -1,6 +1,7 @@
 package services
 
 import (
+	"Falcon/Observability"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -95,6 +96,7 @@ func NotifyTripAudit(dates ...string) {
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("Warning: trip audit hook: rescan request failed: %v", err)
+			Observability.ReportJobFailure("trip_audit_hook", "rescan_request", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -146,6 +148,7 @@ func NotifyLocationRescan(db *gorm.DB, kind string, terminalID uint, dropoffName
 		}
 		if err != nil {
 			log.Printf("Warning: location rescan hook: date query failed: %v", err)
+			Observability.ReportJobFailure("location_rescan_hook", "date_query", err)
 			return
 		}
 		if len(dates) == 0 {
