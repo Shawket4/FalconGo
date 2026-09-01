@@ -341,6 +341,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/GetOilChange/:oilChangeId", middleware.Verify(1), Apis.GetOilChange)
 	api.Post("/ExportOilChanges", middleware.Verify(1), Apis.ExportOilChangesExcel)
 	api.Post("/ExportCars", middleware.Verify(1), Apis.ExportCarsExcel)
+	mappings.Get("/:id/route", Apis.FeeMappingRoute)
 
 	// Service invoices
 	api.Post("/service-invoices", middleware.Verify(1), Controllers.CreateServiceInvoice)
