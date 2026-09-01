@@ -1,6 +1,7 @@
 package Scrapper
 
 import (
+	"Falcon/Observability"
 	"Falcon/Structs"
 	"encoding/json"
 	"fmt"
@@ -155,6 +156,7 @@ func GetHistoryForAllVehicles(vehicles []VehicleStatusStruct, fromDate, toDate s
 		wg.Add(1)
 		go func(v VehicleStatusStruct) {
 			defer wg.Done()
+			defer Observability.Guard("vehicle_history_fetch")
 
 			// Acquire semaphore
 			semaphore <- struct{}{}

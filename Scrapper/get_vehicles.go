@@ -2,6 +2,7 @@ package Scrapper
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/Slack"
 	"encoding/json"
 	"errors"
@@ -192,6 +193,7 @@ func GetVehicleData() {
 	clients, err := GetClients(username, password)
 	if err != nil {
 		log.Println("Login failed:", err.Error())
+		Observability.ReportJobFailure("vehicle_scraper", "login", err)
 		return
 	}
 
@@ -201,6 +203,7 @@ func GetVehicleData() {
 	err = GetCurrentLocationData(GlobalClient)
 	if err != nil {
 		log.Println("Failed to get current location data:", err.Error())
+		Observability.ReportJobFailure("vehicle_scraper", "current_location", err)
 		return
 	}
 
@@ -212,6 +215,7 @@ func GetVehicleData() {
 	var allCars []Models.Car
 	if err := Models.DB.Preload("Driver").Find(&allCars).Error; err != nil {
 		log.Printf("Error fetching cars: %v", err)
+		Observability.ReportJobFailure("vehicle_scraper", "load_cars", err)
 		return
 	}
 

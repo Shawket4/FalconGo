@@ -2,6 +2,7 @@ package Slack
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -644,6 +645,7 @@ func MonitorViolationsChannel() {
 		messages, err := client.GetChannelHistory(SpeedViolationsChannelID, 20)
 		if err != nil {
 			log.Printf("❌ Error fetching channel history: %v", err)
+			Observability.ReportJobFailure("slack_violation_monitor", "channel_history", err)
 			return
 		}
 
@@ -714,7 +716,10 @@ func MonitorViolationsChannel() {
 // StartViolationMonitoring starts the violation monitoring in a goroutine
 func StartViolationMonitoring() {
 	log.Println("🚀 Starting speed violation monitoring service...")
-	go MonitorViolationsChannel()
+	go func() {
+		defer Observability.Guard("slack_violation_monitor")
+		MonitorViolationsChannel()
+	}()
 }
 
 // QueueSlackUpdate queues a Slack update for a specific company with batching
@@ -808,6 +813,7 @@ func processStoppedChannelUpdate() {
 	// Send update to Slack
 	if err := sendStoppedVehiclesUpdate(update.ChannelID, stoppedCars); err != nil {
 		log.Printf("Error sending stopped vehicles update: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "send_stopped_vehicles", err)
 	} else {
 		log.Printf("Successfully sent stopped vehicles update (%d vehicles)", len(stoppedCars))
 	}
@@ -961,6 +967,7 @@ func processBatchedUpdate(companyKey string) {
 	// Send update to Slack
 	if err := sendFleetUpdateToChannel(update.ChannelID, allCars, companyKey); err != nil {
 		log.Printf("Error sending batched update for company %s: %v", companyKey, err)
+		Observability.ReportJobFailure("slack_fleet_update", "send_batched_company", err)
 	} else {
 		log.Printf("Successfully sent batched update for %s (%d vehicles)", companyKey, len(allCars))
 	}
@@ -998,6 +1005,7 @@ func SendFleetUpdatesToSlack(carsByCompany map[string][]Models.Car) error {
 
 		if err := sendFleetUpdateToChannel(channelID, cars, company); err != nil {
 			log.Printf("Error sending to channel %s: %v", channelID, err)
+			Observability.ReportJobFailure("slack_fleet_update", "send_to_channel", err)
 		}
 	}
 
@@ -1033,6 +1041,7 @@ func UpdateStoppedVehiclesChannel() {
 	// Send update to Slack
 	if err := sendStoppedVehiclesUpdate(channelID, stoppedCars); err != nil {
 		log.Printf("Error sending stopped vehicles update: %v", err)
+		Observability.ReportJobFailure("slack_fleet_update", "send_stopped_vehicles", err)
 	} else {
 		log.Printf("Successfully sent stopped vehicles update (%d vehicles)", len(stoppedCars))
 	}

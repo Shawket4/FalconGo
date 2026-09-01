@@ -2,6 +2,7 @@ package workers
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"Falcon/services"
 	"log"
 	"math"
@@ -28,12 +29,20 @@ func (w *TripSummaryWorker) Start() {
 	log.Println("🚀 Trip Summary Worker started - runs every 15 minutes")
 
 	// Run immediately
-	go w.processPendingTrips()
+	go func() {
+		defer Observability.Guard("trip_summary_worker")
+		w.processPendingTrips()
+	}()
 
-	// Then periodically
+	// Then periodically. Each tick is guarded on its own: a panic in one run
+	// reports and is dropped, the loop survives, and the API server — which
+	// an unrecovered panic here would have taken down with it — keeps serving.
 	go func() {
 		for range w.ticker.C {
-			w.processPendingTrips()
+			func() {
+				defer Observability.Guard("trip_summary_worker")
+				w.processPendingTrips()
+			}()
 		}
 	}()
 }
@@ -60,6 +69,9 @@ func (w *TripSummaryWorker) processPendingTrips() {
 
 	if err != nil {
 		log.Printf("❌ Error fetching pending trips: %v", err)
+		// The job boundary: this returns and the worker does nothing for the
+		// next fifteen minutes, looking exactly like a run with no work.
+		Observability.ReportJobFailure("trip_summary_worker", "load_pending", err)
 		return
 	}
 
@@ -107,6 +119,13 @@ func (w *TripSummaryWorker) processPendingTrips() {
 	}
 
 	log.Printf("✅ Processed %d trips, skipped %d, errors %d", processed, skipped, errors)
+
+	// Individual failures are logged per trip and stay there — one bad trip is
+	// ordinary. A run where every attempt failed is not: summaries have simply
+	// stopped being produced, and the counters are the only place that shows it.
+	if errors > 0 && processed == 0 {
+		Observability.ReportBatchFailure("trip_summary_worker", errors, errors+skipped)
+	}
 }
 
 // ============================================================================

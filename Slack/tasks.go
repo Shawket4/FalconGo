@@ -2,6 +2,7 @@ package Slack
 
 import (
 	"Falcon/Models"
+	"Falcon/Observability"
 	"fmt"
 	"log"
 	"os"
@@ -669,12 +670,19 @@ func InitializeSlackTaskSystem() error {
 	// }
 
 	// Start daily scheduler
-	go ScheduleTaskCreationAndSlack()
+	go func() {
+		defer Observability.Guard("slack_task_scheduler")
+		ScheduleTaskCreationAndSlack()
+	}()
 
 	// Start Slack event listener
 	go func() {
+		defer Observability.Guard("slack_task_listener")
 		if err := StartSlackTaskListener(); err != nil {
+			// The listener not starting means every Slack task interaction is
+			// dead for the life of the process, silently.
 			log.Printf("Error starting Slack task listener: %v", err)
+			Observability.ReportJobFailure("slack_task_listener", "start", err)
 		}
 	}()
 
