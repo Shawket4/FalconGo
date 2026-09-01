@@ -28,6 +28,53 @@ import (
 
 const pilesCompany = "Watanya"
 
+// The level at which the money on this screen becomes visible. The filing plan
+// itself -- which boxes, which letters, which names, where the paper is -- is
+// open to anyone who can see trips at all, because it is warehouse work rather
+// than accounting. Matches the threshold GetTripStatistics already uses.
+const pilesFinancialPermission = 3
+
+// hasFinancialAccess reports whether this caller may see fees and costs.
+func hasFinancialAccess(c *fiber.Ctx) bool {
+	user, ok := c.Locals("user").(*Models.User)
+	return ok && user.Permission >= pilesFinancialPermission
+}
+
+// receiptStatusByTrip maps each trip id to where its paper currently is.
+//
+// "Latest" is by received_at and skips soft-deleted steps, matching the rule
+// the trips list uses: a deleted step is a correction, and letting it count as
+// the latest resurrects the very state someone deleted -- a deleted Garage
+// step after a live Office step made an office-received trip read as in-garage.
+func (h *ReceiptPilesHandler) receiptStatusByTrip(tripIDs []uint) (map[uint]string, error) {
+	out := make(map[uint]string, len(tripIDs))
+	if len(tripIDs) == 0 {
+		return out, nil
+	}
+
+	var steps []Models.ReceiptStep
+	if err := h.DB.
+		Select("trip_id, location, received_at").
+		Where("trip_id IN ? AND deleted_at IS NULL", tripIDs).
+		Order("trip_id, received_at").
+		Find(&steps).Error; err != nil {
+		return nil, err
+	}
+
+	// Ordered by received_at ascending, so the last write per trip wins.
+	for _, step := range steps {
+		switch step.Location {
+		case "Office":
+			out[step.TripID] = services.ReceiptAtOffice
+		case "Garage":
+			out[step.TripID] = services.ReceiptAtGarage
+		default:
+			out[step.TripID] = services.ReceiptNotFiled
+		}
+	}
+	return out, nil
+}
+
 type ReceiptPilesHandler struct {
 	DB *gorm.DB
 }
@@ -125,7 +172,7 @@ func (h *ReceiptPilesHandler) GetDropOffDetail(c *fiber.Ctx) error {
 
 	var trips []Models.TripStruct
 	err = h.DB.
-		Select("receipt_no, drop_off_point, terminal, date, car_no_plate, driver_name, tank_capacity, mileage").
+		Select("id, receipt_no, drop_off_point, terminal, date, car_no_plate, driver_name, tank_capacity, mileage").
 		Where("company = ? AND drop_off_point = ? AND date BETWEEN ? AND ?",
 			pilesCompany, name, req.StartDate, req.EndDate).
 		Find(&trips).Error
@@ -153,7 +200,20 @@ func (h *ReceiptPilesHandler) GetDropOffDetail(c *fiber.Ctx) error {
 		}
 	}
 
-	detail := services.BuildDropOffDetail(name, trips, feeByKey)
+	tripIDs := make([]uint, 0, len(trips))
+	for _, t := range trips {
+		tripIDs = append(tripIDs, t.ID)
+	}
+	statusByTrip, err := h.receiptStatusByTrip(tripIDs)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve receipt steps: " + err.Error(),
+		})
+	}
+
+	detail := services.BuildDropOffDetail(
+		name, trips, feeByKey, statusByTrip, hasFinancialAccess(c),
+	)
 	detail.StartDate = req.StartDate
 	detail.EndDate = req.EndDate
 	return c.JSON(detail)

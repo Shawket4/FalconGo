@@ -705,6 +705,13 @@ var WatanyaBandRates = map[int]float64{
 	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
 }
 
+// Where a receipt physically is, from its most recent step.
+const (
+	ReceiptAtOffice = "office"
+	ReceiptAtGarage = "garage"
+	ReceiptNotFiled = "none"
+)
+
 // DropOffReceipt is one row of a terminal's table, carrying the same columns
 // the report prints.
 type DropOffReceipt struct {
@@ -715,16 +722,25 @@ type DropOffReceipt struct {
 	CarNoPlate   string  `json:"car_no_plate"`
 	TankCapacity int     `json:"tank_capacity"`
 	Mileage      float64 `json:"mileage"`
-	ActualFee    float64 `json:"actual_fee"`
-	Cost         float64 `json:"cost"`
+	// Where the paper is: "office", "garage", or "none" when no step has been
+	// recorded. This is the filer's own bookkeeping, so it is not money and is
+	// served at every permission level.
+	Status string `json:"status"`
+	// Money. Absent, not zeroed, below the financial permission -- a zero
+	// reads as "earned nothing" where absence reads as "not for you".
+	ActualFee *float64 `json:"actual_fee,omitempty"`
+	Cost      *float64 `json:"cost,omitempty"`
 }
 
 // DropOffTerminalTable is one terminal's table within a drop-off.
 type DropOffTerminalTable struct {
-	Terminal  string  `json:"terminal"`
-	Distance  float64 `json:"distance"`
-	FeeIndex  int     `json:"fee_index"`
-	ActualFee float64 `json:"actual_fee"`
+	Terminal string  `json:"terminal"`
+	Distance float64 `json:"distance"`
+	// The band NUMBER (1..15) is route metadata, not a price -- it says which
+	// tariff row applies, not what anyone is paid -- so it is served at every
+	// level. The rate it converts to is money and is not.
+	FeeIndex  int      `json:"fee_index"`
+	ActualFee *float64 `json:"actual_fee,omitempty"`
 	/**
 	 * Absent from the workbook entirely: the terminal↔drop-off pair has no fee
 	 * mapping, so the report skips it. The paper still exists, so it is
@@ -734,7 +750,12 @@ type DropOffTerminalTable struct {
 	Receipts      []DropOffReceipt `json:"receipts"`
 	ReceiptCount  int              `json:"receipt_count"`
 	TotalCapacity int              `json:"total_capacity"`
-	TotalCost     float64          `json:"total_cost"`
+	TotalCost     *float64         `json:"total_cost,omitempty"`
+	// Counts by where the paper is, so a drop-off can be read at a glance
+	// without walking its rows.
+	AtOffice int `json:"at_office"`
+	AtGarage int `json:"at_garage"`
+	NotFiled int `json:"not_filed"`
 }
 
 // DropOffDetail is the whole answer for one drop-off in one range.
@@ -745,7 +766,10 @@ type DropOffDetail struct {
 	Terminals     []DropOffTerminalTable `json:"terminals"`
 	ReceiptCount  int                    `json:"receipt_count"`
 	TotalCapacity int                    `json:"total_capacity"`
-	TotalCost     float64                `json:"total_cost"`
+	TotalCost     *float64               `json:"total_cost,omitempty"`
+	AtOffice      int                    `json:"at_office"`
+	AtGarage      int                    `json:"at_garage"`
+	NotFiled      int                    `json:"not_filed"`
 	/** Receipts in tables the report omits — the sum over unmapped terminals. */
 	UnmappedReceipts int `json:"unmapped_receipts"`
 }
@@ -759,10 +783,18 @@ type DropOffDetail struct {
 // or not anyone can bill it — so those tables are kept, marked `unmapped`, and
 // sorted last so the priced tables read in exactly the report's order above
 // them.
+//
+// `statusByTrip` maps a trip id to "office" / "garage" / "none"; a trip absent
+// from it has no steps and reads as not filed. `withMoney` is the permission
+// gate: when false the fee and cost fields are left nil and never serialised,
+// while the band NUMBER and the distance stay, because they are route
+// metadata rather than a price.
 func BuildDropOffDetail(
 	dropOff string,
 	trips []Models.TripStruct,
 	feeByKey map[string]FeeInfo,
+	statusByTrip map[uint]string,
+	withMoney bool,
 ) DropOffDetail {
 	detail := DropOffDetail{DropOffPoint: dropOff}
 
@@ -787,16 +819,23 @@ func BuildDropOffDetail(
 
 		fee, priced := feeByKey[terminal+"|"+dropOff]
 		table := DropOffTerminalTable{
-			Terminal:  terminal,
-			Distance:  fee.Distance,
-			FeeIndex:  fee.FeeIndex,
-			ActualFee: fee.ActualFee,
-			Unmapped:  !priced,
+			Terminal: terminal,
+			Distance: fee.Distance,
+			FeeIndex: fee.FeeIndex,
+			Unmapped: !priced,
+		}
+		if withMoney {
+			rate := fee.ActualFee
+			table.ActualFee = &rate
+			zero := 0.0
+			table.TotalCost = &zero
 		}
 		for i, t := range list {
-			// Same arithmetic as the report: litres × rate per 1,000 litres.
-			cost := float64(t.TankCapacity) * fee.ActualFee / 1000.0
-			table.Receipts = append(table.Receipts, DropOffReceipt{
+			status := statusByTrip[t.ID]
+			if status == "" {
+				status = ReceiptNotFiled
+			}
+			row := DropOffReceipt{
 				Seq:          i + 1,
 				Date:         t.Date,
 				ReceiptNo:    t.ReceiptNo,
@@ -804,11 +843,26 @@ func BuildDropOffDetail(
 				CarNoPlate:   t.CarNoPlate,
 				TankCapacity: t.TankCapacity,
 				Mileage:      t.Mileage,
-				ActualFee:    fee.ActualFee,
-				Cost:         cost,
-			})
+				Status:       status,
+			}
+			if withMoney {
+				// Same arithmetic as the report: litres × rate per 1,000 litres.
+				rate := fee.ActualFee
+				cost := float64(t.TankCapacity) * rate / 1000.0
+				row.ActualFee = &rate
+				row.Cost = &cost
+				*table.TotalCost += cost
+			}
+			switch status {
+			case ReceiptAtOffice:
+				table.AtOffice++
+			case ReceiptAtGarage:
+				table.AtGarage++
+			default:
+				table.NotFiled++
+			}
+			table.Receipts = append(table.Receipts, row)
 			table.TotalCapacity += t.TankCapacity
-			table.TotalCost += cost
 		}
 		table.ReceiptCount = len(table.Receipts)
 
@@ -820,10 +874,19 @@ func BuildDropOffDetail(
 	}
 
 	detail.Terminals = append(mapped, unmapped...)
+	if withMoney {
+		zero := 0.0
+		detail.TotalCost = &zero
+	}
 	for _, table := range detail.Terminals {
 		detail.ReceiptCount += table.ReceiptCount
 		detail.TotalCapacity += table.TotalCapacity
-		detail.TotalCost += table.TotalCost
+		detail.AtOffice += table.AtOffice
+		detail.AtGarage += table.AtGarage
+		detail.NotFiled += table.NotFiled
+		if withMoney && table.TotalCost != nil {
+			*detail.TotalCost += *table.TotalCost
+		}
 		if table.Unmapped {
 			detail.UnmappedReceipts += table.ReceiptCount
 		}

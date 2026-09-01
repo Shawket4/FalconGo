@@ -237,9 +237,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// Its own group, not under /trips/watanya: this is a filing plan for the
 	// returned paper, not part of the fee report, and it is called from its own
-	// screen. Permission 3 to match the report -- the plan names every drop-off
-	// point and receipt number for the range.
-	piles := api.Group("/receipt-piles", middleware.Verify(3))
+	// screen.
+	//
+	// Permission 1, not 3: filing paper into boxes is warehouse work, and the
+	// people who do it are not the people with financial access. The money on
+	// the screen -- the fee rate and the per-receipt cost -- is withheld inside
+	// the handler instead, so the plan itself is open while the prices are not.
+	piles := api.Group("/receipt-piles", middleware.Verify(1))
 	piles.Get("/", receiptPilesHandler.GetReceiptPiles)
 	piles.Get("/export", receiptPilesHandler.ExportReceiptPiles)
 	// One drop-off's receipts, per terminal, in the fee report's order.

@@ -404,7 +404,7 @@ func TestBuildDropOffDetailMatchesReportOrder(t *testing.T) {
 		"هايكستب|حلوان 1": {Distance: 90, FeeIndex: 2, ActualFee: WatanyaBandRates[2]},
 	}
 
-	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
 
 	// Terminals in byte order, exactly as sort.Strings gives the report.
 	want := []string{"بدر", "هايكستب"}
@@ -447,13 +447,13 @@ func TestBuildDropOffDetailPricesLikeTheReport(t *testing.T) {
 	fees := map[string]FeeInfo{
 		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
 	}
-	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
 
 	want := 20000 * 156.2 / 1000.0 // band 4
-	if got := detail.Terminals[0].Receipts[0].Cost; got != want {
+	if got := detail.Terminals[0].Receipts[0].Cost; got == nil || *got != want {
 		t.Errorf("cost %v, want %v", got, want)
 	}
-	if detail.TotalCost != want || detail.TotalCapacity != 20000 {
+	if detail.TotalCost == nil || *detail.TotalCost != want || detail.TotalCapacity != 20000 {
 		t.Errorf("totals %v / %d, want %v / 20000", detail.TotalCost, detail.TotalCapacity, want)
 	}
 }
@@ -471,7 +471,7 @@ func TestBuildDropOffDetailKeepsUnmappedTerminalsLast(t *testing.T) {
 	fees := map[string]FeeInfo{
 		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
 	}
-	detail := BuildDropOffDetail("حلوان 1", trips, fees)
+	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
 
 	if detail.Terminals[0].Terminal != "بدر" || detail.Terminals[0].Unmapped {
 		t.Errorf("first table is %q (unmapped=%v), want the priced بدر",
@@ -484,8 +484,8 @@ func TestBuildDropOffDetailKeepsUnmappedTerminalsLast(t *testing.T) {
 		t.Errorf("unmapped receipts %d, want 1", detail.UnmappedReceipts)
 	}
 	// An unpriced table earns nothing rather than guessing a band.
-	if detail.Terminals[1].TotalCost != 0 {
-		t.Errorf("unpriced table costed %v, want 0", detail.Terminals[1].TotalCost)
+	if tc := detail.Terminals[1].TotalCost; tc == nil || *tc != 0 {
+		t.Errorf("unpriced table costed %v, want 0", tc)
 	}
 }
 
@@ -494,7 +494,7 @@ func TestBuildDropOffDetailSkipsBlankReceipts(t *testing.T) {
 		detailTrip("بدر", "2026-07-01", "111", 1000),
 		detailTrip("بدر", "2026-07-02", "  ", 1000),
 	}
-	detail := BuildDropOffDetail("حلوان 1", trips, map[string]FeeInfo{})
+	detail := BuildDropOffDetail("حلوان 1", trips, map[string]FeeInfo{}, nil, true)
 	if detail.ReceiptCount != 1 {
 		t.Errorf("counted %d receipts, want 1", detail.ReceiptCount)
 	}
