@@ -499,3 +499,18 @@ func TestBuildDropOffDetailSkipsBlankReceipts(t *testing.T) {
 		t.Errorf("counted %d receipts, want 1", detail.ReceiptCount)
 	}
 }
+
+// The Watanya report orders its drop-off tables with this, so it must agree
+// with the pile plan: the article is stripped before the filing letter, and
+// the placeholder drop-off files last.
+func TestSortPileOrderDropOffs(t *testing.T) {
+	names := []string{"بنها", UnsetDropOff, "العياط", "اسيوط", "In garage", "عين شمس"}
+	SortPileOrderDropOffs(names)
+
+	want := []string{"اسيوط", "بنها", "العياط", "عين شمس", "In garage", UnsetDropOff}
+	for i := range want {
+		if names[i] != want[i] {
+			t.Fatalf("position %d: got %q, want %q (full: %v)", i, names[i], want[i], names)
+		}
+	}
+}

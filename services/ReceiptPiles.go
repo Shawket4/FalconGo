@@ -271,10 +271,7 @@ func BuildPilePlan(trips []Models.TripStruct, mode string, pileCount int) PilePl
 			return list[i].ReceiptNo < list[j].ReceiptNo
 		})
 
-		letter := LetterOf(name)
-		if name == UnsetDropOff {
-			letter = BucketUnset
-		}
+		letter := pileLetterOf(name)
 
 		seenTerminals := make(map[string]bool)
 		d := PileDropOff{Name: name, Letter: letter, ReceiptCount: len(list)}
@@ -676,6 +673,33 @@ func greedyCut(weights []int, capacity int) []int {
 // collation would reorder every table in a report people reconcile by eye.
 func SortReportNames(names []string) {
 	sort.Strings(names)
+}
+
+// pileLetterOf is LetterOf plus the placeholder rule the plan applies: the
+// "Unset" drop-off is filed as unrecorded, not as a Latin name.
+func pileLetterOf(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" || name == UnsetDropOff {
+		return BucketUnset
+	}
+	return LetterOf(name)
+}
+
+// SortPileOrderDropOffs orders drop-off names the way the pile plan does:
+// by the filing letter first (definite article stripped, variants folded —
+// العياط files under ع), then by name inside that letter.
+//
+// The workbook and the piles screen are worked through side by side, so the
+// report's drop-off tables follow the boxes rather than a raw byte sort that
+// would file every ال- name under ا.
+func SortPileOrderDropOffs(names []string) {
+	sort.Slice(names, func(i, j int) bool {
+		li, lj := letterRank[pileLetterOf(names[i])], letterRank[pileLetterOf(names[j])]
+		if li != lj {
+			return li < lj
+		}
+		return names[i] < names[j]
+	})
 }
 
 // SortReportTrips orders the receipts inside one terminal's table: by date,

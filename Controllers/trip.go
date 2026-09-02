@@ -2523,11 +2523,73 @@ func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 }
 
 const (
-	wtTableOverhead    = 3  // title row + header row + total row
-	wtInterTableSpace  = 2  // blank rows between tables in the same group
-	wtDetailPageLimit  = 50 // max rows per printed page in the detail sheet
-	wtSummaryPageLimit = 50 // max rows per printed page in the summary sheet
+	wtTableOverhead   = 3 // title row + header row + total row
+	wtInterTableSpace = 1 // blank rows between tables in the same group
+	wtInterGroupSpace = 2 // blank rows between drop-off groups
+
+	// Printable height of an A4 portrait page, in points: the sheet height
+	// less the top and bottom margins set in wtRenderExcel, less a little
+	// slack for the rounding Excel does converting row heights to device
+	// pixels. Pagination is computed against this rather than a row COUNT,
+	// which is what used to put two or three spacer rows alone on a page: a
+	// fixed 50-row budget did not match the paper, so Excel added automatic
+	// breaks of its own and the manual break landed just after one.
+	wtUsablePagePt = 841.89 - 2*0.4*72 - 16
+
+	// Row heights in points. Every SetRowHeight below uses one of these, so
+	// the pagination arithmetic and the sheet cannot drift apart.
+	wtSumTitlePt    = 32.0
+	wtSumSubtitlePt = 24.0
+	wtSumSpacerPt   = 12.0
+	wtSumHeaderPt   = 28.0
+	wtSumRowPt      = 24.0
+	wtSumSubtotalPt = 26.0
+	wtSumTotalPt    = 28.0
+	wtSumGapPt      = 8.0
+
+	wtDetTitlePt  = 22.0
+	wtDetHeaderPt = 18.0
+	wtDetRowPt    = 16.0
+	wtDetTotalPt  = 18.0
+	wtDetGapPt    = 8.0
 )
+
+// wtPager tracks how much printed height the current page has spent, so a
+// manual break is inserted where the paper actually runs out.
+//
+// titlePt is the height of the rows repeated at the top of every page (the
+// sheet's print titles); it is charged to each page before any content.
+type wtPager struct {
+	f       *excelize.File
+	sheet   string
+	titlePt float64
+	used    float64
+}
+
+func newWtPager(f *excelize.File, sheet string, titlePt float64) *wtPager {
+	return &wtPager{f: f, sheet: sheet, titlePt: titlePt, used: titlePt}
+}
+
+// fits reports whether h more points still land on the current page.
+func (p *wtPager) fits(h float64) bool { return p.used+h <= wtUsablePagePt }
+
+func (p *wtPager) add(h float64) { p.used += h }
+
+// fill marks the page as spent, for a block taller than a page: Excel breaks
+// inside it automatically and the next block starts fresh.
+func (p *wtPager) fill() { p.used = wtUsablePagePt }
+
+// breakBefore starts a new printed page at row. It reports whether it did:
+// on an otherwise empty page there is nothing to break away from, and a break
+// there is exactly what produces a blank sheet of paper.
+func (p *wtPager) breakBefore(row int) bool {
+	if p.used <= p.titlePt {
+		return false
+	}
+	_ = p.f.InsertPageBreak(p.sheet, fmt.Sprintf("A%d", row))
+	p.used = p.titlePt
+	return true
+}
 
 // wtFeeIndexToAmount maps a fee index (1-15) to its EGP-per-1 000-litre amount.
 var wtFeeIndexToAmount = map[int]float64{
@@ -2683,9 +2745,8 @@ func wtBuildGroups(
 	for d := range buckets {
 		dropOffNames = append(dropOffNames, d)
 	}
-	// Shared with the receipt-piles drop-off drawer, which mirrors this
-	// layout — see services.SortReportNames.
-	services.SortReportNames(dropOffNames)
+	// Same order as the receipt piles screen — see services.SortPileOrderDropOffs.
+	services.SortPileOrderDropOffs(dropOffNames)
 
 	var groups []wtDropOffGroup
 	var summaries []WatanyaReportSummary
@@ -2796,17 +2857,34 @@ func wtRenderExcel(
 	idx, _ := f.GetSheetIndex("Summary")
 	f.SetActiveSheet(idx)
 
-	// Shared print settings
+	// ── Shared print settings (A4 portrait) ──────────────────────────────────
+	//
+	// FitToWidth 1 / FitToHeight 0 with FitToPage on is what makes the manual
+	// breaks mean anything: the columns are scaled to exactly one page across,
+	// and the sheet is free to run as many pages down as the breaks below say.
+	// Without it a column overflowing the paper produced a second, near-empty
+	// column-strip page for every page of the report.
+	//
+	// Both sheets are narrower than the printable width of A4 (Summary ~539pt,
+	// Trip Details ~478pt against ~552pt), so fit-to-width never scales them
+	// down — which is what lets the pagination below reason in raw points.
 	orientation := "portrait"
 	paperSize := 9 // A4
 	margins := &excelize.PageLayoutMarginsOptions{
 		Left: ptr(0.3), Right: ptr(0.3),
 		Top: ptr(0.4), Bottom: ptr(0.4),
+		Header: ptr(0.2), Footer: ptr(0.2),
 	}
-	layout := &excelize.PageLayoutOptions{Orientation: &orientation, Size: &paperSize}
+	layout := &excelize.PageLayoutOptions{
+		Orientation: &orientation,
+		Size:        &paperSize,
+		FitToWidth:  ptr(1),
+		FitToHeight: ptr(0),
+	}
 	for _, sheet := range []string{"Summary", "Trip Details"} {
 		f.SetPageLayout(sheet, layout)
 		f.SetPageMargins(sheet, margins)
+		f.SetSheetProps(sheet, &excelize.SheetPropsOptions{FitToPage: ptr(true)})
 	}
 
 	timestamp := time.Now().Format("20060102_150405")
@@ -2954,78 +3032,129 @@ func wtWriteSummarySheet(
 	const headerRow = 4
 
 	merge := func(from, to string) { f.MergeCell(sheet, from, to) }
-	set := func(cell, val interface{}) {
-		if s, ok := val.(string); ok {
-			f.SetCellValue(sheet, fmt.Sprint(cell), s)
-		} else {
-			f.SetCellValue(sheet, fmt.Sprint(cell), val)
-		}
-	}
 
 	merge("A1", "I1")
 	f.SetCellValue(sheet, "A1", "Watanya Trips Report")
 	f.SetCellStyle(sheet, "A1", "I1", s.Title)
-	f.SetRowHeight(sheet, 1, 32)
+	f.SetRowHeight(sheet, 1, wtSumTitlePt)
 
 	merge("A2", "I2")
 	f.SetCellValue(sheet, "A2", fmt.Sprintf("%s  —  %s", req.StartDate, req.EndDate))
 	f.SetCellStyle(sheet, "A2", "I2", s.Subtitle)
-	f.SetRowHeight(sheet, 2, 24)
+	f.SetRowHeight(sheet, 2, wtSumSubtitlePt)
 
-	f.SetRowHeight(sheet, 3, 12) // spacer
+	f.SetRowHeight(sheet, 3, wtSumSpacerPt) // spacer
 
 	for i, h := range headers {
 		f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, headerRow), h)
 	}
 	f.SetCellStyle(sheet, "A4", "I4", s.Header)
-	f.SetRowHeight(sheet, headerRow, 28)
+	f.SetRowHeight(sheet, headerRow, wtSumHeaderPt)
 
-	// ── Data rows ─────────────────────────────────────────────────────────────
-	type stationPos struct{ start, end int }
-	var positions []stationPos
-	var stationStart int
+	// Title, date range and column headers repeat at the top of every printed
+	// page, so a page pulled out of the middle of the stack still says what it
+	// is and which column is which.
+	if err := f.SetDefinedName(&excelize.DefinedName{
+		Name:     "_xlnm.Print_Titles",
+		RefersTo: fmt.Sprintf("%s!$1:$%d", sheet, headerRow),
+		Scope:    sheet,
+	}); err != nil {
+		return err
+	}
+	// The same rows held on screen, for the reader who never prints it.
+	if err := f.SetPanes(sheet, &excelize.Panes{
+		Freeze:      true,
+		Split:       false,
+		XSplit:      0,
+		YSplit:      headerRow,
+		TopLeftCell: fmt.Sprintf("A%d", firstDataRow),
+		ActivePane:  "bottomLeft",
+	}); err != nil {
+		return err
+	}
 
-	currentRow := firstDataRow
-	dataRowIdx := 0
-	currentDropOff := ""
-
+	// ── Data rows, one printed block per drop-off ─────────────────────────────
+	//
+	// A drop-off's terminal rows and its subtotal are never split across a
+	// page: the block moves whole to the next page when it no longer fits.
+	// The pager measures in points, so what it calls a page is the page.
+	type block struct {
+		rows     []WatanyaReportSummary
+		heightPt float64
+	}
+	var blocks []block
+	var cur block
 	for _, row := range summaries {
+		cur.rows = append(cur.rows, row)
 		if row.IsSubtotal {
-			label := fmt.Sprintf("Subtotal: %s", row.DropOffPoint)
-			f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), label)
-			f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
-			f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
-			f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
-			f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Subtotal)
-			f.SetRowHeight(sheet, currentRow, 26)
-
-			positions = append(positions, stationPos{stationStart, currentRow})
-			dataRowIdx = 0
-			currentDropOff = ""
-		} else {
-			if currentDropOff != row.DropOffPoint {
-				currentDropOff = row.DropOffPoint
-				stationStart = currentRow
-			}
-			style := s.Data
-			if dataRowIdx%2 == 1 {
-				style = s.DataAlt
-			}
-			_ = set // suppress unused warning
-			f.SetCellValue(sheet, fmt.Sprintf("A%d", currentRow), row.ID)
-			f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), row.DropOffPoint)
-			f.SetCellValue(sheet, fmt.Sprintf("C%d", currentRow), row.Terminal)
-			f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
-			f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
-			f.SetCellValue(sheet, fmt.Sprintf("F%d", currentRow), row.Distance)
-			f.SetCellValue(sheet, fmt.Sprintf("G%d", currentRow), row.Fee)
-			f.SetCellValue(sheet, fmt.Sprintf("H%d", currentRow), row.ActualFee)
-			f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
-			f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), style)
-			f.SetRowHeight(sheet, currentRow, 24)
-			dataRowIdx++
+			cur.heightPt += wtSumSubtotalPt
+			blocks = append(blocks, cur)
+			cur = block{}
+			continue
 		}
-		currentRow++
+		cur.heightPt += wtSumRowPt
+	}
+	if len(cur.rows) > 0 { // a trailing group with no subtotal row
+		blocks = append(blocks, cur)
+	}
+
+	pager := newWtPager(f, sheet, wtSumTitlePt+wtSumSubtitlePt+wtSumSpacerPt+wtSumHeaderPt)
+	currentRow := firstDataRow
+
+	for bi, b := range blocks {
+		if bi > 0 {
+			// A thin rule of white between drop-offs, unless the block is
+			// starting a page anyway — a gap row at the top of a page is the
+			// stray blank line this rewrite exists to remove.
+			gap := wtSumGapPt
+			if !pager.fits(b.heightPt + gap) {
+				if pager.breakBefore(currentRow) {
+					gap = 0
+				}
+			}
+			if gap > 0 {
+				f.SetRowHeight(sheet, currentRow, gap)
+				currentRow++
+				pager.add(gap)
+			}
+		}
+
+		dataRowIdx := 0
+		for _, row := range b.rows {
+			if row.IsSubtotal {
+				label := fmt.Sprintf("Subtotal: %s", row.DropOffPoint)
+				f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), label)
+				f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
+				f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
+				f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
+				f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Subtotal)
+				f.SetRowHeight(sheet, currentRow, wtSumSubtotalPt)
+			} else {
+				style := s.Data
+				if dataRowIdx%2 == 1 {
+					style = s.DataAlt
+				}
+				f.SetCellValue(sheet, fmt.Sprintf("A%d", currentRow), row.ID)
+				f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), row.DropOffPoint)
+				f.SetCellValue(sheet, fmt.Sprintf("C%d", currentRow), row.Terminal)
+				f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
+				f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
+				f.SetCellValue(sheet, fmt.Sprintf("F%d", currentRow), row.Distance)
+				f.SetCellValue(sheet, fmt.Sprintf("G%d", currentRow), row.Fee)
+				f.SetCellValue(sheet, fmt.Sprintf("H%d", currentRow), row.ActualFee)
+				f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
+				f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), style)
+				f.SetRowHeight(sheet, currentRow, wtSumRowPt)
+				dataRowIdx++
+			}
+			currentRow++
+		}
+
+		if b.heightPt > wtUsablePagePt {
+			pager.fill()
+		} else {
+			pager.add(b.heightPt)
+		}
 	}
 
 	// ── Grand total row ───────────────────────────────────────────────────────
@@ -3038,12 +3167,18 @@ func wtWriteSummarySheet(
 			grandCost += r.Cost
 		}
 	}
+	if !pager.fits(wtSumGapPt + wtSumTotalPt) {
+		pager.breakBefore(currentRow)
+	} else {
+		f.SetRowHeight(sheet, currentRow, wtSumGapPt)
+		currentRow++
+	}
 	f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), "GRAND TOTAL")
 	f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), grandTrips)
 	f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), grandCapacity)
 	f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), grandCost)
 	f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Total)
-	f.SetRowHeight(sheet, currentRow, 28)
+	f.SetRowHeight(sheet, currentRow, wtSumTotalPt)
 
 	// ── Column widths ─────────────────────────────────────────────────────────
 	minWidths := []float64{5, 18, 16, 8, 14, 10, 9, 10, 12}
@@ -3052,13 +3187,13 @@ func wtWriteSummarySheet(
 		f.SetColWidth(sheet, col, col, minWidths[i])
 	}
 
-	// ── Page breaks – keep each drop-off group on the same page ──────────────
-	pageStart := firstDataRow
-	for _, pos := range positions {
-		if pos.end-pageStart+1 > wtSummaryPageLimit && pos.start > pageStart {
-			f.InsertPageBreak(sheet, fmt.Sprintf("A%d", pos.start))
-			pageStart = pos.start
-		}
+	// Print area, so a stray touched cell off to the right never adds a page.
+	if err := f.SetDefinedName(&excelize.DefinedName{
+		Name:     "_xlnm.Print_Area",
+		RefersTo: fmt.Sprintf("%s!$A$1:$I$%d", sheet, currentRow),
+		Scope:    sheet,
+	}); err != nil {
+		return err
 	}
 
 	return nil
@@ -3086,21 +3221,61 @@ func wtWriteDetailSheet(
 
 	tripHeaders := []string{"#", "Date", "Receipt", "Driver", "Plate", "Capacity", "Mileage", "Fee", "Cost"}
 
-	type groupPos struct{ start, end int }
-	var groupPositions []groupPos
-
+	// Every table carries its own title and header row, so this sheet needs no
+	// repeated print titles — nothing is charged to the top of each page.
+	pager := newWtPager(f, sheet, 0)
 	row := 1
 
 	for gi, group := range groups {
-		groupStart := row
+		if gi > 0 {
+			// Move a whole drop-off to the next page when it no longer fits
+			// in what is left of this one. The separator rows are
+			// written only when no break happens: spacers stranded at the top
+			// of a fresh page were the "blank page" people were seeing.
+			gap := float64(wtInterGroupSpace) * wtDetGapPt
+			groupPt := wtGroupHeightPt(group)
+			if !pager.fits(groupPt + gap) {
+				if pager.breakBefore(row) {
+					gap = 0
+				}
+			}
+			if gap > 0 {
+				for i := 0; i < wtInterGroupSpace; i++ {
+					f.SetRowHeight(sheet, row, wtDetGapPt)
+					row++
+				}
+				pager.add(gap)
+			}
+		}
 
 		for ti, table := range group.Tables {
+			tablePt := wtTableHeightPt(table)
+
+			if ti > 0 {
+				gap := float64(wtInterTableSpace) * wtDetGapPt
+				if !pager.fits(tablePt + gap) {
+					if pager.breakBefore(row) {
+						gap = 0
+					}
+				}
+				if gap > 0 {
+					for i := 0; i < wtInterTableSpace; i++ {
+						f.SetRowHeight(sheet, row, wtDetGapPt)
+						row++
+					}
+					pager.add(gap)
+				}
+			} else if !pager.fits(tablePt) {
+				// First table of a group that was not moved wholesale above.
+				pager.breakBefore(row)
+			}
+
 			// Title: "Terminal  ←  DropOff" (RTL Arabic convention)
 			title := fmt.Sprintf("%s  ←  %s", table.Terminal, table.DropOff)
 			f.SetCellValue(sheet, fmt.Sprintf("A%d", row), title)
 			f.MergeCell(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row))
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableTitle)
-			f.SetRowHeight(sheet, row, 22)
+			f.SetRowHeight(sheet, row, wtDetTitlePt)
 			row++
 
 			// Header row
@@ -3108,7 +3283,7 @@ func wtWriteDetailSheet(
 				f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, row), h)
 			}
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableHeader)
-			f.SetRowHeight(sheet, row, 18)
+			f.SetRowHeight(sheet, row, wtDetHeaderPt)
 			row++
 
 			// Data rows (already sorted by date then receipt in wtBuildGroups)
@@ -3129,7 +3304,7 @@ func wtWriteDetailSheet(
 				f.SetCellValue(sheet, fmt.Sprintf("H%d", row), table.Fee.ActualFee)
 				f.SetCellValue(sheet, fmt.Sprintf("I%d", row), tripCost)
 				f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), style)
-				f.SetRowHeight(sheet, row, 16)
+				f.SetRowHeight(sheet, row, wtDetRowPt)
 				row++
 			}
 
@@ -3139,31 +3314,48 @@ func wtWriteDetailSheet(
 			f.SetCellFormula(sheet, fmt.Sprintf("G%d", row), fmt.Sprintf("SUM(G%d:G%d)", dataStart, row-1))
 			f.SetCellFormula(sheet, fmt.Sprintf("I%d", row), fmt.Sprintf("SUM(I%d:I%d)", dataStart, row-1))
 			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.DetailTot)
-			f.SetRowHeight(sheet, row, 18)
+			f.SetRowHeight(sheet, row, wtDetTotalPt)
 			row++
 
-			if ti < len(group.Tables)-1 {
-				row += wtInterTableSpace
+			if tablePt > wtUsablePagePt {
+				// Taller than the paper: Excel breaks inside it on its own, so
+				// treat the page as spent rather than guess where it ended.
+				pager.fill()
+			} else {
+				pager.add(tablePt)
 			}
 		}
-
-		groupEnd := row - 1
-		if gi < len(groups)-1 {
-			row += 3
-		}
-		groupPositions = append(groupPositions, groupPos{groupStart, groupEnd})
 	}
 
-	// ── Page breaks – keep each drop-off group on the same page ──────────────
-	pageStart := 1
-	for _, pos := range groupPositions {
-		if pos.end-pageStart+1 > wtDetailPageLimit && pos.start > pageStart {
-			f.InsertPageBreak(sheet, fmt.Sprintf("A%d", pos.start))
-			pageStart = pos.start
-		}
+	// Print area, so a stray touched cell off to the right never adds a page.
+	if err := f.SetDefinedName(&excelize.DefinedName{
+		Name:     "_xlnm.Print_Area",
+		RefersTo: fmt.Sprintf("%s!$A$1:$I$%d", sheet, row-1),
+		Scope:    sheet,
+	}); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+// wtTableHeightPt is the printed height of one terminal table: title, header,
+// one row per trip, total.
+func wtTableHeightPt(t wtRouteTable) float64 {
+	return wtDetTitlePt + wtDetHeaderPt + float64(len(t.Trips))*wtDetRowPt + wtDetTotalPt
+}
+
+// wtGroupHeightPt is the printed height of a whole drop-off group, including
+// the separators between its tables.
+func wtGroupHeightPt(g wtDropOffGroup) float64 {
+	var total float64
+	for _, t := range g.Tables {
+		total += wtTableHeightPt(t)
+	}
+	if len(g.Tables) > 1 {
+		total += float64(len(g.Tables)-1) * float64(wtInterTableSpace) * wtDetGapPt
+	}
+	return total
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
