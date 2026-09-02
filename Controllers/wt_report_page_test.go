@@ -92,8 +92,9 @@ func TestWatanyaReportPagination(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(wbXML, `name="_xlnm.Print_Titles">Summary!$1:$4`) {
-		t.Error("summary sheet is missing repeating print titles")
+	// The column headers repeat; the masthead above them must not.
+	if !strings.Contains(wbXML, `name="_xlnm.Print_Titles">Summary!$5:$5`) {
+		t.Error("summary sheet should repeat only its column-header row")
 	}
 
 	for i, sheet := range []string{"Summary", "Trip Details"} {
@@ -129,9 +130,7 @@ func TestWatanyaReportPagination(t *testing.T) {
 		start := 1
 		titlePt := 0.0
 		if sheet == "Summary" {
-			for r := 1; r <= 4; r++ {
-				titlePt += heights[r]
-			}
+			titlePt = heights[5] // the repeated column-header row
 		}
 		for pageNo, end := range bounds {
 			var pt float64
@@ -154,6 +153,21 @@ func TestWatanyaReportPagination(t *testing.T) {
 					sheet, pageNo+1, start, end-1, pt, wtUsablePagePt)
 			}
 			start = end
+		}
+	}
+}
+
+func TestWtPeriodLabel(t *testing.T) {
+	for _, c := range []struct{ start, end, want string }{
+		{"2026-08-01", "2026-08-31", "Aug. 2026"},
+		{"2026-02-01", "2026-02-28", "Feb. 2026"},
+		{"2026-08-01", "2026-08-15", "1 – 15 Aug. 2026"},
+		{"2026-08-20", "2026-09-05", "20 Aug. – 5 Sep. 2026"},
+		{"2025-12-28", "2026-01-03", "28 Dec. 2025 – 3 Jan. 2026"},
+		{"nonsense", "2026-01-03", "nonsense  —  2026-01-03"},
+	} {
+		if got := wtPeriodLabel(c.start, c.end); got != c.want {
+			t.Errorf("wtPeriodLabel(%q, %q) = %q, want %q", c.start, c.end, got, c.want)
 		}
 	}
 }

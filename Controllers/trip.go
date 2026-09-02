@@ -2538,9 +2538,10 @@ const (
 
 	// Row heights in points. Every SetRowHeight below uses one of these, so
 	// the pagination arithmetic and the sheet cannot drift apart.
-	wtSumTitlePt    = 32.0
-	wtSumSubtitlePt = 24.0
-	wtSumSpacerPt   = 12.0
+	wtSumBrandPt    = 18.0
+	wtSumTitlePt    = 30.0
+	wtSumSubtitlePt = 20.0
+	wtSumRulePt     = 6.0
 	wtSumHeaderPt   = 28.0
 	wtSumRowPt      = 24.0
 	wtSumSubtotalPt = 26.0
@@ -2900,6 +2901,7 @@ func wtRenderExcel(
 // ─────────────────────────────────────────────────────────────────────────────
 
 type wtStyles struct {
+	Brand, Rule                      int
 	Title, Subtitle                  int
 	Header                           int
 	Data, DataAlt                    int
@@ -2937,13 +2939,22 @@ func wtBuildStyles(f *excelize.File) (wtStyles, error) {
 		return []excelize.Border{{Type: "bottom", Color: color, Style: style}}
 	}
 
+	// Masthead: a small spaced brand line, the report name, the period, and a
+	// solid rule closing the block off from the table below it.
+	s.Brand = make(&excelize.Style{
+		Font:      cairo(10, true, p.AccentBlue),
+		Alignment: centerMiddle,
+	})
 	s.Title = make(&excelize.Style{
 		Font:      cairo(20, true, p.HeaderBg),
 		Alignment: centerMiddle,
 	})
 	s.Subtitle = make(&excelize.Style{
-		Font:      cairo(14, false, "7F8C8D"),
+		Font:      cairo(12, false, "7F8C8D"),
 		Alignment: centerMiddle,
+	})
+	s.Rule = make(&excelize.Style{
+		Fill: solidFill(p.AccentBlue),
 	})
 	s.Header = make(&excelize.Style{
 		Font:      cairo(13, true, p.HeaderText),
@@ -3027,41 +3038,49 @@ func wtWriteSummarySheet(
 
 	headers := []string{"#", "Drop-off Point", "Terminal", "Trips", "Capacity (L)", "Distance", "Fee Idx", "Fee Amt", "Total Cost"}
 
-	// ── Title / subtitle / spacer / header rows ───────────────────────────────
-	const firstDataRow = 5
-	const headerRow = 4
+	// ── Masthead and header row ───────────────────────────────────────────────
+	//
+	// Only the column headers repeat on later pages. The masthead is an
+	// identity block, not a running head: reprinting the title and the period
+	// on every sheet cost four rows of paper per page and made the stack read
+	// as a pile of separate reports rather than one.
+	const brandRow, titleRow, periodRow, ruleRow = 1, 2, 3, 4
+	const headerRow = 5
+	const firstDataRow = 6
 
 	merge := func(from, to string) { f.MergeCell(sheet, from, to) }
+	band := func(row int, value string, style int, height float64) {
+		merge(fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row))
+		if value != "" {
+			f.SetCellValue(sheet, fmt.Sprintf("A%d", row), value)
+		}
+		f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), style)
+		f.SetRowHeight(sheet, row, height)
+	}
 
-	merge("A1", "I1")
-	f.SetCellValue(sheet, "A1", "Watanya Trips Report")
-	f.SetCellStyle(sheet, "A1", "I1", s.Title)
-	f.SetRowHeight(sheet, 1, wtSumTitlePt)
-
-	merge("A2", "I2")
-	f.SetCellValue(sheet, "A2", fmt.Sprintf("%s  —  %s", req.StartDate, req.EndDate))
-	f.SetCellStyle(sheet, "A2", "I2", s.Subtitle)
-	f.SetRowHeight(sheet, 2, wtSumSubtitlePt)
-
-	f.SetRowHeight(sheet, 3, wtSumSpacerPt) // spacer
+	band(brandRow, "APEX TRANSPORT", s.Brand, wtSumBrandPt)
+	band(titleRow, "Watanya Trips Report", s.Title, wtSumTitlePt)
+	band(periodRow, wtPeriodLabel(req.StartDate, req.EndDate), s.Subtitle, wtSumSubtitlePt)
+	band(ruleRow, "", s.Rule, wtSumRulePt) // a rule under the masthead, not a blank row
 
 	for i, h := range headers {
 		f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, headerRow), h)
 	}
-	f.SetCellStyle(sheet, "A4", "I4", s.Header)
+	f.SetCellStyle(sheet, fmt.Sprintf("A%d", headerRow), fmt.Sprintf("I%d", headerRow), s.Header)
 	f.SetRowHeight(sheet, headerRow, wtSumHeaderPt)
 
-	// Title, date range and column headers repeat at the top of every printed
-	// page, so a page pulled out of the middle of the stack still says what it
-	// is and which column is which.
+	// Column headers — and only those — repeat at the top of every printed
+	// page, so a page pulled out of the middle of the stack still says which
+	// column is which.
 	if err := f.SetDefinedName(&excelize.DefinedName{
 		Name:     "_xlnm.Print_Titles",
-		RefersTo: fmt.Sprintf("%s!$1:$%d", sheet, headerRow),
+		RefersTo: fmt.Sprintf("%s!$%d:$%d", sheet, headerRow, headerRow),
 		Scope:    sheet,
 	}); err != nil {
 		return err
 	}
-	// The same rows held on screen, for the reader who never prints it.
+	// The masthead and the headers held on screen, for the reader who never
+	// prints it.
 	if err := f.SetPanes(sheet, &excelize.Panes{
 		Freeze:      true,
 		Split:       false,
@@ -3098,7 +3117,10 @@ func wtWriteSummarySheet(
 		blocks = append(blocks, cur)
 	}
 
-	pager := newWtPager(f, sheet, wtSumTitlePt+wtSumSubtitlePt+wtSumSpacerPt+wtSumHeaderPt)
+	pager := newWtPager(f, sheet, wtSumHeaderPt)
+	// The masthead prints once, on the first page only, so it is charged to
+	// that page as content rather than to every page as a running head.
+	pager.add(wtSumBrandPt + wtSumTitlePt + wtSumSubtitlePt + wtSumRulePt)
 	currentRow := firstDataRow
 
 	for bi, b := range blocks {
@@ -3337,6 +3359,35 @@ func wtWriteDetailSheet(
 	}
 
 	return nil
+}
+
+// wtPeriodLabel turns the requested range into the line under the title.
+//
+// A whole calendar month reads as "Aug. 2026", which is how these reports are
+// referred to; anything else keeps its real endpoints rather than rounding to
+// a month it does not cover. An unparseable date falls back to the raw range,
+// so a bad request still produces a labelled sheet.
+func wtPeriodLabel(start, end string) string {
+	const layout = "2006-01-02"
+	from, errFrom := time.Parse(layout, start)
+	to, errTo := time.Parse(layout, end)
+	if errFrom != nil || errTo != nil {
+		return fmt.Sprintf("%s  —  %s", start, end)
+	}
+
+	month := func(t time.Time) string { return t.Format("Jan.") + " " + t.Format("2006") }
+	lastOfMonth := from.AddDate(0, 1, -from.Day()+1).AddDate(0, 0, -1)
+
+	if from.Year() == to.Year() && from.Month() == to.Month() {
+		if from.Day() == 1 && to.Day() >= lastOfMonth.Day() {
+			return month(from)
+		}
+		return fmt.Sprintf("%d – %d %s", from.Day(), to.Day(), month(from))
+	}
+	if from.Year() == to.Year() {
+		return fmt.Sprintf("%d %s – %d %s", from.Day(), from.Format("Jan."), to.Day(), month(to))
+	}
+	return fmt.Sprintf("%d %s – %d %s", from.Day(), month(from), to.Day(), month(to))
 }
 
 // wtTableHeightPt is the printed height of one terminal table: title, header,
