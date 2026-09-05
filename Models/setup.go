@@ -204,13 +204,19 @@ func runAutoMigrations() {
 	DB.AutoMigrate(&ParentTrip{})
 
 	// Phase 8: Trip details
-	DB.AutoMigrate(
+	if err := DB.AutoMigrate(
 		&TripStruct{},
 		&ReceiptBatch{},
 		&Receipt{},
 		&ReceiptStep{},
 		&ETITTripRoute{},
-	)
+	); err != nil {
+		// AutoMigrate stops at the first failing model and skips the rest, so
+		// a silent failure here would leave trips missing columns the API
+		// depends on (the compartment layout among them).
+		log.Printf("phase-8 AutoMigrate: %v", err)
+		Observability.ReportJobFailure("startup", "automigrate_phase8", err)
+	}
 
 	// Phase 9: Vehicle maintenance
 	DB.AutoMigrate(

@@ -3,6 +3,7 @@ package Models
 import (
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -34,6 +35,16 @@ type ParentTrip struct {
 	Session         *DriverSession `json:"session,omitempty" gorm:"foreignKey:SessionID"`
 }
 
+// TripCompartment is one compartment of the car assigned to a drop. Index is
+// positional into the car's json_compartments; Volume and GasType are stored
+// alongside it so a trip row stays readable even after the car's compartment
+// layout is edited.
+type TripCompartment struct {
+	Index   int    `json:"index"`
+	Volume  int    `json:"volume"`
+	GasType string `json:"gas_type"`
+}
+
 // TripStruct represents a trip record with additional fields for terminal and drop-off points
 type TripStruct struct {
 	gorm.Model
@@ -56,7 +67,14 @@ type TripStruct struct {
 	// Location details
 	LocationName string `json:"location_name"`
 	Capacity     int    `json:"capacity"`
-	GasType      string `json:"gas_type"`
+	// GasType is derived: the distinct set of the compartments' products,
+	// comma-joined in canonical order (e.g. "80,92"). Kept as a plain string
+	// so every existing reader and report is unaffected.
+	GasType string `json:"gas_type"`
+	// Compartments records which of the car's compartments this drop was
+	// loaded from, as a JSON array of TripCompartment. NULL on trips created
+	// before compartment planning existed — readers must tolerate that.
+	Compartments datatypes.JSON `json:"compartments"`
 
 	// Trip details
 	Date      string  `json:"date"`

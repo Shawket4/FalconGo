@@ -9,6 +9,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -124,6 +125,16 @@ func GetCars(c *fiber.Ctx) error {
 	for i, car := range cars {
 		carsResponse[i] = CarResponse{Car: car}
 
+		// Decode the stored layout so every client sees one shape —
+		// compartments: [] — instead of having to cope with a null column, a
+		// JSON string, and an array.
+		compartments, err := car.CompartmentList()
+		if err != nil {
+			log.Printf("car %d has an unreadable compartment layout: %v", car.ID, err)
+			compartments = []int{}
+		}
+		carsResponse[i].Car.Compartments = compartments
+
 		if car.CarLicenseImageName != "" {
 			carsResponse[i].CarLicenseURL = fmt.Sprintf("%s/images/car-licenses/%s", baseURL, car.CarLicenseImageName)
 		}
@@ -162,18 +173,45 @@ func GetCars(c *fiber.Ctx) error {
 }
 
 func GetCar(c *fiber.Ctx) error {
+	// The route is GET /api/cars/:id. Body-parsing an id here meant a plain GET
+	// resolved to id 0 and, with Find rather than First, returned an empty car
+	// with a 200. The param is the identifier; the body is a fallback for the
+	// older callers that sent one.
 	var input struct {
 		ID uint `json:"id"`
 	}
-	if err := c.BodyParser(&input); err != nil {
+	if id, err := strconv.Atoi(c.Params("id")); err == nil && id > 0 {
+		input.ID = uint(id)
+	} else if err := c.BodyParser(&input); err != nil {
 		log.Println(err.Error())
-		return err
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing car id",
+		})
 	}
+	if input.ID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing car id",
+		})
+	}
+
 	var car Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.ID).Find(&car).Error; err != nil {
+	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.ID).First(&car).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Car not found",
+			})
+		}
 		log.Println(err.Error())
 		return err
 	}
+
+	compartments, err := car.CompartmentList()
+	if err != nil {
+		log.Printf("car %d has an unreadable compartment layout: %v", car.ID, err)
+		compartments = []int{}
+	}
+	car.Compartments = compartments
+
 	return c.JSON(car)
 }
 
@@ -460,18 +498,28 @@ func RegisterCar(c *fiber.Ctx) error {
 		}
 	}
 
-	// Convert compartments to JSON
-	jsonCompartments, err := json.Marshal(car.Compartments)
-	if err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
-	}
-
 	car.IsApproved = true
 
 	car.Transporter = "Apex"
 
-	car.JSONCompartments = datatypes.JSON(jsonCompartments)
+	// Only rewrite the compartment layout when the caller actually sent one.
+	// Compartments is transient; marshalling it unconditionally stored a
+	// literal null whenever a client posted the car without it, silently
+	// erasing the layout the trip form validates against.
+	if car.Compartments != nil {
+		jsonCompartments, err := json.Marshal(car.Compartments)
+		if err != nil {
+			log.Println(err.Error())
+			return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
+		}
+		car.JSONCompartments = datatypes.JSON(jsonCompartments)
+	} else if car.ID != 0 {
+		// Save() writes every column, so carry the stored layout forward.
+		var stored Models.Car
+		if err := Models.DB.Select("json_compartments").First(&stored, car.ID).Error; err == nil {
+			car.JSONCompartments = stored.JSONCompartments
+		}
+	}
 
 	// Save to database
 	if err := Models.DB.Save(&car).Error; err != nil {
@@ -626,13 +674,12 @@ func GetCarProfileData(c *fiber.Ctx) error {
 				return err
 			}
 
-			for _, car := range Cars {
-				var compartments []int
-				err := json.Unmarshal(car.JSONCompartments, &compartments)
+			for i := range Cars {
+				compartments, err := Cars[i].CompartmentList()
 				if err != nil {
 					log.Println(err.Error())
 				}
-				car.Compartments = compartments
+				Cars[i].Compartments = compartments
 			}
 
 			return c.JSON(Cars)
@@ -643,13 +690,12 @@ func GetCarProfileData(c *fiber.Ctx) error {
 				return err
 			}
 
-			for _, car := range Cars {
-				var compartments []int
-				err := json.Unmarshal(car.JSONCompartments, &compartments)
+			for i := range Cars {
+				compartments, err := Cars[i].CompartmentList()
 				if err != nil {
 					log.Println(err.Error())
 				}
-				car.Compartments = compartments
+				Cars[i].Compartments = compartments
 			}
 			return c.JSON(Cars)
 		}
@@ -806,12 +852,6 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 		})
 	}
 
-	jsonCompartments, err := json.Marshal(input.Compartments)
-	if err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
-	}
-
 	if input.Transporter == "" {
 		input.Transporter = Controllers.CurrentUser.Name
 	}
@@ -829,7 +869,15 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 	car.CarType = input.CarType
 	car.Transporter = input.Transporter
 	car.TankCapacity = input.TankCapacity
-	car.JSONCompartments = jsonCompartments
+	// Absent compartments means "leave the layout alone", not "erase it".
+	if input.Compartments != nil {
+		jsonCompartments, err := json.Marshal(input.Compartments)
+		if err != nil {
+			log.Println(err.Error())
+			return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
+		}
+		car.JSONCompartments = datatypes.JSON(jsonCompartments)
+	}
 	car.LicenseExpirationDate = input.LicenseExpirationDate
 	car.CalibrationExpirationDate = input.CalibrationExpirationDate
 	car.TankLicenseExpirationDate = input.TankLicenseExpirationDate

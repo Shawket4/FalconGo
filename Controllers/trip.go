@@ -6,6 +6,7 @@ import (
 	"Falcon/services"
 	"Falcon/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -15,10 +16,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -3907,6 +3910,15 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Transporter = updatedTrip.Transporter
 	}
 	if updatedTrip.TankCapacity != 0 {
+		// tank_capacity and gas_type are derived from the compartments a drop
+		// was loaded from. This single-trip path knows nothing about them, so
+		// letting it write either would leave the row contradicting itself.
+		// Compartment-planned trips are edited through the parent trip.
+		if len(existingTrip.Compartments) > 0 && string(existingTrip.Compartments) != "null" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "This trip's volume comes from its compartments. Edit it from the trip's compartment plan.",
+			})
+		}
 		existingTrip.TankCapacity = updatedTrip.TankCapacity
 	}
 	if updatedTrip.Company != "" {
@@ -3939,6 +3951,11 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Capacity = updatedTrip.Capacity
 	}
 	if updatedTrip.GasType != "" {
+		if len(existingTrip.Compartments) > 0 && string(existingTrip.Compartments) != "null" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "This trip's gas type comes from its compartments. Edit it from the trip's compartment plan.",
+			})
+		}
 		existingTrip.GasType = updatedTrip.GasType
 	}
 	if updatedTrip.Date != "" {
@@ -4997,6 +5014,329 @@ func (h *TripHandler) enforceCapacityMatch(
 	return false, nil
 }
 
+// gasTypeOrder is the canonical product ordering, mirroring GAS_TYPE_VALUES in
+// the web client's trip form. Derived gas_type strings are built in this order
+// so the server and the client always produce byte-identical values.
+var gasTypeOrder = []string{"80", "92", "95", "diesel"}
+
+// deriveGasTypeSet renders the distinct products of a drop's compartments as
+// the comma-separated form the gas_type column has always used ("80,92").
+// Products outside the known set are kept, appended after the known ones in
+// sorted order, so an unrecognised value is never silently dropped.
+func deriveGasTypeSet(compartments []Models.TripCompartment) string {
+	seen := make(map[string]bool, len(compartments))
+	for _, compartment := range compartments {
+		gas := strings.ToLower(strings.TrimSpace(compartment.GasType))
+		if gas != "" {
+			seen[gas] = true
+		}
+	}
+
+	ordered := make([]string, 0, len(seen))
+	for _, gas := range gasTypeOrder {
+		if seen[gas] {
+			ordered = append(ordered, gas)
+			delete(seen, gas)
+		}
+	}
+	extras := make([]string, 0, len(seen))
+	for gas := range seen {
+		extras = append(extras, gas)
+	}
+	sort.Strings(extras)
+
+	return strings.Join(append(ordered, extras...), ",")
+}
+
+// compartmentPlan is the server's canonical reading of a multi-container
+// payload's compartment assignment. Applied is false when the payload carries
+// no compartment data at all (a legacy client, or a trip recorded before
+// compartment planning existed) — the caller then falls back to the old
+// whole-truck capacity check.
+type compartmentPlan struct {
+	Applied      bool
+	PerContainer [][]Models.TripCompartment
+}
+
+// TankCapacity is the drop's volume as the server computes it: the sum of the
+// compartments it was loaded from. The client's own figure is never trusted.
+func (p compartmentPlan) TankCapacity(index int) int {
+	total := 0
+	for _, compartment := range p.PerContainer[index] {
+		total += compartment.Volume
+	}
+	return total
+}
+
+// GasType is the drop's product set as the server computes it.
+func (p compartmentPlan) GasType(index int) string {
+	return deriveGasTypeSet(p.PerContainer[index])
+}
+
+// Marshal renders a drop's compartments back to storage form, from the parsed
+// values rather than the client's bytes.
+func (p compartmentPlan) Marshal(index int) datatypes.JSON {
+	encoded, err := json.Marshal(p.PerContainer[index])
+	if err != nil {
+		return nil
+	}
+	return datatypes.JSON(encoded)
+}
+
+// mergeContainersForValidation builds the state a parent trip will be left in
+// once an update is applied. The update path merges field-by-field and leaves
+// containers absent from the payload untouched, so validating the payload
+// alone would let a caller shrink a trip past every capacity and coverage rule
+// simply by sending fewer containers. Validating the merged result closes that.
+//
+// The returned map points each payload container at its position in the merged
+// set, so the caller can read back the volumes and products the server derived.
+func mergeContainersForValidation(
+	existing []Models.TripStruct,
+	input []Models.TripStruct,
+) ([]Models.TripStruct, map[int]int) {
+	inputByID := make(map[uint]int, len(input))
+	for i, container := range input {
+		if container.ID != 0 {
+			inputByID[container.ID] = i
+		}
+	}
+
+	effective := make([]Models.TripStruct, 0, len(existing)+len(input))
+	inputToEffective := make(map[int]int, len(input))
+
+	for _, stored := range existing {
+		i, updated := inputByID[stored.ID]
+		if !updated {
+			effective = append(effective, stored)
+			continue
+		}
+		// Mirror the field-presence merge the update block performs below.
+		merged := stored
+		if input[i].DropOffPoint != "" {
+			merged.DropOffPoint = input[i].DropOffPoint
+		}
+		if input[i].TankCapacity != 0 {
+			merged.TankCapacity = input[i].TankCapacity
+		}
+		if input[i].GasType != "" {
+			merged.GasType = input[i].GasType
+		}
+		if input[i].ReceiptNo != "" {
+			merged.ReceiptNo = input[i].ReceiptNo
+		}
+		if len(input[i].Compartments) > 0 {
+			merged.Compartments = input[i].Compartments
+		}
+		inputToEffective[i] = len(effective)
+		effective = append(effective, merged)
+	}
+
+	for i, container := range input {
+		if container.ID == 0 {
+			inputToEffective[i] = len(effective)
+			effective = append(effective, container)
+		}
+	}
+
+	return effective, inputToEffective
+}
+
+// storedPlan is the compartment state already committed for a trip. It exists
+// so that re-submitting what is already saved is never treated as a fresh
+// override: without it, one permission-4 override would lock the trip to
+// permission-4 editors forever, because the form hydrates the stored plan and
+// sends it straight back on the next unrelated edit.
+type storedPlan struct {
+	volumes    map[int]int
+	assigned   map[int]bool
+	hasRecords bool
+}
+
+func loadStoredPlan(containers []Models.TripStruct) storedPlan {
+	previous := storedPlan{volumes: map[int]int{}, assigned: map[int]bool{}}
+	for _, container := range containers {
+		if len(container.Compartments) == 0 || string(container.Compartments) == "null" {
+			continue
+		}
+		var compartments []Models.TripCompartment
+		if err := json.Unmarshal(container.Compartments, &compartments); err != nil {
+			continue
+		}
+		previous.hasRecords = true
+		for _, compartment := range compartments {
+			previous.volumes[compartment.Index] = compartment.Volume
+			previous.assigned[compartment.Index] = true
+		}
+	}
+	return previous
+}
+
+// enforceCompartmentAssignment validates that a multi-container payload
+// describes a loading plan the truck can actually carry: real compartments, no
+// compartment loaded twice, volumes matching the registered layout, and every
+// compartment accounted for.
+//
+// The split between hard failures and overridable ones is deliberate.
+// Malformed JSON, an out-of-range index, a repeated compartment and a
+// tank_capacity that contradicts its own compartments are internal
+// inconsistencies — no one may save those, because they would leave the row
+// unreadable. A volume that differs from the registered one, or a compartment
+// count that doesn't cover the truck, are business judgements about an unusual
+// load: permission >= 4 may commit those, and each one is logged.
+//
+// Returns handled=true when a response has already been written — the caller
+// must then return the accompanying error.
+func (h *TripHandler) enforceCompartmentAssignment(
+	c *fiber.Ctx,
+	carID uint,
+	carNoPlate string,
+	containers []Models.TripStruct,
+	previous storedPlan,
+) (compartmentPlan, bool, error) {
+	var plan compartmentPlan
+
+	if carID == 0 {
+		return plan, false, nil
+	}
+
+	var car Models.Car
+	if err := h.DB.First(&car, carID).Error; err != nil {
+		return plan, false, nil
+	}
+	layout, err := car.CompartmentList()
+	if err != nil || len(layout) == 0 {
+		// The car has no registered compartment layout — there is nothing to
+		// validate against, so the old whole-truck capacity rule still applies.
+		return plan, false, nil
+	}
+
+	carrying := 0
+	for _, container := range containers {
+		if len(container.Compartments) > 0 && string(container.Compartments) != "null" {
+			carrying++
+		}
+	}
+	if carrying == 0 {
+		// Legacy payload. This branch is what keeps every trip recorded before
+		// this feature editable — without it the coverage rule below would
+		// reject them all.
+		return plan, false, nil
+	}
+	if carrying != len(containers) {
+		return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Some drops have compartments assigned and others don't. Assign compartments to every drop, or to none.",
+		})
+	}
+
+	user, _ := c.Locals("user").(*Models.User)
+	canOverride := user != nil && user.Permission >= 4
+	userName := "unknown user"
+	if user != nil {
+		userName = user.Name
+	}
+
+	plan.Applied = true
+	plan.PerContainer = make([][]Models.TripCompartment, len(containers))
+	claimedBy := make(map[int]int, len(layout))
+
+	for i, container := range containers {
+		var compartments []Models.TripCompartment
+		if err := json.Unmarshal(container.Compartments, &compartments); err != nil {
+			return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Drop %d has an unreadable compartment assignment", i+1),
+			})
+		}
+		if len(compartments) == 0 {
+			return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf("Drop %d has no compartments assigned", i+1),
+			})
+		}
+
+		for _, compartment := range compartments {
+			if compartment.Index < 0 || compartment.Index >= len(layout) {
+				return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"message": fmt.Sprintf(
+						"Drop %d refers to compartment %d, but %s has %d compartments",
+						i+1, compartment.Index+1, carNoPlate, len(layout)),
+				})
+			}
+			if previous, taken := claimedBy[compartment.Index]; taken {
+				return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"message": fmt.Sprintf(
+						"Compartment %d is assigned to both drop %d and drop %d",
+						compartment.Index+1, previous+1, i+1),
+				})
+			}
+			claimedBy[compartment.Index] = i
+
+			// Already committed at this volume — the caller is not changing
+			// anything, so the override was made once and is not re-litigated.
+			alreadyStored := previous.hasRecords &&
+				previous.volumes[compartment.Index] == compartment.Volume
+			if compartment.Volume != layout[compartment.Index] && !alreadyStored {
+				if !canOverride {
+					return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"message": fmt.Sprintf(
+							"Compartment %d of %s holds %d L, not %d L",
+							compartment.Index+1, carNoPlate,
+							layout[compartment.Index], compartment.Volume),
+					})
+				}
+				log.Printf("⚠️  COMPARTMENT VOLUME OVERRIDE: %s loaded compartment %d of %s with %d L against a registered %d L",
+					userName, compartment.Index+1, carNoPlate,
+					compartment.Volume, layout[compartment.Index])
+			}
+		}
+
+		plan.PerContainer[i] = compartments
+
+		// The client's own derived fields must agree with its compartments.
+		// Disagreement means the two halves of the payload describe different
+		// loads, which no permission level should be able to store.
+		if container.TankCapacity != plan.TankCapacity(i) {
+			return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf(
+					"Drop %d reports %d L but its compartments hold %d L",
+					i+1, container.TankCapacity, plan.TankCapacity(i)),
+			})
+		}
+		if container.GasType != plan.GasType(i) {
+			return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf(
+					"Drop %d reports gas type %q but its compartments hold %q",
+					i+1, container.GasType, plan.GasType(i)),
+			})
+		}
+	}
+
+	if len(claimedBy) != len(layout) {
+		unassigned := make([]string, 0, len(layout))
+		// Same reasoning as the volume rule: leaving a compartment out that the
+		// saved trip already left out is not a new override.
+		newlyUnassigned := false
+		for index := range layout {
+			if _, taken := claimedBy[index]; !taken {
+				unassigned = append(unassigned, strconv.Itoa(index+1))
+				if !previous.hasRecords || previous.assigned[index] {
+					newlyUnassigned = true
+				}
+			}
+		}
+		if !canOverride && newlyUnassigned {
+			return plan, true, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": fmt.Sprintf(
+					"Compartment(s) %s of %s aren't assigned to any drop",
+					strings.Join(unassigned, ", "), carNoPlate),
+			})
+		}
+		log.Printf("⚠️  COMPARTMENT COVERAGE OVERRIDE: %s saved a trip for %s leaving compartment(s) %s unassigned",
+			userName, carNoPlate, strings.Join(unassigned, ", "))
+	}
+
+	return plan, false, nil
+}
+
 func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 	var input struct {
 		ParentTrip       Models.ParentTrip   `json:"parent_trip"`
@@ -5143,12 +5483,24 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		}
 	}
 
-	// Container capacities must sum to the car's tank capacity —
-	// permission-4 admins may override (logged inside the helper)
-	if handled, err := h.enforceCapacityMatch(
+	// The loading plan must fit the truck: real compartments, none loaded
+	// twice, every one accounted for. Permission-4 admins may override the
+	// volume and coverage rules (logged inside the helper). A payload with no
+	// compartment data at all falls back to the older whole-truck capacity
+	// rule, so clients that predate compartment planning keep working.
+	plan, handled, err := h.enforceCompartmentAssignment(
 		c, input.ParentTrip.CarID, input.ParentTrip.CarNoPlate, input.Containers,
-	); handled {
+		storedPlan{},
+	)
+	if handled {
 		return err
+	}
+	if !plan.Applied {
+		if handled, err := h.enforceCapacityMatch(
+			c, input.ParentTrip.CarID, input.ParentTrip.CarNoPlate, input.Containers,
+		); handled {
+			return err
+		}
 	}
 
 	// Begin transaction
@@ -5185,6 +5537,15 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		input.Containers[i].Terminal = input.ParentTrip.Terminal
 		input.Containers[i].TerminalID = input.ParentTrip.TerminalID
 		input.Containers[i].Date = input.ParentTrip.Date
+
+		// Store the compartments the server parsed, and the volume and product
+		// set it derived from them, rather than the bytes and figures the
+		// client sent.
+		if plan.Applied {
+			input.Containers[i].Compartments = plan.Marshal(i)
+			input.Containers[i].TankCapacity = plan.TankCapacity(i)
+			input.Containers[i].GasType = plan.GasType(i)
+		}
 
 		// Get fee mapping for this container
 		var mapping Models.FeeMapping
@@ -5564,9 +5925,11 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		input.ParentTrip.Terminal = terminal.Name
 	}
 
-	// Same capacity rule as creation. The frontend always sends the full
-	// container set with update_containers, so the input list is the final
-	// state of the trip.
+	// Same rules as creation, but applied to the state the trip will be left
+	// in — the stored containers merged with the payload — rather than to the
+	// payload alone, which a caller could trim to slip past them.
+	var plan compartmentPlan
+	var inputToEffective map[int]int
 	if input.UpdateContainers && len(input.Containers) > 0 {
 		capacityCarID := input.ParentTrip.CarID
 		capacityCarPlate := input.ParentTrip.CarNoPlate
@@ -5574,10 +5937,33 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 			capacityCarID = existingParent.CarID
 			capacityCarPlate = existingParent.CarNoPlate
 		}
-		if handled, err := h.enforceCapacityMatch(
-			c, capacityCarID, capacityCarPlate, input.Containers,
-		); handled {
+
+		var storedContainers []Models.TripStruct
+		if err := h.DB.Where("parent_trip_id = ?", uint(id)).
+			Order("id").Find(&storedContainers).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to load the trip's containers",
+				"error":   err.Error(),
+			})
+		}
+		effective, mapping := mergeContainersForValidation(storedContainers, input.Containers)
+		inputToEffective = mapping
+
+		var handled bool
+		var err error
+		plan, handled, err = h.enforceCompartmentAssignment(
+			c, capacityCarID, capacityCarPlate, effective,
+			loadStoredPlan(storedContainers),
+		)
+		if handled {
 			return err
+		}
+		if !plan.Applied {
+			if handled, err := h.enforceCapacityMatch(
+				c, capacityCarID, capacityCarPlate, effective,
+			); handled {
+				return err
+			}
 		}
 	}
 
@@ -5755,7 +6141,7 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 
 	// Update or create specific containers if provided
 	if input.UpdateContainers && len(input.Containers) > 0 {
-		for _, container := range input.Containers {
+		for containerIndex, container := range input.Containers {
 			if container.ID != 0 {
 				// Update existing container's specific fields
 				containerUpdate := map[string]interface{}{}
@@ -5800,6 +6186,14 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 				}
 				if container.ReceiptNo != "" {
 					containerUpdate["receipt_no"] = container.ReceiptNo
+				}
+				// Derived from the compartments the server parsed, so they
+				// overwrite whatever the client reported for these two.
+				if plan.Applied {
+					effectiveIndex := inputToEffective[containerIndex]
+					containerUpdate["compartments"] = plan.Marshal(effectiveIndex)
+					containerUpdate["tank_capacity"] = plan.TankCapacity(effectiveIndex)
+					containerUpdate["gas_type"] = plan.GasType(effectiveIndex)
 				}
 
 				if len(containerUpdate) > 0 {
@@ -5878,6 +6272,13 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					ReceiptOverride: container.ReceiptOverride,
 					Mileage:         mapping.Distance,
 					Revenue:         mapping.Fee,
+				}
+
+				if plan.Applied {
+					effectiveIndex := inputToEffective[containerIndex]
+					newContainer.Compartments = plan.Marshal(effectiveIndex)
+					newContainer.TankCapacity = plan.TankCapacity(effectiveIndex)
+					newContainer.GasType = plan.GasType(effectiveIndex)
 				}
 
 				if err := tx.Create(&newContainer).Error; err != nil {

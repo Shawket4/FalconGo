@@ -1,6 +1,7 @@
 package Models
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/datatypes"
@@ -52,6 +53,26 @@ type Car struct {
 
 func (Car) TableName() string {
 	return "cars"
+}
+
+// CompartmentList decodes the persisted compartment layout. JSONCompartments
+// is the stored column; the Compartments field is transient and is only
+// populated for the wire. A car with no layout configured yet returns an empty
+// slice rather than an error, so callers can treat "not configured" and
+// "configured as nothing" the same way.
+func (c *Car) CompartmentList() ([]int, error) {
+	raw := c.JSONCompartments
+	if len(raw) == 0 || string(raw) == "null" {
+		return []int{}, nil
+	}
+	var compartments []int
+	if err := json.Unmarshal(raw, &compartments); err != nil {
+		return nil, err
+	}
+	if compartments == nil {
+		compartments = []int{}
+	}
+	return compartments, nil
 }
 
 func RecalculateMileage(carID uint) error {
