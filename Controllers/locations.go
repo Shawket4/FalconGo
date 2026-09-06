@@ -200,16 +200,12 @@ func (h *LocationsHandler) UpdateDropOffPoint(c *fiber.Ctx) error {
 	if err := h.DB.Model(&point).Updates(updates).Error; err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	if body.Latitude != nil && body.Longitude != nil {
-		// Mirror the new pin onto legacy fee_mappings columns.
-		if err := h.DB.Exec(`
-            UPDATE fee_mappings
-               SET latitude = ?, longitude = ?, updated_at = NOW()
-             WHERE deleted_at IS NULL AND drop_off_point = ?
-        `, *body.Latitude, *body.Longitude, point.Name).Error; err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-	}
+	// No pin is mirrored onto fee_mappings: its latitude/longitude columns were
+	// dropped once drop_off_points became the canonical home for a pin, and the
+	// mapping's coordinates are hydrated from here at serve time
+	// (Models.HydrateFeeMappingCoords). Writing them back turned every save on
+	// this endpoint into a 500 — after the pin had already been committed.
+
 	// A moved pin or resized fence changes what the trip auditor sees —
 	// re-audit the recent trips delivering to this point.
 	if (body.Latitude != nil && body.Longitude != nil) || body.RadiusM != nil || body.ClearRadius {
@@ -259,15 +255,17 @@ func (h *LocationsHandler) DeleteDropOffPoint(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "drop-off point deleted"})
 }
 
-// syncDropOffPin upserts the canonical pin for a drop-off name and mirrors it
-// onto all fee_mappings rows sharing that name, so legacy readers of the
-// per-mapping columns stay correct during the transition.
+// syncDropOffPin upserts the canonical pin for a drop-off name. Nothing is
+// mirrored onto fee_mappings: that table's latitude/longitude columns were
+// dropped when drop_off_points became the canonical home for a pin, and its
+// coordinates are hydrated from here at serve time
+// (Models.HydrateFeeMappingCoords).
 func syncDropOffPin(db *gorm.DB, name string, lat, lng float64, source string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil
 	}
-	err := db.Exec(`
+	return db.Exec(`
         INSERT INTO drop_off_points (created_at, updated_at, name, latitude, longitude, pin_source)
         VALUES (NOW(), NOW(), ?, ?, ?, ?)
         ON CONFLICT (name) DO UPDATE
@@ -277,14 +275,6 @@ func syncDropOffPin(db *gorm.DB, name string, lat, lng float64, source string) e
                updated_at = NOW(),
                deleted_at = NULL
     `, name, lat, lng, source).Error
-	if err != nil {
-		return err
-	}
-	return db.Exec(`
-        UPDATE fee_mappings
-           SET latitude = ?, longitude = ?, updated_at = NOW()
-         WHERE deleted_at IS NULL AND drop_off_point = ?
-    `, lat, lng, name).Error
 }
 
 // ensureDropOffPointExists guarantees a drop_off_points row for a drop-off
