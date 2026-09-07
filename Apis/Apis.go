@@ -251,15 +251,34 @@ func GetDrivers(c *fiber.Ctx) error {
 }
 
 func GetDriver(c *fiber.Ctx) error {
+	// The route is GET /api/drivers/:id. Body-parsing an id here meant a plain GET
+	// resolved to id 0 and, with Find rather than First, returned an empty driver
+	// with a 200. The param is the identifier; the body is a fallback for the
+	// older callers that sent one.
 	var input struct {
 		ID uint `json:"id"`
 	}
-	if err := c.BodyParser(&input); err != nil {
+	if id, err := strconv.Atoi(c.Params("id")); err == nil && id > 0 {
+		input.ID = uint(id)
+	} else if err := c.BodyParser(&input); err != nil {
 		log.Println(err.Error())
-		return err
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing driver id",
+		})
 	}
+	if input.ID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Missing driver id",
+		})
+	}
+
 	var driver Models.Driver
-	if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", input.ID).Find(&driver).Error; err != nil {
+	if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", input.ID).First(&driver).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"message": "Driver not found",
+			})
+		}
 		log.Println(err.Error())
 		return err
 	}
