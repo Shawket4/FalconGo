@@ -329,18 +329,21 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// FUEL MANAGEMENT
 	// ============================================
+	// Fuel is permission 4 and up, reads included — there is no view-only tier
+	// here, so every route below carries Verify(4) rather than inheriting the
+	// group's level.
 	fuelHandler := &Apis.FuelHandler{DB: Models.DB}
-	fuel := api.Group("/fuel", middleware.Verify(1))
+	fuel := api.Group("/fuel", middleware.Verify(4))
 	fuel.Get("/statistics", fuelHandler.GetFuelStatistics)
-	fuel.Get("/sync-car-odometers", middleware.Verify(3), Apis.SyncCarLastFuelOdometer)
-	fuel.Get("/sync-car-mileages", middleware.Verify(3), Apis.SyncCarMileages)
+	fuel.Get("/sync-car-odometers", Apis.SyncCarLastFuelOdometer)
+	fuel.Get("/sync-car-mileages", Apis.SyncCarMileages)
 
 	protectedApis := api.Group("/protected/", middleware.Verify(1))
-	protectedApis.Post("/AddFuelEvent", middleware.Verify(3), Apis.AddFuelEvent)
-	protectedApis.Post("/EditFuelEvent", middleware.Verify(3), Apis.EditFuelEvent)
-	protectedApis.Post("/DeleteFuelEvent", middleware.Verify(3), Apis.DeleteFuelEvent)
-	protectedApis.Get("/GetFuelEvents", Apis.GetFuelEvents)
-	protectedApis.Get("/GetFuelEventById/:id", Apis.GetFuelEventById)
+	protectedApis.Post("/AddFuelEvent", middleware.Verify(4), Apis.AddFuelEvent)
+	protectedApis.Post("/EditFuelEvent", middleware.Verify(4), Apis.EditFuelEvent)
+	protectedApis.Post("/DeleteFuelEvent", middleware.Verify(4), Apis.DeleteFuelEvent)
+	protectedApis.Get("/GetFuelEvents", middleware.Verify(4), Apis.GetFuelEvents)
+	protectedApis.Get("/GetFuelEventById/:id", middleware.Verify(4), Apis.GetFuelEventById)
 
 	// ============================================
 	// SERVICE & MAINTENANCE

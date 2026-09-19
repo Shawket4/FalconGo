@@ -2428,13 +2428,10 @@ func (h *TripHandler) GetWatanyaDriverAnalytics(c *fiber.Ctx) error {
 	})
 }
 
+// GlobalStats is served unauthenticated at /api/stats/widget-data, so it
+// carries no fuel numbers: fuel events are permission 4 and up, and an
+// aggregate is still fuel data. Trip figures only.
 type GlobalStats struct {
-	// Fuel statistics
-	TotalFuelEvents      int64   `json:"total_fuel_events"`
-	TotalLiters          float64 `json:"total_liters"`
-	AveragePricePerLiter float64 `json:"average_price_per_liter"`
-	TotalFuelCost        float64 `json:"total_fuel_cost"`
-
 	// Trip statistics
 	TotalTrips    int64   `json:"total_trips"`
 	TotalRevenue  float64 `json:"total_revenue"`
@@ -2450,28 +2447,13 @@ type GlobalStats struct {
 	LastUpdate string `json:"last_update"`
 
 	// Combined efficiency metrics
-	RevenuePerLiter float64 `json:"revenue_per_liter"`
-	RevenuePerKm    float64 `json:"revenue_per_km"`
-	LitersPerKm     float64 `json:"liters_per_km"`
+	RevenuePerKm float64 `json:"revenue_per_km"`
 }
 
 func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 
 	var stats GlobalStats
 	stats.LastUpdate = time.Now().Format(time.RFC3339)
-
-	// Get fuel statistics
-	h.DB.Model(&Models.FuelEvent{}).Count(&stats.TotalFuelEvents)
-
-	if stats.TotalFuelEvents > 0 {
-		h.DB.Model(&Models.FuelEvent{}).Select("SUM(liters) as total_liters").Scan(&stats.TotalLiters)
-		h.DB.Model(&Models.FuelEvent{}).Select("SUM(price) as total_fuel_cost").Scan(&stats.TotalFuelCost)
-
-		// Calculate average price per liter
-		if stats.TotalLiters > 0 {
-			h.DB.Model(&Models.FuelEvent{}).Select("SUM(price) / SUM(liters) as average_price_per_liter").Scan(&stats.AveragePricePerLiter)
-		}
-	}
 
 	// Get trip statistics
 	h.DB.Model(&Models.TripStruct{}).Count(&stats.TotalTrips)
@@ -2490,8 +2472,10 @@ func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 		}
 	}
 
-	// Get fleet statistics
-	h.DB.Model(&Models.FuelEvent{}).Distinct("car_id").Count(&stats.UniqueCars)
+	// Get fleet statistics. Both of these used to be counted off fuel_events;
+	// trips carry the same car and transporter columns, so the widget keeps
+	// its numbers without reading fuel.
+	h.DB.Model(&Models.TripStruct{}).Distinct("car_id").Count(&stats.UniqueCars)
 	h.DB.Model(&Models.TripStruct{}).Distinct("driver_id").Count(&stats.UniqueDrivers)
 
 	// Get top transporter
@@ -2500,7 +2484,7 @@ func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 		Count       int
 	}
 	var topTransporter TransporterCount
-	h.DB.Model(&Models.FuelEvent{}).
+	h.DB.Model(&Models.TripStruct{}).
 		Select("transporter, COUNT(*) as count").
 		Group("transporter").
 		Order("count DESC").
@@ -2510,13 +2494,8 @@ func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 	stats.TopTransporter = topTransporter.Transporter
 
 	// Calculate efficiency metrics
-	if stats.TotalLiters > 0 {
-		stats.RevenuePerLiter = stats.TotalRevenue / stats.TotalLiters
-	}
-
 	if stats.TotalDistance > 0 {
 		stats.RevenuePerKm = stats.TotalRevenue / stats.TotalDistance
-		stats.LitersPerKm = stats.TotalLiters / stats.TotalDistance
 	}
 
 	return c.JSON(fiber.Map{
