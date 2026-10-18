@@ -662,7 +662,7 @@ func greedyCut(weights []int, capacity int) []int {
 /* worse than useless.                                                        */
 /*                                                                            */
 /* These are the report's rules, extracted so both callers share one           */
-/* definition rather than two copies that agree today. wtBuildGroups calls     */
+/* definition rather than two copies that agree today. wtBuildReport calls     */
 /* them too; a change here changes both.                                       */
 /* -------------------------------------------------------------------------- */
 

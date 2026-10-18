@@ -3,6 +3,7 @@ package Controllers
 import (
 	"Falcon/Models"
 	"Falcon/Observability"
+	"Falcon/report"
 	"Falcon/services"
 	"Falcon/utils"
 	"context"
@@ -2504,75 +2505,13 @@ func (h *TripHandler) GetGlobalStats(c *fiber.Ctx) error {
 	})
 }
 
-const (
-	wtTableOverhead   = 3 // title row + header row + total row
-	wtInterTableSpace = 1 // blank rows between tables in the same group
-	wtInterGroupSpace = 2 // blank rows between drop-off groups
-
-	// Printable height of an A4 portrait page, in points: the sheet height
-	// less the top and bottom margins set in wtRenderExcel, less a little
-	// slack for the rounding Excel does converting row heights to device
-	// pixels. Pagination is computed against this rather than a row COUNT,
-	// which is what used to put two or three spacer rows alone on a page: a
-	// fixed 50-row budget did not match the paper, so Excel added automatic
-	// breaks of its own and the manual break landed just after one.
-	wtUsablePagePt = 841.89 - 2*0.4*72 - 16
-
-	// Row heights in points. Every SetRowHeight below uses one of these, so
-	// the pagination arithmetic and the sheet cannot drift apart.
-	wtSumBrandPt    = 18.0
-	wtSumTitlePt    = 30.0
-	wtSumSubtitlePt = 20.0
-	wtSumRulePt     = 6.0
-	wtSumHeaderPt   = 28.0
-	wtSumRowPt      = 24.0
-	wtSumSubtotalPt = 26.0
-	wtSumTotalPt    = 28.0
-	wtSumGapPt      = 8.0
-
-	wtDetTitlePt  = 22.0
-	wtDetHeaderPt = 18.0
-	wtDetRowPt    = 16.0
-	wtDetTotalPt  = 18.0
-	wtDetGapPt    = 8.0
-)
-
-// wtPager tracks how much printed height the current page has spent, so a
-// manual break is inserted where the paper actually runs out.
+// ─────────────────────────────────────────────────────────────────────────────
+// Watanya trips report
 //
-// titlePt is the height of the rows repeated at the top of every page (the
-// sheet's print titles); it is charged to each page before any content.
-type wtPager struct {
-	f       *excelize.File
-	sheet   string
-	titlePt float64
-	used    float64
-}
-
-func newWtPager(f *excelize.File, sheet string, titlePt float64) *wtPager {
-	return &wtPager{f: f, sheet: sheet, titlePt: titlePt, used: titlePt}
-}
-
-// fits reports whether h more points still land on the current page.
-func (p *wtPager) fits(h float64) bool { return p.used+h <= wtUsablePagePt }
-
-func (p *wtPager) add(h float64) { p.used += h }
-
-// fill marks the page as spent, for a block taller than a page: Excel breaks
-// inside it automatically and the next block starts fresh.
-func (p *wtPager) fill() { p.used = wtUsablePagePt }
-
-// breakBefore starts a new printed page at row. It reports whether it did:
-// on an otherwise empty page there is nothing to break away from, and a break
-// there is exactly what produces a blank sheet of paper.
-func (p *wtPager) breakBefore(row int) bool {
-	if p.used <= p.titlePt {
-		return false
-	}
-	_ = p.f.InsertPageBreak(p.sheet, fmt.Sprintf("A%d", row))
-	p.used = p.titlePt
-	return true
-}
+// The workbook itself is laid out by package Falcon/report (Summary and Trip
+// Details sheets, A4 portrait, its own page planning). This file only fetches
+// the trips, prices them and hands them over in report.Report form.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // wtFeeIndexToAmount maps a fee index (1-15) to its EGP-per-1 000-litre amount.
 var wtFeeIndexToAmount = map[int]float64{
@@ -2581,77 +2520,28 @@ var wtFeeIndexToAmount = map[int]float64{
 	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
 }
 
-// wtPalette holds every hex color used in the report.
-var wtPalette = struct {
-	HeaderBg, HeaderText, AltRow, Border string
-	TextDark, TotalBg, AccentBlue        string
-	SubtotalBg                           string
-}{
-	HeaderBg:   "2C5F7C",
-	HeaderText: "FFFFFF",
-	AltRow:     "F8FAFB",
-	Border:     "D5DBDE",
-	TextDark:   "2C3E50",
-	TotalBg:    "E8F1F5",
-	AccentBlue: "4A90A4",
-	SubtotalBg: "D4E6ED",
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Domain types
-// ─────────────────────────────────────────────────────────────────────────────
-
 // DateRangeRequest is the JSON body for all date-filtered endpoints.
 type DateRangeRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 }
 
-// WatanyaReportSummary is a single row in the summary sheet.
-// IsSubtotal marks group-subtotal rows (no ID, no terminal, no fee info).
-type WatanyaReportSummary struct {
-	ID            int
-	DropOffPoint  string
-	Terminal      string
-	TripCount     int
-	TotalCapacity int
-	Distance      float64
-	Fee           int
-	ActualFee     float64
-	Cost          float64
-	IsSubtotal    bool
+// wtReportRequest is the export body. Lang is optional: "ar" gives Arabic
+// labels and a right-to-left layout; anything else (or nothing) is English.
+type wtReportRequest struct {
+	DateRangeRequest
+	Lang string `json:"lang"`
 }
 
-// wtFeeInfo bundles the fee metadata attached to a Terminal↔DropOff route.
-type wtFeeInfo struct {
-	Distance  float64
-	FeeIndex  int
-	ActualFee float64
-}
-
-// wtRouteTable is one table block in the detail sheet (one terminal/drop-off pair).
-type wtRouteTable struct {
-	Terminal string
-	DropOff  string
-	Trips    []Models.TripStruct
-	Fee      wtFeeInfo
-	RowCount int // pre-calculated rows this table occupies on the sheet
-}
-
-// wtDropOffGroup collects all route tables that share the same drop-off point.
-type wtDropOffGroup struct {
-	DropOffPoint string
-	Tables       []wtRouteTable
-	TotalRows    int
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Handler
-// ─────────────────────────────────────────────────────────────────────────────
+const (
+	wtCompany = "Apex Transport"
+	wtTitleEN = "Watanya Trips Report"
+	wtTitleAR = "تقرير رحلات وطنية"
+)
 
 func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	// ── 1. Parse request ─────────────────────────────────────────────────────
-	var req DateRangeRequest
+	var req wtReportRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse request body"})
 	}
@@ -2671,27 +2561,41 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve fee mappings: " + err.Error()})
 	}
 
-	// ── 3. Build hierarchy & summaries ───────────────────────────────────────
-	groups, summaries := wtBuildGroups(trips, feeMappings)
+	// ── 3. Build the report ──────────────────────────────────────────────────
+	lang := report.English
+	if strings.EqualFold(strings.TrimSpace(req.Lang), "ar") {
+		lang = report.Arabic
+	}
+	rep := wtBuildReport(trips, feeMappings, lang)
+	if len(rep.Groups) == 0 {
+		// The report package refuses an empty workbook; say so plainly
+		// rather than answering 500.
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No priced Watanya trips in this date range"})
+	}
 
 	// ── 4. Render Excel ───────────────────────────────────────────────────────
-	filePath, err := wtRenderExcel(groups, summaries, req)
+	filePath, err := wtRenderReport(rep)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendFile(filePath, true)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Business logic
-// ─────────────────────────────────────────────────────────────────────────────
-
-// wtBuildGroups organises trips into the DropOff→Terminal hierarchy and
-// produces the flat summary rows (including subtotals) for the summary sheet.
-func wtBuildGroups(
+// wtBuildReport organises trips into the DropOff→Terminal hierarchy and fills
+// both halves of the report: Groups (Summary) and Sections (Trip Details), one
+// section per summary line with the same number.
+//
+// Trips with no fee mapping for their Terminal↔DropOff route are left out, as
+// they always were: an unpriced route is a data-entry gap, not a zero bill.
+func wtBuildReport(
 	trips []Models.TripStruct,
 	feeMappings []Models.FeeMapping,
-) ([]wtDropOffGroup, []WatanyaReportSummary) {
+	lang report.Lang,
+) report.Report {
+	rep := report.Report{Lang: lang, Company: wtCompany, Title: wtTitleEN}
+	if lang == report.Arabic {
+		rep.Title = wtTitleAR
+	}
 
 	// Index fee mappings by "Terminal|DropOffPoint"
 	feeByKey := make(map[string]Models.FeeMapping, len(feeMappings))
@@ -2701,20 +2605,9 @@ func wtBuildGroups(
 
 	// Bucket trips: DropOff → Terminal → []Trip
 	buckets := make(map[string]map[string][]Models.TripStruct)
-	feeInfoByKey := make(map[string]wtFeeInfo)
-
 	for _, trip := range trips {
-		key := trip.Terminal + "|" + trip.DropOffPoint
-		fm, ok := feeByKey[key]
-		if !ok {
+		if _, ok := feeByKey[trip.Terminal+"|"+trip.DropOffPoint]; !ok {
 			continue // skip trips with no fee mapping
-		}
-		if _, seen := feeInfoByKey[key]; !seen {
-			feeInfoByKey[key] = wtFeeInfo{
-				Distance:  fm.Distance,
-				FeeIndex:  int(fm.Fee),
-				ActualFee: wtFeeIndexToAmount[int(fm.Fee)],
-			}
 		}
 		if buckets[trip.DropOffPoint] == nil {
 			buckets[trip.DropOffPoint] = make(map[string][]Models.TripStruct)
@@ -2723,7 +2616,6 @@ func wtBuildGroups(
 			buckets[trip.DropOffPoint][trip.Terminal], trip)
 	}
 
-	// Build sorted groups
 	dropOffNames := make([]string, 0, len(buckets))
 	for d := range buckets {
 		dropOffNames = append(dropOffNames, d)
@@ -2731,144 +2623,97 @@ func wtBuildGroups(
 	// Same order as the receipt piles screen — see services.SortPileOrderDropOffs.
 	services.SortPileOrderDropOffs(dropOffNames)
 
-	var groups []wtDropOffGroup
-	var summaries []WatanyaReportSummary
-	idCounter := 1
-
+	no := 1
 	for _, dropOff := range dropOffNames {
 		terminals := buckets[dropOff]
-
 		terminalNames := make([]string, 0, len(terminals))
 		for t := range terminals {
 			terminalNames = append(terminalNames, t)
 		}
 		services.SortReportNames(terminalNames)
 
-		group := wtDropOffGroup{DropOffPoint: dropOff}
-
-		var groupTrips, groupCapacity int
-		var groupCost float64
-
+		group := report.SummaryGroup{DropOff: dropOff}
 		for _, terminal := range terminalNames {
 			tripList := terminals[terminal]
-			key := terminal + "|" + dropOff
-			fi := feeInfoByKey[key]
+			fm := feeByKey[terminal+"|"+dropOff]
+			rate := wtFeeIndexToAmount[int(fm.Fee)]
 
-			// ── Sort by date, then receipt number ────────────────────────────
+			// Sort by date, then receipt number.
 			services.SortReportTrips(tripList)
 
+			section := report.TripSection{No: no, Terminal: terminal, DropOff: dropOff}
 			var totalCapacity int
 			for _, t := range tripList {
 				totalCapacity += t.TankCapacity
+				section.Trips = append(section.Trips, report.Trip{
+					Date:     wtParseDate(t.Date),
+					Receipt:  t.ReceiptNo,
+					Driver:   t.DriverName,
+					Plate:    t.CarNoPlate,
+					Capacity: float64(t.TankCapacity),
+					Distance: t.Mileage,
+					FeeRate:  rate,
+					Cost:     float64(t.TankCapacity) * rate / 1000.0,
+				})
 			}
-			cost := float64(totalCapacity) * fi.ActualFee / 1000.0
 
-			table := wtRouteTable{
+			group.Lines = append(group.Lines, report.SummaryLine{
+				No:       no,
 				Terminal: terminal,
-				DropOff:  dropOff,
-				Trips:    tripList,
-				Fee:      fi,
-				RowCount: len(tripList) + wtTableOverhead,
-			}
-			group.Tables = append(group.Tables, table)
-
-			summaries = append(summaries, WatanyaReportSummary{
-				ID:            idCounter,
-				DropOffPoint:  dropOff,
-				Terminal:      terminal,
-				TripCount:     len(tripList),
-				TotalCapacity: totalCapacity,
-				Distance:      fi.Distance,
-				Fee:           fi.FeeIndex,
-				ActualFee:     fi.ActualFee,
-				Cost:          cost,
+				Trips:    len(tripList),
+				Capacity: float64(totalCapacity),
+				Distance: fm.Distance,
+				FeeIndex: int(fm.Fee),
+				FeeRate:  rate,
+				Amount:   float64(totalCapacity) * rate / 1000.0,
 			})
-			idCounter++
-
-			groupTrips += len(tripList)
-			groupCapacity += totalCapacity
-			groupCost += cost
+			rep.Sections = append(rep.Sections, section)
+			no++
 		}
-
-		// Subtotal row for this drop-off
-		summaries = append(summaries, WatanyaReportSummary{
-			DropOffPoint:  dropOff,
-			TripCount:     groupTrips,
-			TotalCapacity: groupCapacity,
-			Cost:          groupCost,
-			IsSubtotal:    true,
-		})
-
-		// Pre-calculate total rows this group occupies in the detail sheet
-		group.TotalRows = 0
-		for _, t := range group.Tables {
-			group.TotalRows += t.RowCount
-		}
-		if len(group.Tables) > 1 {
-			group.TotalRows += (len(group.Tables) - 1) * wtInterTableSpace
-		}
-
-		groups = append(groups, group)
+		rep.Groups = append(rep.Groups, group)
 	}
-
-	return groups, summaries
+	return rep
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Excel rendering
-// ─────────────────────────────────────────────────────────────────────────────
-
-func wtRenderExcel(
-	groups []wtDropOffGroup,
-	summaries []WatanyaReportSummary,
-	req DateRangeRequest,
-) (string, error) {
-	f := excelize.NewFile()
-	styles, err := wtBuildStyles(f)
+// wtParseDate reads a trip date. Dates are stored as YYYY-MM-DD text; a
+// longer timestamp is cut to its date. Anything else gives the zero time,
+// which the report prints as an empty cell.
+func wtParseDate(s string) time.Time {
+	s = strings.TrimSpace(s)
+	if len(s) > 10 {
+		s = s[:10]
+	}
+	d, err := time.Parse("2006-01-02", s)
 	if err != nil {
-		return "", fmt.Errorf("failed to create styles: %w", err)
+		return time.Time{}
 	}
+	return d
+}
 
-	if err := wtWriteSummarySheet(f, styles, summaries, req); err != nil {
+// wtSheetNames returns the Summary and Trip Details sheet names for lang.
+func wtSheetNames(lang report.Lang) (summary, details string) {
+	if lang == report.Arabic {
+		return "الملخص", "تفاصيل الرحلات"
+	}
+	return "Summary", "Trip Details"
+}
+
+// wtRenderReport writes the workbook to a temp file and returns its path.
+func wtRenderReport(rep report.Report) (string, error) {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	summaryName, detailsName := wtSheetNames(rep.Lang)
+	if err := f.SetSheetName("Sheet1", summaryName); err != nil {
 		return "", err
 	}
-	if err := wtWriteDetailSheet(f, styles, groups); err != nil {
-		return "", err
+	if _, err := report.WriteSummarySheet(f, summaryName, rep); err != nil {
+		return "", fmt.Errorf("failed to write summary sheet: %w", err)
 	}
-
-	// Activate summary sheet
-	idx, _ := f.GetSheetIndex("Summary")
-	f.SetActiveSheet(idx)
-
-	// ── Shared print settings (A4 portrait) ──────────────────────────────────
-	//
-	// FitToWidth 1 / FitToHeight 0 with FitToPage on is what makes the manual
-	// breaks mean anything: the columns are scaled to exactly one page across,
-	// and the sheet is free to run as many pages down as the breaks below say.
-	// Without it a column overflowing the paper produced a second, near-empty
-	// column-strip page for every page of the report.
-	//
-	// Both sheets are narrower than the printable width of A4 (Summary ~539pt,
-	// Trip Details ~478pt against ~552pt), so fit-to-width never scales them
-	// down — which is what lets the pagination below reason in raw points.
-	orientation := "portrait"
-	paperSize := 9 // A4
-	margins := &excelize.PageLayoutMarginsOptions{
-		Left: ptr(0.3), Right: ptr(0.3),
-		Top: ptr(0.4), Bottom: ptr(0.4),
-		Header: ptr(0.2), Footer: ptr(0.2),
+	if _, err := report.WriteDetailsSheet(f, detailsName, rep); err != nil {
+		return "", fmt.Errorf("failed to write trip details sheet: %w", err)
 	}
-	layout := &excelize.PageLayoutOptions{
-		Orientation: &orientation,
-		Size:        &paperSize,
-		FitToWidth:  ptr(1),
-		FitToHeight: ptr(0),
-	}
-	for _, sheet := range []string{"Summary", "Trip Details"} {
-		f.SetPageLayout(sheet, layout)
-		f.SetPageMargins(sheet, margins)
-		f.SetSheetProps(sheet, &excelize.SheetPropsOptions{FitToPage: ptr(true)})
-	}
+	f.SetActiveSheet(0)
 
 	timestamp := time.Now().Format("20060102_150405")
 	filePath := filepath.Join(os.TempDir(), fmt.Sprintf("watanya_report_%s.xlsx", timestamp))
@@ -2877,526 +2722,6 @@ func wtRenderExcel(
 	}
 	return filePath, nil
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Style registry
-// ─────────────────────────────────────────────────────────────────────────────
-
-type wtStyles struct {
-	Brand, Rule                      int
-	Title, Subtitle                  int
-	Header                           int
-	Data, DataAlt                    int
-	Subtotal                         int
-	Total                            int
-	TableTitle, TableHeader          int
-	DetailData, DetailAlt, DetailTot int
-}
-
-func wtBuildStyles(f *excelize.File) (wtStyles, error) {
-	p := wtPalette
-	var s wtStyles
-	var err error
-
-	make := func(style *excelize.Style) int {
-		if err != nil {
-			return 0
-		}
-		id, e := f.NewStyle(style)
-		if e != nil {
-			err = e
-		}
-		return id
-	}
-
-	centerMiddle := &excelize.Alignment{Horizontal: "center", Vertical: "center"}
-	centerWrap := &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true}
-	cairo := func(size float64, bold bool, color string) *excelize.Font {
-		return &excelize.Font{Size: size, Bold: bold, Color: color, Family: "Cairo"}
-	}
-	solidFill := func(color string) excelize.Fill {
-		return excelize.Fill{Type: "pattern", Color: []string{color}, Pattern: 1}
-	}
-	bottomBorder := func(color string, style int) []excelize.Border {
-		return []excelize.Border{{Type: "bottom", Color: color, Style: style}}
-	}
-
-	// Masthead: a small spaced brand line, the report name, the period, and a
-	// solid rule closing the block off from the table below it.
-	s.Brand = make(&excelize.Style{
-		Font:      cairo(10, true, p.AccentBlue),
-		Alignment: centerMiddle,
-	})
-	s.Title = make(&excelize.Style{
-		Font:      cairo(20, true, p.HeaderBg),
-		Alignment: centerMiddle,
-	})
-	s.Subtitle = make(&excelize.Style{
-		Font:      cairo(12, false, "7F8C8D"),
-		Alignment: centerMiddle,
-	})
-	s.Rule = make(&excelize.Style{
-		Fill: solidFill(p.AccentBlue),
-	})
-	s.Header = make(&excelize.Style{
-		Font:      cairo(13, true, p.HeaderText),
-		Fill:      solidFill(p.HeaderBg),
-		Alignment: centerWrap,
-		Border:    bottomBorder(p.HeaderBg, 2),
-	})
-	s.Data = make(&excelize.Style{
-		Font:      cairo(12, false, p.TextDark),
-		Alignment: centerMiddle,
-		Border:    bottomBorder(p.Border, 1),
-	})
-	s.DataAlt = make(&excelize.Style{
-		Font:      cairo(12, false, p.TextDark),
-		Fill:      solidFill(p.AltRow),
-		Alignment: centerMiddle,
-		Border:    bottomBorder(p.Border, 1),
-	})
-	s.Subtotal = make(&excelize.Style{
-		Font:      cairo(12, true, p.AccentBlue),
-		Fill:      solidFill(p.SubtotalBg),
-		Alignment: centerMiddle,
-		Border: []excelize.Border{
-			{Type: "top", Color: p.AccentBlue, Style: 1},
-			{Type: "bottom", Color: p.AccentBlue, Style: 2},
-		},
-	})
-	s.Total = make(&excelize.Style{
-		Font:      cairo(13, true, p.HeaderText),
-		Fill:      solidFill(p.HeaderBg),
-		Alignment: centerMiddle,
-		Border: []excelize.Border{
-			{Type: "top", Color: p.HeaderBg, Style: 2},
-			{Type: "bottom", Color: p.HeaderBg, Style: 2},
-		},
-	})
-	s.TableTitle = make(&excelize.Style{
-		Font:      cairo(11, true, p.HeaderText),
-		Fill:      solidFill(p.HeaderBg),
-		Alignment: centerMiddle,
-	})
-	s.TableHeader = make(&excelize.Style{
-		Font:      cairo(9, true, p.HeaderBg),
-		Fill:      solidFill(p.TotalBg),
-		Alignment: centerMiddle,
-		Border:    bottomBorder(p.AccentBlue, 2),
-	})
-	s.DetailData = make(&excelize.Style{
-		Font:      cairo(9, false, p.TextDark),
-		Alignment: centerMiddle,
-		Border:    bottomBorder(p.Border, 1),
-	})
-	s.DetailAlt = make(&excelize.Style{
-		Font:      cairo(9, false, p.TextDark),
-		Fill:      solidFill(p.AltRow),
-		Alignment: centerMiddle,
-		Border:    bottomBorder(p.Border, 1),
-	})
-	s.DetailTot = make(&excelize.Style{
-		Font:      cairo(9, true, p.HeaderBg),
-		Fill:      solidFill(p.TotalBg),
-		Alignment: centerMiddle,
-		Border:    []excelize.Border{{Type: "top", Color: p.AccentBlue, Style: 2}},
-	})
-
-	return s, err
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Summary sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-func wtWriteSummarySheet(
-	f *excelize.File,
-	s wtStyles,
-	summaries []WatanyaReportSummary,
-	req DateRangeRequest,
-) error {
-	const sheet = "Summary"
-	f.SetSheetName("Sheet1", sheet)
-
-	headers := []string{"#", "Drop-off Point", "Terminal", "Trips", "Capacity (L)", "Distance", "Fee Idx", "Fee Amt", "Total Cost"}
-
-	// ── Masthead and header row ───────────────────────────────────────────────
-	//
-	// Only the column headers repeat on later pages. The masthead is an
-	// identity block, not a running head: reprinting the title and the period
-	// on every sheet cost four rows of paper per page and made the stack read
-	// as a pile of separate reports rather than one.
-	const brandRow, titleRow, periodRow, ruleRow = 1, 2, 3, 4
-	const headerRow = 5
-	const firstDataRow = 6
-
-	merge := func(from, to string) { f.MergeCell(sheet, from, to) }
-	band := func(row int, value string, style int, height float64) {
-		merge(fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row))
-		if value != "" {
-			f.SetCellValue(sheet, fmt.Sprintf("A%d", row), value)
-		}
-		f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), style)
-		f.SetRowHeight(sheet, row, height)
-	}
-
-	band(brandRow, "APEX TRANSPORT", s.Brand, wtSumBrandPt)
-	band(titleRow, "Watanya Trips Report", s.Title, wtSumTitlePt)
-	band(periodRow, wtPeriodLabel(req.StartDate, req.EndDate), s.Subtitle, wtSumSubtitlePt)
-	band(ruleRow, "", s.Rule, wtSumRulePt) // a rule under the masthead, not a blank row
-
-	for i, h := range headers {
-		f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, headerRow), h)
-	}
-	f.SetCellStyle(sheet, fmt.Sprintf("A%d", headerRow), fmt.Sprintf("I%d", headerRow), s.Header)
-	f.SetRowHeight(sheet, headerRow, wtSumHeaderPt)
-
-	// Column headers — and only those — repeat at the top of every printed
-	// page, so a page pulled out of the middle of the stack still says which
-	// column is which.
-	if err := f.SetDefinedName(&excelize.DefinedName{
-		Name:     "_xlnm.Print_Titles",
-		RefersTo: fmt.Sprintf("%s!$%d:$%d", sheet, headerRow, headerRow),
-		Scope:    sheet,
-	}); err != nil {
-		return err
-	}
-	// The masthead and the headers held on screen, for the reader who never
-	// prints it.
-	if err := f.SetPanes(sheet, &excelize.Panes{
-		Freeze:      true,
-		Split:       false,
-		XSplit:      0,
-		YSplit:      headerRow,
-		TopLeftCell: fmt.Sprintf("A%d", firstDataRow),
-		ActivePane:  "bottomLeft",
-	}); err != nil {
-		return err
-	}
-
-	// ── Data rows, one printed block per drop-off ─────────────────────────────
-	//
-	// A drop-off's terminal rows and its subtotal are never split across a
-	// page: the block moves whole to the next page when it no longer fits.
-	// The pager measures in points, so what it calls a page is the page.
-	type block struct {
-		rows     []WatanyaReportSummary
-		heightPt float64
-	}
-	var blocks []block
-	var cur block
-	for _, row := range summaries {
-		cur.rows = append(cur.rows, row)
-		if row.IsSubtotal {
-			cur.heightPt += wtSumSubtotalPt
-			blocks = append(blocks, cur)
-			cur = block{}
-			continue
-		}
-		cur.heightPt += wtSumRowPt
-	}
-	if len(cur.rows) > 0 { // a trailing group with no subtotal row
-		blocks = append(blocks, cur)
-	}
-
-	pager := newWtPager(f, sheet, wtSumHeaderPt)
-	// The masthead prints once, on the first page only, so it is charged to
-	// that page as content rather than to every page as a running head.
-	pager.add(wtSumBrandPt + wtSumTitlePt + wtSumSubtitlePt + wtSumRulePt)
-	currentRow := firstDataRow
-
-	for bi, b := range blocks {
-		if bi > 0 {
-			// A thin rule of white between drop-offs, unless the block is
-			// starting a page anyway — a gap row at the top of a page is the
-			// stray blank line this rewrite exists to remove.
-			gap := wtSumGapPt
-			if !pager.fits(b.heightPt + gap) {
-				if pager.breakBefore(currentRow) {
-					gap = 0
-				}
-			}
-			if gap > 0 {
-				f.SetRowHeight(sheet, currentRow, gap)
-				currentRow++
-				pager.add(gap)
-			}
-		}
-
-		dataRowIdx := 0
-		for _, row := range b.rows {
-			if row.IsSubtotal {
-				label := fmt.Sprintf("Subtotal: %s", row.DropOffPoint)
-				f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), label)
-				f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
-				f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
-				f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
-				f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Subtotal)
-				f.SetRowHeight(sheet, currentRow, wtSumSubtotalPt)
-			} else {
-				style := s.Data
-				if dataRowIdx%2 == 1 {
-					style = s.DataAlt
-				}
-				f.SetCellValue(sheet, fmt.Sprintf("A%d", currentRow), row.ID)
-				f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), row.DropOffPoint)
-				f.SetCellValue(sheet, fmt.Sprintf("C%d", currentRow), row.Terminal)
-				f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), row.TripCount)
-				f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), row.TotalCapacity)
-				f.SetCellValue(sheet, fmt.Sprintf("F%d", currentRow), row.Distance)
-				f.SetCellValue(sheet, fmt.Sprintf("G%d", currentRow), row.Fee)
-				f.SetCellValue(sheet, fmt.Sprintf("H%d", currentRow), row.ActualFee)
-				f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), row.Cost)
-				f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), style)
-				f.SetRowHeight(sheet, currentRow, wtSumRowPt)
-				dataRowIdx++
-			}
-			currentRow++
-		}
-
-		if b.heightPt > wtUsablePagePt {
-			pager.fill()
-		} else {
-			pager.add(b.heightPt)
-		}
-	}
-
-	// ── Grand total row ───────────────────────────────────────────────────────
-	var grandTrips, grandCapacity int
-	var grandCost float64
-	for _, r := range summaries {
-		if r.IsSubtotal {
-			grandTrips += r.TripCount
-			grandCapacity += r.TotalCapacity
-			grandCost += r.Cost
-		}
-	}
-	if !pager.fits(wtSumGapPt + wtSumTotalPt) {
-		pager.breakBefore(currentRow)
-	} else {
-		f.SetRowHeight(sheet, currentRow, wtSumGapPt)
-		currentRow++
-	}
-	f.SetCellValue(sheet, fmt.Sprintf("B%d", currentRow), "GRAND TOTAL")
-	f.SetCellValue(sheet, fmt.Sprintf("D%d", currentRow), grandTrips)
-	f.SetCellValue(sheet, fmt.Sprintf("E%d", currentRow), grandCapacity)
-	f.SetCellValue(sheet, fmt.Sprintf("I%d", currentRow), grandCost)
-	f.SetCellStyle(sheet, fmt.Sprintf("A%d", currentRow), fmt.Sprintf("I%d", currentRow), s.Total)
-	f.SetRowHeight(sheet, currentRow, wtSumTotalPt)
-
-	// ── Column widths ─────────────────────────────────────────────────────────
-	minWidths := []float64{5, 18, 16, 8, 14, 10, 9, 10, 12}
-	cols := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I"}
-	for i, col := range cols {
-		f.SetColWidth(sheet, col, col, minWidths[i])
-	}
-
-	// Print area, so a stray touched cell off to the right never adds a page.
-	if err := f.SetDefinedName(&excelize.DefinedName{
-		Name:     "_xlnm.Print_Area",
-		RefersTo: fmt.Sprintf("%s!$A$1:$I$%d", sheet, currentRow),
-		Scope:    sheet,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Detail sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-func wtWriteDetailSheet(
-	f *excelize.File,
-	s wtStyles,
-	groups []wtDropOffGroup,
-) error {
-	const sheet = "Trip Details"
-	f.NewSheet(sheet)
-
-	// Fixed column widths (portrait A4)
-	for col, w := range map[string]float64{
-		"A": 4, "B": 11, "C": 11, "D": 17,
-		"E": 10, "F": 10, "G": 9, "H": 9, "I": 10,
-	} {
-		f.SetColWidth(sheet, col, col, w)
-	}
-
-	tripHeaders := []string{"#", "Date", "Receipt", "Driver", "Plate", "Capacity", "Mileage", "Fee", "Cost"}
-
-	// Every table carries its own title and header row, so this sheet needs no
-	// repeated print titles — nothing is charged to the top of each page.
-	pager := newWtPager(f, sheet, 0)
-	row := 1
-
-	for gi, group := range groups {
-		if gi > 0 {
-			// Move a whole drop-off to the next page when it no longer fits
-			// in what is left of this one. The separator rows are
-			// written only when no break happens: spacers stranded at the top
-			// of a fresh page were the "blank page" people were seeing.
-			gap := float64(wtInterGroupSpace) * wtDetGapPt
-			groupPt := wtGroupHeightPt(group)
-			if !pager.fits(groupPt + gap) {
-				if pager.breakBefore(row) {
-					gap = 0
-				}
-			}
-			if gap > 0 {
-				for i := 0; i < wtInterGroupSpace; i++ {
-					f.SetRowHeight(sheet, row, wtDetGapPt)
-					row++
-				}
-				pager.add(gap)
-			}
-		}
-
-		for ti, table := range group.Tables {
-			tablePt := wtTableHeightPt(table)
-
-			if ti > 0 {
-				gap := float64(wtInterTableSpace) * wtDetGapPt
-				if !pager.fits(tablePt + gap) {
-					if pager.breakBefore(row) {
-						gap = 0
-					}
-				}
-				if gap > 0 {
-					for i := 0; i < wtInterTableSpace; i++ {
-						f.SetRowHeight(sheet, row, wtDetGapPt)
-						row++
-					}
-					pager.add(gap)
-				}
-			} else if !pager.fits(tablePt) {
-				// First table of a group that was not moved wholesale above.
-				pager.breakBefore(row)
-			}
-
-			// Title: "Terminal  ←  DropOff" (RTL Arabic convention)
-			title := fmt.Sprintf("%s  ←  %s", table.Terminal, table.DropOff)
-			f.SetCellValue(sheet, fmt.Sprintf("A%d", row), title)
-			f.MergeCell(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row))
-			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableTitle)
-			f.SetRowHeight(sheet, row, wtDetTitlePt)
-			row++
-
-			// Header row
-			for i, h := range tripHeaders {
-				f.SetCellValue(sheet, fmt.Sprintf("%c%d", 'A'+i, row), h)
-			}
-			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.TableHeader)
-			f.SetRowHeight(sheet, row, wtDetHeaderPt)
-			row++
-
-			// Data rows (already sorted by date then receipt in wtBuildGroups)
-			dataStart := row
-			for i, trip := range table.Trips {
-				tripCost := float64(trip.TankCapacity) * table.Fee.ActualFee / 1000.0
-				style := s.DetailData
-				if i%2 == 1 {
-					style = s.DetailAlt
-				}
-				f.SetCellValue(sheet, fmt.Sprintf("A%d", row), i+1)
-				f.SetCellValue(sheet, fmt.Sprintf("B%d", row), trip.Date)
-				f.SetCellValue(sheet, fmt.Sprintf("C%d", row), trip.ReceiptNo)
-				f.SetCellValue(sheet, fmt.Sprintf("D%d", row), trip.DriverName)
-				f.SetCellValue(sheet, fmt.Sprintf("E%d", row), trip.CarNoPlate)
-				f.SetCellValue(sheet, fmt.Sprintf("F%d", row), trip.TankCapacity)
-				f.SetCellValue(sheet, fmt.Sprintf("G%d", row), trip.Mileage)
-				f.SetCellValue(sheet, fmt.Sprintf("H%d", row), table.Fee.ActualFee)
-				f.SetCellValue(sheet, fmt.Sprintf("I%d", row), tripCost)
-				f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), style)
-				f.SetRowHeight(sheet, row, wtDetRowPt)
-				row++
-			}
-
-			// Total row
-			f.SetCellValue(sheet, fmt.Sprintf("B%d", row), "TOTAL")
-			f.SetCellFormula(sheet, fmt.Sprintf("F%d", row), fmt.Sprintf("SUM(F%d:F%d)", dataStart, row-1))
-			f.SetCellFormula(sheet, fmt.Sprintf("G%d", row), fmt.Sprintf("SUM(G%d:G%d)", dataStart, row-1))
-			f.SetCellFormula(sheet, fmt.Sprintf("I%d", row), fmt.Sprintf("SUM(I%d:I%d)", dataStart, row-1))
-			f.SetCellStyle(sheet, fmt.Sprintf("A%d", row), fmt.Sprintf("I%d", row), s.DetailTot)
-			f.SetRowHeight(sheet, row, wtDetTotalPt)
-			row++
-
-			if tablePt > wtUsablePagePt {
-				// Taller than the paper: Excel breaks inside it on its own, so
-				// treat the page as spent rather than guess where it ended.
-				pager.fill()
-			} else {
-				pager.add(tablePt)
-			}
-		}
-	}
-
-	// Print area, so a stray touched cell off to the right never adds a page.
-	if err := f.SetDefinedName(&excelize.DefinedName{
-		Name:     "_xlnm.Print_Area",
-		RefersTo: fmt.Sprintf("%s!$A$1:$I$%d", sheet, row-1),
-		Scope:    sheet,
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// wtPeriodLabel turns the requested range into the line under the title.
-//
-// A whole calendar month reads as "Aug. 2026", which is how these reports are
-// referred to; anything else keeps its real endpoints rather than rounding to
-// a month it does not cover. An unparseable date falls back to the raw range,
-// so a bad request still produces a labelled sheet.
-func wtPeriodLabel(start, end string) string {
-	const layout = "2006-01-02"
-	from, errFrom := time.Parse(layout, start)
-	to, errTo := time.Parse(layout, end)
-	if errFrom != nil || errTo != nil {
-		return fmt.Sprintf("%s  —  %s", start, end)
-	}
-
-	month := func(t time.Time) string { return t.Format("Jan.") + " " + t.Format("2006") }
-	lastOfMonth := from.AddDate(0, 1, -from.Day()+1).AddDate(0, 0, -1)
-
-	if from.Year() == to.Year() && from.Month() == to.Month() {
-		if from.Day() == 1 && to.Day() >= lastOfMonth.Day() {
-			return month(from)
-		}
-		return fmt.Sprintf("%d – %d %s", from.Day(), to.Day(), month(from))
-	}
-	if from.Year() == to.Year() {
-		return fmt.Sprintf("%d %s – %d %s", from.Day(), from.Format("Jan."), to.Day(), month(to))
-	}
-	return fmt.Sprintf("%d %s – %d %s", from.Day(), month(from), to.Day(), month(to))
-}
-
-// wtTableHeightPt is the printed height of one terminal table: title, header,
-// one row per trip, total.
-func wtTableHeightPt(t wtRouteTable) float64 {
-	return wtDetTitlePt + wtDetHeaderPt + float64(len(t.Trips))*wtDetRowPt + wtDetTotalPt
-}
-
-// wtGroupHeightPt is the printed height of a whole drop-off group, including
-// the separators between its tables.
-func wtGroupHeightPt(g wtDropOffGroup) float64 {
-	var total float64
-	for _, t := range g.Tables {
-		total += wtTableHeightPt(t)
-	}
-	if len(g.Tables) > 1 {
-		total += float64(len(g.Tables)-1) * float64(wtInterTableSpace) * wtDetGapPt
-	}
-	return total
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ptr returns a pointer to v, for use with excelize options structs.
-func ptr[T any](v T) *T { return &v }
 
 // GetTrip returns a specific trip by ID
 func (h *TripHandler) GetTrip(c *fiber.Ctx) error {

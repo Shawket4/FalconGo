@@ -4,7 +4,8 @@ import "github.com/xuri/excelize/v2"
 
 // Cell styles for the trip export.
 //
-// The visual language is taken from the Watanya report (Controllers/trip.go):
+// The visual language was taken from the first Watanya report (since restyled
+// in package report, with its own navy palette):
 // Cairo throughout, a teal/slate palette, and bottom-only rules instead of a
 // full grid. A boxed grid fights the eye on a wide sheet; a single hairline
 // under each row gives the same row separation and reads far quieter.
@@ -18,7 +19,8 @@ import "github.com/xuri/excelize/v2"
 // NewStyle, and creating one per cell across ~11,000 rows bloats both the file
 // and the write.
 
-// Palette, matching the Watanya report so the two exports look like one product.
+// Palette of the first Watanya report (the current one, in package report, has
+// moved to navy; these two exports have not followed yet).
 const (
 	colHeaderBg   = "#2C5F7C"
 	colHeaderText = "#FFFFFF"

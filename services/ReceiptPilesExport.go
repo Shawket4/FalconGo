@@ -58,7 +58,7 @@ func buildPileStyles(f *excelize.File) (pileStyles, error) {
 		return id
 	}
 
-	// Same palette as the Watanya report and the trips export, so the three
+	// Same palette as the trips export (and the first Watanya report), so they
 	// look like one product.
 	const (
 		headerBg   = "2C5F7C"
