@@ -9,16 +9,19 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// Widths fit the longest real names and month totals in the tens of millions,
+// measured with Tahoma (the workbook) and Cairo (the PDF); see
+// report.Book.CheckFit and the fit tests.
 var summaryCols = []colSpec{
-	{"A", 5},   // #
-	{"B", 25},  // drop-off point
-	{"C", 19},  // terminal
-	{"D", 7},   // trips
-	{"E", 13},  // capacity
-	{"F", 9.5}, // distance
-	{"G", 8.5}, // fee index
-	{"H", 11},  // fee rate
-	{"I", 15},  // amount
+	{"A", 5},    // #
+	{"B", 24.5}, // drop-off point
+	{"C", 21},   // terminal
+	{"D", 9},    // trips
+	{"E", 13.5}, // capacity
+	{"F", 10.5}, // distance
+	{"G", 7.5},  // fee index
+	{"H", 10},   // fee rate
+	{"I", 15.5}, // amount
 }
 
 const (

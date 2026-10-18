@@ -86,6 +86,23 @@ func RenderPilePlanExcel(plan PilePlan) ([]byte, error) {
 // Bytes rather than a temp file: a file on disk means a path to clean up on
 // every error path plus a second copy that only ever travels over the wire.
 func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
+	book, err := buildPilesBook(plan, lang)
+	if err != nil {
+		return nil, err
+	}
+	defer book.Close()
+	if asPDF {
+		title := pileTextsAR.titleChecklist
+		if lang == "en" {
+			title = pileTextsEN.titleChecklist
+		}
+		return book.PDF(title)
+	}
+	return book.XLSX()
+}
+
+// buildPilesBook writes the three sheets of the piles workbook.
+func buildPilesBook(plan PilePlan, lang string) (*report.Book, error) {
 	tx, rl := pileTextsAR, report.Arabic
 	if lang == "en" {
 		tx, rl = pileTextsEN, report.English
@@ -96,19 +113,20 @@ func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
 	}
 	base := report.Table{
 		Lang: rl, Company: "Apex Transport",
-		Subtitle: mode + "  ·  " + fmt.Sprintf(tx.counts, plan.TotalReceipts, plan.TotalDropOffs),
+		Subtitle: mode,
 		Period:   pilePeriod(rl, plan.StartDate, plan.EndDate),
+		Note:     fmt.Sprintf(tx.counts, plan.TotalReceipts, plan.TotalDropOffs),
 	}
 
 	book := report.NewBook()
-	defer book.Close()
+	fail := func(err error) (*report.Book, error) { book.Close(); return nil, err }
 
 	// ── Checklist: one row per receipt, a band per box ──────────────────────
 	checklist := base
 	checklist.Title = tx.titleChecklist
 	checklist.Landscape = true
 	checklist.AutoFilter, checklist.FreezeHeader = true, true
-	checklist.Columns = pileColumns(tx.checklistHeaders, []float64{6, 9, 8, 30, 9, 16, 13, 16, 16, 22},
+	checklist.Columns = pileColumns(tx.checklistHeaders, []float64{6, 9, 8, 30, 9, 16, 13, 17, 16, 22},
 		[]report.ColKind{report.Tick, report.Center, report.Center, report.Text, report.Center,
 			report.Center, report.Date, report.Text, report.Center, report.Text})
 	for _, pile := range plan.Piles {
@@ -130,7 +148,7 @@ func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
 	}
 	cl, err := book.Table(tx.sheetChecklist, checklist)
 	if err != nil {
-		return nil, fmt.Errorf("checklist sheet: %w", err)
+		return fail(fmt.Errorf("checklist sheet: %w", err))
 	}
 	hasChecklistRows := plan.TotalReceipts > 0
 
@@ -150,7 +168,7 @@ func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
 		piles.Bands = append(piles.Bands, band)
 	}
 	if _, err := book.Table(tx.sheetPiles, piles); err != nil {
-		return nil, fmt.Errorf("piles sheet: %w", err)
+		return fail(fmt.Errorf("piles sheet: %w", err))
 	}
 
 	// ── Boxes: one row per box, progress as live formulas ───────────────────
@@ -194,16 +212,13 @@ func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
 		boxes.Footnotes = append(boxes.Footnotes, fmt.Sprintf(tx.skippedNote, plan.SkippedReceipts))
 	}
 	if _, err := book.Table(tx.sheetBoxes, boxes); err != nil {
-		return nil, fmt.Errorf("boxes sheet: %w", err)
+		return fail(fmt.Errorf("boxes sheet: %w", err))
 	}
 
 	// Open on the boxes — the sheet that answers "how many boxes do I need
 	// and what goes in them", which is the first question.
 	book.SetActive(tx.sheetBoxes)
-	if asPDF {
-		return book.PDF(tx.titleChecklist)
-	}
-	return book.XLSX()
+	return book, nil
 }
 
 func pileColumns(headers []string, widths []float64, kinds []report.ColKind) []report.Column {

@@ -68,17 +68,22 @@ type textEngine struct {
 }
 
 func newTextEngine() (*textEngine, error) {
-	// Parse once to fail fast; each engine gets its own faces because the used
-	// glyph sets are per document.
-	reg, err := loadPDFFont("Cairo-Regular", cairoRegular)
+	return newTextEngineFonts("Cairo-Regular", cairoRegular, "Cairo-Bold", cairoBold)
+}
+
+// newTextEngineFonts shapes with any regular/bold pair (the fit check uses
+// it to measure with the workbook's font). Each engine gets its own faces
+// because the used-glyph sets are per document.
+func newTextEngineFonts(regName string, reg []byte, boldName string, bold []byte) (*textEngine, error) {
+	r, err := loadPDFFont(regName, reg)
 	if err != nil {
 		return nil, err
 	}
-	bold, err := loadPDFFont("Cairo-Bold", cairoBold)
+	b, err := loadPDFFont(boldName, bold)
 	if err != nil {
 		return nil, err
 	}
-	return &textEngine{regular: reg, bold: bold}, nil
+	return &textEngine{regular: r, bold: b}, nil
 }
 
 // textSpan is a run of text in one style.

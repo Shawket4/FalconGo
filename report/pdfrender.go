@@ -265,8 +265,9 @@ func drawCell(page *pdfPage, e *textEngine, rec *sheetRecord, cell *recCell, x, 
 	scaled := make([]textSpan, len(spans))
 	copy(scaled, spans)
 	line := e.layout(scaled, rtl)
-	if f.shrinkFit && line.width > avail && line.width > 0 {
-		k := avail / line.width
+	if f.shrinkFit && line.width > avail-fitGap && line.width > 0 {
+		// Leave a little air so shrunk text never touches the next cell.
+		k := (avail - fitGap) / line.width
 		for i := range scaled {
 			scaled[i].size *= k
 		}

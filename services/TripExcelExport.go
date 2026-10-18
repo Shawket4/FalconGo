@@ -128,6 +128,19 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 // are the export's own, unchanged; the totals row stays a live SUBTOTAL so it
 // follows the autofilter.
 func BuildTripsExport(trips []Models.TripStruct, labels TripExportLabels, showFinancials bool, meta string, asPDF bool) ([]byte, error) {
+	book, err := buildTripsBook(trips, labels, showFinancials, meta)
+	if err != nil {
+		return nil, err
+	}
+	defer book.Close()
+	if asPDF {
+		return book.PDF(labels.withDefaults().Title)
+	}
+	return book.XLSX()
+}
+
+// buildTripsBook writes both sheets of the trips export.
+func buildTripsBook(trips []Models.TripStruct, labels TripExportLabels, showFinancials bool, meta string) (*report.Book, error) {
 	l := labels.withDefaults()
 	lang := report.English
 	if strings.EqualFold(strings.TrimSpace(l.Lang), "ar") {
@@ -135,28 +148,30 @@ func BuildTripsExport(trips []Models.TripStruct, labels TripExportLabels, showFi
 	}
 
 	cols := []report.Column{
+		// Widths fit the longest real names and a month's totals, measured
+		// with Tahoma and Cairo (TestExportsFitLongestNames).
 		{Header: l.ReceiptNo, Width: 11, Kind: report.Center},
-		{Header: l.Date, Width: 10.5, Kind: report.Date},
+		{Header: l.Date, Width: 11, Kind: report.Date},
 		{Header: l.Company, Width: 14, Kind: report.Text},
-		{Header: l.Terminal, Width: 16, Kind: report.Text},
-		{Header: l.DropOffPoint, Width: 18, Kind: report.Text},
+		{Header: l.Terminal, Width: 17, Kind: report.Text},
+		{Header: l.DropOffPoint, Width: 20, Kind: report.Text},
 		{Header: l.Vehicle, Width: 11, Kind: report.Center},
-		{Header: l.Driver, Width: 18, Kind: report.Text},
-		{Header: l.TankCapacity, Width: 10, Kind: report.Int, Total: true},
-		{Header: l.Distance, Width: 10, Kind: report.Decimal, Total: true},
+		{Header: l.Driver, Width: 21, Kind: report.Text},
+		{Header: l.TankCapacity, Width: 13.5, Kind: report.Int, Total: true},
+		{Header: l.Distance, Width: 13.5, Kind: report.Decimal, Total: true},
 	}
 	if showFinancials {
-		cols = append(cols, report.Column{Header: l.Fee, Width: 11, Kind: report.Money, Total: true})
+		cols = append(cols, report.Column{Header: l.Fee, Width: 16.5, Kind: report.Money, Total: true})
 	}
 	cols = append(cols,
 		report.Column{Header: l.InGarage, Width: 8, Kind: report.Flag},
 		report.Column{Header: l.InOffice, Width: 8, Kind: report.Flag},
 		report.Column{Header: l.Stamped, Width: 8, Kind: report.Flag},
-		report.Column{Header: l.GarageReceivedBy, Width: 14, Kind: report.Text},
-		report.Column{Header: l.GarageDate, Width: 14, Kind: report.DateTime},
-		report.Column{Header: l.OfficeReceivedBy, Width: 14, Kind: report.Text},
-		report.Column{Header: l.OfficeDate, Width: 14, Kind: report.DateTime},
-		report.Column{Header: l.Remark, Width: 22, Kind: report.Text},
+		report.Column{Header: l.GarageReceivedBy, Width: 17, Kind: report.Text},
+		report.Column{Header: l.GarageDate, Width: 16, Kind: report.DateTime},
+		report.Column{Header: l.OfficeReceivedBy, Width: 17, Kind: report.Text},
+		report.Column{Header: l.OfficeDate, Width: 16, Kind: report.DateTime},
+		report.Column{Header: l.Remark, Width: 30, Kind: report.Text},
 	)
 
 	// Deterministic order, matching what the client produced so downstream
@@ -215,7 +230,6 @@ func BuildTripsExport(trips []Models.TripStruct, labels TripExportLabels, showFi
 	cards = append(cards, report.Card{Label: l.StampedCount, Value: report.FormatCount(int64(stats.stamped))})
 
 	book := report.NewBook()
-	defer book.Close()
 	sheet := sanitizeSheetName(l.Sheet)
 	table := report.Table{
 		Lang: lang, Company: "Apex Transport",
@@ -229,15 +243,14 @@ func BuildTripsExport(trips []Models.TripStruct, labels TripExportLabels, showFi
 		table.TotalLabel, table.TotalMode = l.Totals, report.TotalSubtotal
 	}
 	if _, err := book.Table(sheet, table); err != nil {
+		book.Close()
 		return nil, err
 	}
 	if err := writeTripSummarySheet(book, sorted, l, lang, showFinancials, meta); err != nil {
+		book.Close()
 		return nil, err
 	}
-	if asPDF {
-		return book.PDF(l.Title)
-	}
-	return book.XLSX()
+	return book, nil
 }
 
 type tripStats struct {
@@ -296,11 +309,11 @@ func writeTripSummarySheet(book *report.Book, trips []Models.TripStruct, l TripE
 	cols := []report.Column{
 		{Header: l.Company, Width: 28, Kind: report.Text},
 		{Header: l.TotalTrips, Width: 14, Kind: report.Int, Total: true},
-		{Header: l.TotalVolume, Width: 16, Kind: report.Decimal, Total: true},
+		{Header: l.TotalVolume, Width: 18, Kind: report.Decimal, Total: true},
 		{Header: l.TotalDistance, Width: 16, Kind: report.Decimal, Total: true},
 	}
 	if showFinancials {
-		cols = append(cols, report.Column{Header: l.TotalFees, Width: 16, Kind: report.Money, Total: true})
+		cols = append(cols, report.Column{Header: l.TotalFees, Width: 18, Kind: report.Money, Total: true})
 	}
 	var rows [][]any
 	for _, key := range order {

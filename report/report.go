@@ -16,8 +16,8 @@
 // layout.
 //
 // Fonts: an .xlsx cannot carry a font (SpreadsheetML has no embedded-font
-// part, unlike .docx and .pptx), so the workbook uses Arial, which every
-// Windows and macOS machine has, with Arabic. The PDF version (Book.PDF) is
+// part, unlike .docx and .pptx), so the workbook uses Tahoma, which Windows
+// and macOS both ship, with Arabic. The PDF version (Book.PDF) is
 // drawn with Cairo embedded in the file.
 package report
 
@@ -130,7 +130,7 @@ func (rep Report) withDefaults() Report {
 // Look & page geometry
 
 const (
-	fontFamily = "Arial" // the workbook's font; the PDF embeds Cairo (see pdftext.go)
+	fontFamily = "Tahoma" // the workbook's font; the PDF embeds Cairo (see pdftext.go)
 
 	clrNavy   = "1D3B4F" // headers, totals, title
 	clrAccent = "2C6E86" // company line, total labels
@@ -495,7 +495,11 @@ func (w *sheetWriter) titleBlock(rep Report, subtitle, note string) int {
 	w.cell("A2", last+"2", rep.Title, txt(22).bold().color(clrNavy).start(0))
 
 	w.height(3, 20)
-	w.cell("A3", mid+"3", joinDot(subtitle, rep.Period), txt(11).color(clrMuted).start(0))
+	sub := mid // with no note, the subtitle line has the whole width
+	if note == "" {
+		sub = last
+	}
+	w.cell("A3", sub+"3", joinDot(subtitle, rep.Period), txt(11).color(clrMuted).start(0).shrink())
 	if note != "" {
 		w.cell(right+"3", last+"3", note, txt(9).color(clrMuted).end(0).shrink())
 	}

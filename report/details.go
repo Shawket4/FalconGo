@@ -8,16 +8,18 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// Widths fit route totals in the millions, measured with Tahoma (the
+// workbook) and Cairo (the PDF); see report.Book.CheckFit and the fit tests.
 var detailCols = []colSpec{
 	{"A", 4.5},  // #
 	{"B", 12},   // date
-	{"C", 13},   // receipt
-	{"D", 27},   // driver
-	{"E", 13.5}, // plate
-	{"F", 10},   // capacity
-	{"G", 11},   // distance
+	{"C", 12},   // receipt
+	{"D", 22},   // driver
+	{"E", 12.5}, // plate
+	{"F", 12.5}, // capacity
+	{"G", 12},   // distance
 	{"H", 8.5},  // fee rate
-	{"I", 11.5}, // cost
+	{"I", 14.5}, // cost
 }
 
 const (
