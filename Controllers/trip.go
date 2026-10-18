@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/xuri/excelize/v2"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -2526,17 +2525,27 @@ type DateRangeRequest struct {
 	EndDate   string `json:"end_date"`
 }
 
-// wtReportRequest is the export body. Lang is optional: "ar" gives Arabic
-// labels and a right-to-left layout; anything else (or nothing) is English.
+// wtReportRequest is the export body. All but the dates are optional:
+//
+//	lang:   "ar" gives Arabic labels and a right-to-left layout; else English.
+//	format: "xlsx" (default) — one workbook, Summary and Trip Details sheets;
+//	        "pdf"  — one part of it as a PDF with the Cairo font embedded.
+//	part:   with format "pdf": "summary" or "details".
 type wtReportRequest struct {
 	DateRangeRequest
-	Lang string `json:"lang"`
+	Lang   string `json:"lang"`
+	Format string `json:"format"`
+	Part   string `json:"part"`
 }
 
 const (
 	wtCompany = "Apex Transport"
 	wtTitleEN = "Watanya Trips Report"
 	wtTitleAR = "تقرير رحلات وطنية"
+
+	// wtEmptyRangeCode tells the dashboard the range simply has nothing to
+	// bill, as opposed to a failure.
+	wtEmptyRangeCode = "WATANYA_EMPTY_RANGE"
 )
 
 func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
@@ -2545,8 +2554,8 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot parse request body"})
 	}
-	if req.StartDate == "" || req.EndDate == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Start date and end date are required"})
+	if err := req.normalise(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// ── 2. Fetch data ─────────────────────────────────────────────────────────
@@ -2561,24 +2570,88 @@ func (h *TripHandler) GetWatanyaTripsReport(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve fee mappings: " + err.Error()})
 	}
 
-	// ── 3. Build the report ──────────────────────────────────────────────────
+	return wtRespond(c, req, trips, feeMappings)
+}
+
+// normalise checks the dates are present and canonicalises lang, format and part.
+func (req *wtReportRequest) normalise() error {
+	if req.StartDate == "" || req.EndDate == "" {
+		return fmt.Errorf("Start date and end date are required")
+	}
+	req.Lang = strings.ToLower(strings.TrimSpace(req.Lang))
+	if req.Lang != "ar" {
+		req.Lang = "en"
+	}
+	req.Format = strings.ToLower(strings.TrimSpace(req.Format))
+	req.Part = strings.ToLower(strings.TrimSpace(req.Part))
+	switch req.Format {
+	case "", "xlsx":
+		req.Format = "xlsx"
+	case "pdf":
+		if req.Part != "summary" && req.Part != "details" {
+			return fmt.Errorf(`part must be "summary" or "details" for a PDF`)
+		}
+	default:
+		return fmt.Errorf(`format must be "xlsx" or "pdf"`)
+	}
+	return nil
+}
+
+// wtRespond builds and sends the report for already-fetched data.
+func wtRespond(c *fiber.Ctx, req wtReportRequest, trips []Models.TripStruct, feeMappings []Models.FeeMapping) error {
 	lang := report.English
-	if strings.EqualFold(strings.TrimSpace(req.Lang), "ar") {
+	if req.Lang == "ar" {
 		lang = report.Arabic
 	}
+	format, part := req.Format, req.Part
+
+	// ── 3. Build the report ──────────────────────────────────────────────────
 	rep := wtBuildReport(trips, feeMappings, lang)
+	rep.Period = wtPeriod(lang, req.StartDate, req.EndDate)
 	if len(rep.Groups) == 0 {
-		// The report package refuses an empty workbook; say so plainly
-		// rather than answering 500.
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No priced Watanya trips in this date range"})
+		// The report package refuses an empty workbook; tell the user why.
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": wtEmptyRangeMessage(lang, rep.Period),
+			"code":  wtEmptyRangeCode,
+		})
 	}
 
-	// ── 4. Render Excel ───────────────────────────────────────────────────────
+	// ── 4. Render ────────────────────────────────────────────────────────────
+	if format == "pdf" {
+		data, err := wtRenderPDF(rep, part)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		filename := fmt.Sprintf("watanya_%s_%s_%s.pdf", part,
+			strings.ReplaceAll(req.StartDate, "-", ""), strings.ReplaceAll(req.EndDate, "-", ""))
+		c.Set("Content-Type", "application/pdf")
+		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		c.Set("Access-Control-Expose-Headers", "Content-Disposition")
+		c.Set("Cache-Control", "no-store")
+		return c.Send(data)
+	}
 	filePath, err := wtRenderReport(rep)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.SendFile(filePath, true)
+}
+
+// wtPeriod is the header's period: the requested range, in the report's style.
+func wtPeriod(lang report.Lang, start, end string) string {
+	from, errFrom := time.Parse("2006-01-02", start)
+	to, errTo := time.Parse("2006-01-02", end)
+	if errFrom != nil || errTo != nil {
+		return start + " – " + end
+	}
+	return report.RangeLabel(lang, from, to)
+}
+
+func wtEmptyRangeMessage(lang report.Lang, period string) string {
+	if lang == report.Arabic {
+		return "لا توجد رحلات وطنية مسعّرة في الفترة " + period
+	}
+	return "No priced Watanya trips in " + period
 }
 
 // wtBuildReport organises trips into the DropOff→Terminal hierarchy and fills
@@ -2698,29 +2771,54 @@ func wtSheetNames(lang report.Lang) (summary, details string) {
 	return "Summary", "Trip Details"
 }
 
+// wtBuildBook writes both sheets into a new workbook.
+func wtBuildBook(rep report.Report) (*report.Book, error) {
+	book := report.NewBook()
+	summaryName, detailsName := wtSheetNames(rep.Lang)
+	if _, err := book.Summary(summaryName, rep); err != nil {
+		book.Close()
+		return nil, fmt.Errorf("failed to write summary sheet: %w", err)
+	}
+	if _, err := book.Details(detailsName, rep); err != nil {
+		book.Close()
+		return nil, fmt.Errorf("failed to write trip details sheet: %w", err)
+	}
+	return book, nil
+}
+
 // wtRenderReport writes the workbook to a temp file and returns its path.
 func wtRenderReport(rep report.Report) (string, error) {
-	f := excelize.NewFile()
-	defer f.Close()
-
-	summaryName, detailsName := wtSheetNames(rep.Lang)
-	if err := f.SetSheetName("Sheet1", summaryName); err != nil {
+	book, err := wtBuildBook(rep)
+	if err != nil {
 		return "", err
 	}
-	if _, err := report.WriteSummarySheet(f, summaryName, rep); err != nil {
-		return "", fmt.Errorf("failed to write summary sheet: %w", err)
+	defer book.Close()
+	data, err := book.XLSX()
+	if err != nil {
+		return "", err
 	}
-	if _, err := report.WriteDetailsSheet(f, detailsName, rep); err != nil {
-		return "", fmt.Errorf("failed to write trip details sheet: %w", err)
-	}
-	f.SetActiveSheet(0)
-
 	timestamp := time.Now().Format("20060102_150405")
 	filePath := filepath.Join(os.TempDir(), fmt.Sprintf("watanya_report_%s.xlsx", timestamp))
-	if err := f.SaveAs(filePath); err != nil {
+	if err := os.WriteFile(filePath, data, 0o600); err != nil {
 		return "", fmt.Errorf("failed to save report: %w", err)
 	}
 	return filePath, nil
+}
+
+// wtRenderPDF draws one part of the report — "summary" or "details" — as a
+// PDF, from the very sheet the workbook carries.
+func wtRenderPDF(rep report.Report, part string) ([]byte, error) {
+	book, err := wtBuildBook(rep)
+	if err != nil {
+		return nil, err
+	}
+	defer book.Close()
+	summaryName, detailsName := wtSheetNames(rep.Lang)
+	sheet := summaryName
+	if part == "details" {
+		sheet = detailsName
+	}
+	return book.PDF(rep.Title, sheet)
 }
 
 // GetTrip returns a specific trip by ID

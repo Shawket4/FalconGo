@@ -1,384 +1,233 @@
 package services
 
 import (
-	"bytes"
 	"fmt"
+	"time"
 
-	"github.com/xuri/excelize/v2"
+	"Falcon/report"
 )
 
 // The receipt-piles workbook.
 //
 // Three sheets, in the order the work is actually done:
 //
-//	قائمة المراجعة — one row per receipt, with a tick box. This is the sheet
-//	                 that gets printed and carried to the desk.
-//	الأكوام        — the drop-off names inside each pile, alphabetical.
-//	الصناديق       — one row per pile: which letters, how many names, how many
-//	                 sheets, and how many are ticked off so far.
+//	قائمة المراجعة (Checklist) — one row per receipt, with a tick box. This is
+//	                 the sheet that gets printed and carried to the desk.
+//	الأكوام (Piles) — the drop-off names inside each pile, alphabetical.
+//	الصناديق (Boxes) — one row per pile: which letters, how many names, how
+//	                 many sheets, and how many are ticked off so far.
 //
-// The tick column is the spine: the "done" figures on الصناديق are COUNTIFS
-// formulas over the checklist, so ticking a row updates the box progress with
-// no macro and no re-export. That is lifted straight from the hand-built
-// workbook this replaces, because it is the part people actually used.
+// The tick column is the spine: the "done" figures on the Boxes sheet are
+// COUNTIFS formulas over the checklist, so ticking a row updates the box
+// progress with no macro and no re-export. That is lifted straight from the
+// hand-built workbook this replaces, because it is the part people used.
 //
-// The layout is right-to-left throughout — the content is Arabic, and an LTR
-// sheet puts the tick column at the far end of the reader's travel.
+// The look is the Watanya report's (package report): title block, a band per
+// box, a column header repeated on every printed page, A4 print setup, and
+// the same sheets as a PDF. Arabic (right-to-left) is the default; English
+// is available for the same plan.
 
-// Sheet names, kept as constants because the COUNTIFS formulas reference them.
-const (
-	pileSheetChecklist = "قائمة المراجعة"
-	pileSheetPiles     = "الأكوام"
-	pileSheetBoxes     = "الصناديق"
-)
-
-type pileStyles struct {
-	title, subtitle int
-	header          int
-	data, dataAlt   int
-	tick            int
-	num, numAlt     int
-	pileTag         int
-	letterTag       int
-	total           int
-	muted           int
+// pileTexts is every caption the workbook prints, per language.
+type pileTexts struct {
+	sheetChecklist, sheetPiles, sheetBoxes string
+	titleChecklist, titlePiles, titleBoxes string
+	checklistHeaders, pilesHeaders         []string
+	boxesHeaders                           []string
+	modeLetter, modeBalanced               string // modeBalanced takes the box count
+	counts                                 string // receipts, drop-offs
+	bandNote                               string // receipts in the box
+	total                                  string
+	cardBoxes, cardReceipts, cardDropOffs  string
+	cardLetters                            string
+	tickNote, skippedNote                  string
 }
 
-func buildPileStyles(f *excelize.File) (pileStyles, error) {
-	var s pileStyles
-	var err error
-	mk := func(style *excelize.Style) int {
-		if err != nil {
-			return 0
-		}
-		id, e := f.NewStyle(style)
-		if e != nil {
-			err = e
-		}
-		return id
-	}
-
-	// Same palette as the trips export (and the first Watanya report), so they
-	// look like one product.
-	const (
-		headerBg   = "2C5F7C"
-		headerText = "FFFFFF"
-		altRow     = "F8FAFB"
-		border     = "D5DBDE"
-		textDark   = "2C3E50"
-		totalBg    = "E8F1F5"
-		tagBg      = "D4E6ED"
-		muted      = "7F8C8D"
-	)
-
-	center := &excelize.Alignment{Horizontal: "center", Vertical: "center"}
-	centerWrap := &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true}
-	cairo := func(size float64, bold bool, color string) *excelize.Font {
-		return &excelize.Font{Size: size, Bold: bold, Color: color, Family: "Cairo"}
-	}
-	fill := func(color string) excelize.Fill {
-		return excelize.Fill{Type: "pattern", Color: []string{color}, Pattern: 1}
-	}
-	rule := []excelize.Border{{Type: "bottom", Color: border, Style: 1}}
-
-	s.title = mk(&excelize.Style{Font: cairo(20, true, headerBg), Alignment: center})
-	s.subtitle = mk(&excelize.Style{Font: cairo(13, false, muted), Alignment: center})
-	s.header = mk(&excelize.Style{
-		Font: cairo(13, true, headerText), Fill: fill(headerBg),
-		Alignment: centerWrap, Border: []excelize.Border{{Type: "bottom", Color: headerBg, Style: 2}},
-	})
-	s.data = mk(&excelize.Style{Font: cairo(12, false, textDark), Alignment: center, Border: rule})
-	s.dataAlt = mk(&excelize.Style{
-		Font: cairo(12, false, textDark), Fill: fill(altRow), Alignment: center, Border: rule,
-	})
-	// The tick column is wide, bold and empty — it is written on by hand.
-	s.tick = mk(&excelize.Style{
-		Font: cairo(14, true, headerBg), Alignment: center, Border: rule,
-	})
-	s.num = mk(&excelize.Style{
-		Font: cairo(12, false, textDark), Alignment: center, Border: rule, NumFmt: 1,
-	})
-	s.numAlt = mk(&excelize.Style{
-		Font: cairo(12, false, textDark), Fill: fill(altRow), Alignment: center, Border: rule, NumFmt: 1,
-	})
-	s.pileTag = mk(&excelize.Style{
-		Font: cairo(13, true, headerBg), Fill: fill(tagBg), Alignment: center, Border: rule,
-	})
-	s.letterTag = mk(&excelize.Style{
-		Font: cairo(16, true, headerBg), Alignment: center, Border: rule,
-	})
-	s.total = mk(&excelize.Style{
-		Font: cairo(13, true, textDark), Fill: fill(totalBg), Alignment: center,
-		Border: []excelize.Border{{Type: "top", Color: headerBg, Style: 2}},
-	})
-	s.muted = mk(&excelize.Style{Font: cairo(11, false, muted), Alignment: center})
-
-	return s, err
+var pileTextsAR = pileTexts{
+	sheetChecklist: "قائمة المراجعة", sheetPiles: "الأكوام", sheetBoxes: "الصناديق",
+	titleChecklist: "أكوام الإيصالات — وطنية", titlePiles: "نقاط التسليم داخل كل صندوق", titleBoxes: "الصناديق",
+	checklistHeaders: []string{"✓", "صندوق", "الحرف", "نقطة التسليم", "#", "رقم الإيصال", "التاريخ", "المستودع", "السيارة", "ملاحظة"},
+	pilesHeaders:     []string{"صندوق", "الحرف", "نقطة التسليم", "عدد الإيصالات", "تم ✓", "ملاحظة"},
+	boxesHeaders:     []string{"صندوق", "الحروف", "عدد النقاط", "عدد الإيصالات", "تم", "المتبقي"},
+	modeLetter:       "حرف لكل كومة",
+	modeBalanced:     "توزيع متوازن على %d صناديق",
+	counts:           "%d إيصال / %d نقطة",
+	bandNote:         "عدد الإيصالات: %d",
+	total:            "الإجمالي",
+	cardBoxes:        "الصناديق", cardReceipts: "الإيصالات", cardDropOffs: "نقاط التسليم", cardLetters: "الحروف",
+	tickNote:    "علّم عمود ✓ في ورقة قائمة المراجعة — أعمدة «تم» و«المتبقي» تتحدث تلقائياً",
+	skippedNote: "%d رحلة بلا رقم إيصال لم تدخل الأكوام — راجعها في صفحة الرحلات",
 }
 
-// RenderPilePlanExcel writes the workbook and hands back the bytes.
-//
-// Bytes rather than a temp file: the trip export already works this way, and a
-// file on disk means a path to clean up on every error path plus a second copy
-// of a workbook that only ever travels straight out over the wire.
+var pileTextsEN = pileTexts{
+	sheetChecklist: "Checklist", sheetPiles: "Piles", sheetBoxes: "Boxes",
+	titleChecklist: "Receipt piles — Watanya", titlePiles: "Drop-off points in each box", titleBoxes: "Boxes",
+	checklistHeaders: []string{"✓", "Box", "Letter", "Drop-off point", "#", "Receipt no.", "Date", "Terminal", "Vehicle", "Note"},
+	pilesHeaders:     []string{"Box", "Letter", "Drop-off point", "Receipts", "Done ✓", "Note"},
+	boxesHeaders:     []string{"Box", "Letters", "Drop-off points", "Receipts", "Done", "Remaining"},
+	modeLetter:       "One letter per pile",
+	modeBalanced:     "Balanced over %d boxes",
+	counts:           "%d receipts / %d drop-off points",
+	bandNote:         "%d receipts",
+	total:            "Total",
+	cardBoxes:        "BOXES", cardReceipts: "RECEIPTS", cardDropOffs: "DROP-OFF POINTS", cardLetters: "LETTERS",
+	tickNote:    "Tick the ✓ column on the Checklist sheet — Done and Remaining update by themselves",
+	skippedNote: "%d trips with no receipt number are not in any pile — check them on the trips page",
+}
+
+// RenderPilePlanExcel writes the Arabic workbook and hands back the bytes.
 func RenderPilePlanExcel(plan PilePlan) ([]byte, error) {
-	f := excelize.NewFile()
-	defer f.Close()
-
-	s, err := buildPileStyles(f)
-	if err != nil {
-		return nil, fmt.Errorf("build styles: %w", err)
-	}
-
-	checklistRows, err := writePileChecklistSheet(f, s, plan)
-	if err != nil {
-		return nil, err
-	}
-	if err := writePilesSheet(f, s, plan); err != nil {
-		return nil, err
-	}
-	if err := writeBoxesSheet(f, s, plan, checklistRows); err != nil {
-		return nil, err
-	}
-
-	// Open on the summary — it is the sheet that answers "how many boxes do I
-	// need and what goes in them", which is the first question.
-	if idx, err := f.GetSheetIndex(pileSheetBoxes); err == nil {
-		f.SetActiveSheet(idx)
-	}
-
-	var buf bytes.Buffer
-	if err := f.Write(&buf); err != nil {
-		return nil, fmt.Errorf("write workbook: %w", err)
-	}
-	return buf.Bytes(), nil
+	return RenderPilePlan(plan, "ar", false)
 }
 
-// rtl turns the sheet right-to-left. Every sheet here is Arabic.
-func rtl(f *excelize.File, sheet string) {
-	on := true
-	_ = f.SetSheetView(sheet, 0, &excelize.ViewOptions{RightToLeft: &on})
-}
-
-// titleBlock writes the two merged rows every sheet opens with and returns the
-// row the header belongs on.
-func titleBlock(f *excelize.File, s pileStyles, sheet, title, lastCol string, plan PilePlan) int {
-	f.MergeCell(sheet, "A1", lastCol+"1")
-	f.SetCellValue(sheet, "A1", title)
-	f.SetCellStyle(sheet, "A1", lastCol+"1", s.title)
-	f.SetRowHeight(sheet, 1, 34)
-
-	mode := "حرف لكل كومة"
+// RenderPilePlan renders the plan as a workbook, or with asPDF as a PDF of
+// its three sheets. lang is "en" or "ar" (anything else is Arabic, the
+// workbook's original language).
+//
+// Bytes rather than a temp file: a file on disk means a path to clean up on
+// every error path plus a second copy that only ever travels over the wire.
+func RenderPilePlan(plan PilePlan, lang string, asPDF bool) ([]byte, error) {
+	tx, rl := pileTextsAR, report.Arabic
+	if lang == "en" {
+		tx, rl = pileTextsEN, report.English
+	}
+	mode := tx.modeLetter
 	if plan.Mode == ModeBalanced {
-		mode = fmt.Sprintf("توزيع متوازن على %d صناديق", len(plan.Piles))
+		mode = fmt.Sprintf(tx.modeBalanced, len(plan.Piles))
 	}
-	f.MergeCell(sheet, "A2", lastCol+"2")
-	f.SetCellValue(sheet, "A2", fmt.Sprintf("%s  —  %s   ·   %s   ·   %d إيصال / %d نقطة",
-		plan.StartDate, plan.EndDate, mode, plan.TotalReceipts, plan.TotalDropOffs))
-	f.SetCellStyle(sheet, "A2", lastCol+"2", s.subtitle)
-	f.SetRowHeight(sheet, 2, 22)
-
-	f.SetRowHeight(sheet, 3, 10) // spacer
-	return 4
-}
-
-func writeHeaders(f *excelize.File, s pileStyles, sheet string, row int, headers []string, widths []float64) {
-	for i, h := range headers {
-		col, _ := excelize.ColumnNumberToName(i + 1)
-		cell := fmt.Sprintf("%s%d", col, row)
-		f.SetCellValue(sheet, cell, h)
-		f.SetCellStyle(sheet, cell, cell, s.header)
-		f.SetColWidth(sheet, col, col, widths[i])
+	base := report.Table{
+		Lang: rl, Company: "Apex Transport",
+		Subtitle: mode + "  ·  " + fmt.Sprintf(tx.counts, plan.TotalReceipts, plan.TotalDropOffs),
+		Period:   pilePeriod(rl, plan.StartDate, plan.EndDate),
 	}
-	f.SetRowHeight(sheet, row, 30)
-}
 
-// writePileChecklistSheet writes one row per receipt and returns the last data
-// row, which the box sheet's COUNTIFS formulas need.
-func writePileChecklistSheet(f *excelize.File, s pileStyles, plan PilePlan) (int, error) {
-	sheet := pileSheetChecklist
-	f.SetSheetName("Sheet1", sheet)
-	rtl(f, sheet)
+	book := report.NewBook()
+	defer book.Close()
 
-	headers := []string{"✓", "صندوق", "الحرف", "نقطة التسليم", "#", "رقم الإيصال", "التاريخ", "المستودع", "السيارة", "ملاحظة"}
-	widths := []float64{6, 9, 8, 30, 9, 16, 13, 16, 16, 22}
-	headerRow := titleBlock(f, s, sheet, "أكوام الإيصالات — وطنية", "J", plan)
-	writeHeaders(f, s, sheet, headerRow, headers, widths)
-
-	row := headerRow + 1
-	// Rows come out in filing order — pile, then letter, then name, then date —
-	// so the sheet can be worked top to bottom without hunting.
+	// ── Checklist: one row per receipt, a band per box ──────────────────────
+	checklist := base
+	checklist.Title = tx.titleChecklist
+	checklist.Landscape = true
+	checklist.AutoFilter, checklist.FreezeHeader = true, true
+	checklist.Columns = pileColumns(tx.checklistHeaders, []float64{6, 9, 8, 30, 9, 16, 13, 16, 16, 22},
+		[]report.ColKind{report.Tick, report.Center, report.Center, report.Text, report.Center,
+			report.Center, report.Date, report.Text, report.Center, report.Text})
 	for _, pile := range plan.Piles {
+		band := report.Band{No: pile.Index, Title: pile.Label, Note: fmt.Sprintf(tx.bandNote, pile.ReceiptCount)}
+		// Rows come out in filing order — pile, then letter, then name, then
+		// date — so the sheet can be worked top to bottom without hunting.
 		for _, letter := range pile.Letters {
 			for _, drop := range letter.DropOffs {
 				for _, r := range drop.Receipts {
-					alt := row%2 == 0
-					data, num := s.data, s.num
-					if alt {
-						data, num = s.dataAlt, s.numAlt
-					}
-					f.SetCellStyle(sheet, cellAt("A", row), cellAt("A", row), s.tick)
-					set := func(col string, v interface{}, style int) {
-						c := cellAt(col, row)
-						f.SetCellValue(sheet, c, v)
-						f.SetCellStyle(sheet, c, c, style)
-					}
-					set("B", pile.Index, num)
-					set("C", letter.Letter, data)
-					set("D", drop.Name, data)
-					set("E", fmt.Sprintf("%d/%d", r.Seq, r.OutOf), data)
-					set("F", r.ReceiptNo, data)
-					set("G", r.Date, data)
-					set("H", r.Terminal, data)
-					set("I", r.CarNoPlate, data)
-					set("J", "", data)
-					f.SetRowHeight(sheet, row, 20)
-					row++
+					band.Rows = append(band.Rows, []any{
+						nil, pile.Index, letter.Letter, drop.Name,
+						fmt.Sprintf("%d/%d", r.Seq, r.OutOf), r.ReceiptNo, pileDate(r.Date),
+						r.Terminal, r.CarNoPlate, "",
+					})
 				}
 			}
 		}
+		checklist.Bands = append(checklist.Bands, band)
 	}
-	lastRow := row - 1
-
-	// Freeze the header and let the filer filter down to one box.
-	on := true
-	_ = f.SetSheetView(sheet, 0, &excelize.ViewOptions{RightToLeft: &on})
-	_ = f.SetPanes(sheet, &excelize.Panes{
-		Freeze: true, Split: false, XSplit: 0, YSplit: headerRow,
-		TopLeftCell: fmt.Sprintf("A%d", headerRow+1), ActivePane: "bottomLeft",
-	})
-	if lastRow >= headerRow+1 {
-		_ = f.AutoFilter(sheet, fmt.Sprintf("A%d:J%d", headerRow, lastRow), nil)
+	cl, err := book.Table(tx.sheetChecklist, checklist)
+	if err != nil {
+		return nil, fmt.Errorf("checklist sheet: %w", err)
 	}
-	return lastRow, nil
-}
+	hasChecklistRows := plan.TotalReceipts > 0
 
-func writePilesSheet(f *excelize.File, s pileStyles, plan PilePlan) error {
-	sheet := pileSheetPiles
-	if _, err := f.NewSheet(sheet); err != nil {
-		return err
-	}
-	rtl(f, sheet)
-
-	headers := []string{"صندوق", "الحرف", "نقطة التسليم", "عدد الإيصالات", "تم ✓", "ملاحظة"}
-	widths := []float64{9, 8, 34, 14, 8, 24}
-	headerRow := titleBlock(f, s, sheet, "نقاط التسليم داخل كل صندوق", "F", plan)
-	writeHeaders(f, s, sheet, headerRow, headers, widths)
-
-	row := headerRow + 1
+	// ── Piles: the drop-off names inside each box ───────────────────────────
+	piles := base
+	piles.Title = tx.titlePiles
+	piles.AutoFilter, piles.FreezeHeader = true, true
+	piles.Columns = pileColumns(tx.pilesHeaders, []float64{9, 8, 34, 14, 8, 24},
+		[]report.ColKind{report.Center, report.Center, report.Text, report.Int, report.Tick, report.Text})
 	for _, pile := range plan.Piles {
+		band := report.Band{No: pile.Index, Title: pile.Label, Note: fmt.Sprintf(tx.bandNote, pile.ReceiptCount)}
 		for _, letter := range pile.Letters {
 			for _, drop := range letter.DropOffs {
-				alt := row%2 == 0
-				data, num := s.data, s.num
-				if alt {
-					data, num = s.dataAlt, s.numAlt
-				}
-				set := func(col string, v interface{}, style int) {
-					c := cellAt(col, row)
-					f.SetCellValue(sheet, c, v)
-					f.SetCellStyle(sheet, c, c, style)
-				}
-				set("A", pile.Index, s.pileTag)
-				set("B", letter.Letter, s.letterTag)
-				set("C", drop.Name, data)
-				set("D", drop.ReceiptCount, num)
-				set("E", "", s.tick)
-				set("F", "", data)
-				f.SetRowHeight(sheet, row, 22)
-				row++
+				band.Rows = append(band.Rows, []any{pile.Index, letter.Letter, drop.Name, drop.ReceiptCount, nil, ""})
 			}
 		}
+		piles.Bands = append(piles.Bands, band)
+	}
+	if _, err := book.Table(tx.sheetPiles, piles); err != nil {
+		return nil, fmt.Errorf("piles sheet: %w", err)
 	}
 
-	_ = f.SetPanes(sheet, &excelize.Panes{
-		Freeze: true, Split: false, XSplit: 0, YSplit: headerRow,
-		TopLeftCell: fmt.Sprintf("A%d", headerRow+1), ActivePane: "bottomLeft",
-	})
-	if row-1 >= headerRow+1 {
-		_ = f.AutoFilter(sheet, fmt.Sprintf("A%d:F%d", headerRow, row-1), nil)
+	// ── Boxes: one row per box, progress as live formulas ───────────────────
+	boxes := base
+	boxes.Title = tx.titleBoxes
+	boxes.Columns = pileColumns(tx.boxesHeaders, []float64{10, 30, 13, 15, 10, 12},
+		[]report.ColKind{report.Center, report.Center, report.Int, report.Int, report.Int, report.Int})
+	for i := 2; i < 6; i++ {
+		boxes.Columns[i].Total = true
 	}
-	return nil
-}
-
-func writeBoxesSheet(f *excelize.File, s pileStyles, plan PilePlan, checklistLastRow int) error {
-	sheet := pileSheetBoxes
-	if _, err := f.NewSheet(sheet); err != nil {
-		return err
+	boxes.Cards = []report.Card{
+		{Label: tx.cardBoxes, Value: report.FormatCount(int64(len(plan.Piles)))},
+		{Label: tx.cardLetters, Value: report.FormatCount(int64(plan.TotalLetters))},
+		{Label: tx.cardDropOffs, Value: report.FormatCount(int64(plan.TotalDropOffs))},
+		{Label: tx.cardReceipts, Value: report.FormatCount(int64(plan.TotalReceipts)), Dark: true},
 	}
-	rtl(f, sheet)
-
-	headers := []string{"صندوق", "الحروف", "عدد النقاط", "عدد الإيصالات", "تم", "المتبقي"}
-	widths := []float64{10, 30, 13, 15, 10, 12}
-	headerRow := titleBlock(f, s, sheet, "الصناديق", "F", plan)
-	writeHeaders(f, s, sheet, headerRow, headers, widths)
-
-	// The tick and remaining columns are live formulas over the checklist, so
-	// the operator's progress shows here without another export. The ranges are
-	// absolute; the checklist's B column holds the pile number and A the tick.
-	firstData := headerRow + 1
-	row := firstData
+	var rows [][]any
 	for _, pile := range plan.Piles {
-		num := s.num
-		if row%2 == 0 {
-			num = s.numAlt
+		// The tick and remaining columns are live formulas over the checklist,
+		// so the operator's progress shows here without another export. The
+		// checklist's B column holds the box number and A the tick.
+		done := report.Formula{Value: 0, Expr: func(row int) string {
+			return fmt.Sprintf(`COUNTIFS('%s'!$B$%d:$B$%d,$A%d,'%s'!$A$%d:$A$%d,"<>")`,
+				tx.sheetChecklist, cl.FirstRow, cl.LastRow, row, tx.sheetChecklist, cl.FirstRow, cl.LastRow)
+		}}
+		var doneCell any = done
+		if !hasChecklistRows {
+			doneCell = 0
 		}
-		set := func(col string, v interface{}, style int) {
-			c := cellAt(col, row)
-			f.SetCellValue(sheet, c, v)
-			f.SetCellStyle(sheet, c, c, style)
-		}
-		set("A", pile.Index, s.pileTag)
-		set("B", pile.Label, s.letterTag)
-		set("C", pile.DropOffCount, num)
-		set("D", pile.ReceiptCount, num)
-
-		done := cellAt("E", row)
-		if checklistLastRow >= firstData {
-			f.SetCellFormula(sheet, done, fmt.Sprintf(
-				`COUNTIFS('%s'!$B$%d:$B$%d,$A%d,'%s'!$A$%d:$A$%d,"<>")`,
-				pileSheetChecklist, firstData, checklistLastRow, row,
-				pileSheetChecklist, firstData, checklistLastRow))
-		} else {
-			f.SetCellValue(sheet, done, 0)
-		}
-		f.SetCellStyle(sheet, done, done, num)
-
-		left := cellAt("F", row)
-		f.SetCellFormula(sheet, left, fmt.Sprintf("D%d-E%d", row, row))
-		f.SetCellStyle(sheet, left, left, num)
-
-		f.SetRowHeight(sheet, row, 26)
-		row++
+		left := report.Formula{Value: pile.ReceiptCount, Expr: func(row int) string {
+			return fmt.Sprintf("D%d-E%d", row, row)
+		}}
+		rows = append(rows, []any{pile.Index, pile.Label, pile.DropOffCount, pile.ReceiptCount, doneCell, left})
 	}
-
-	// Totals.
-	if row > firstData {
-		f.SetCellValue(sheet, cellAt("B", row), "الإجمالي")
-		for _, col := range []string{"C", "D", "E", "F"} {
-			f.SetCellFormula(sheet, cellAt(col, row),
-				fmt.Sprintf("SUM(%s%d:%s%d)", col, firstData, col, row-1))
-		}
-		f.SetCellStyle(sheet, cellAt("A", row), cellAt("F", row), s.total)
-		f.SetRowHeight(sheet, row, 28)
-		row++
+	boxes.Bands = []report.Band{{Rows: rows}}
+	if len(rows) > 0 {
+		boxes.TotalLabel, boxes.TotalMode = tx.total, report.TotalSum
 	}
-
-	row++
-	f.MergeCell(sheet, cellAt("A", row), cellAt("F", row))
-	f.SetCellValue(sheet, cellAt("A", row),
-		"علّم عمود ✓ في ورقة قائمة المراجعة — أعمدة «تم» و«المتبقي» تتحدث تلقائياً")
-	f.SetCellStyle(sheet, cellAt("A", row), cellAt("F", row), s.muted)
-
+	boxes.Footnotes = []string{tx.tickNote}
 	if plan.SkippedReceipts > 0 {
-		row++
-		f.MergeCell(sheet, cellAt("A", row), cellAt("F", row))
-		f.SetCellValue(sheet, cellAt("A", row), fmt.Sprintf(
-			"%d رحلة بلا رقم إيصال لم تدخل الأكوام — راجعها في صفحة الرحلات", plan.SkippedReceipts))
-		f.SetCellStyle(sheet, cellAt("A", row), cellAt("F", row), s.muted)
+		boxes.Footnotes = append(boxes.Footnotes, fmt.Sprintf(tx.skippedNote, plan.SkippedReceipts))
+	}
+	if _, err := book.Table(tx.sheetBoxes, boxes); err != nil {
+		return nil, fmt.Errorf("boxes sheet: %w", err)
 	}
 
-	return nil
+	// Open on the boxes — the sheet that answers "how many boxes do I need
+	// and what goes in them", which is the first question.
+	book.SetActive(tx.sheetBoxes)
+	if asPDF {
+		return book.PDF(tx.titleChecklist)
+	}
+	return book.XLSX()
 }
 
-func cellAt(col string, row int) string { return fmt.Sprintf("%s%d", col, row) }
+func pileColumns(headers []string, widths []float64, kinds []report.ColKind) []report.Column {
+	cols := make([]report.Column, len(headers))
+	for i := range headers {
+		cols[i] = report.Column{Header: headers[i], Width: widths[i], Kind: kinds[i]}
+	}
+	return cols
+}
+
+// pileDate turns the stored YYYY-MM-DD text into a date cell; anything else
+// prints as it was stored.
+func pileDate(s string) any {
+	if d, err := time.Parse("2006-01-02", s); err == nil {
+		return d
+	}
+	return s
+}
+
+func pilePeriod(l report.Lang, start, end string) string {
+	a, errA := time.Parse("2006-01-02", start)
+	b, errB := time.Parse("2006-01-02", end)
+	if errA != nil || errB != nil {
+		return start + " – " + end
+	}
+	return report.RangeLabel(l, a, b)
+}

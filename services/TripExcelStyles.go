@@ -248,3 +248,20 @@ func (s *tripStyles) totalFor(kind string) int {
 }
 
 func strPtr(s string) *string { return &s }
+
+// tripColumn and tripStat are the column and stat-pill shapes the car and oil
+// exports build on (the trips export itself now uses package report).
+type tripColumn struct {
+	header string
+	width  float64
+	// kind drives the number format and the totals row: text, int, num, money,
+	// date, datetime, flag.
+	kind  string
+	total bool
+}
+
+type tripStat struct {
+	label string
+	value interface{}
+	money bool
+}

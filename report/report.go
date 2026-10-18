@@ -13,8 +13,12 @@
 // same height.
 //
 // Set Report.Lang to Arabic for Arabic headers and labels and a right-to-left
-// layout. The Cairo font must be installed wherever the file is opened or
-// printed.
+// layout.
+//
+// Fonts: an .xlsx cannot carry a font (SpreadsheetML has no embedded-font
+// part, unlike .docx and .pptx), so the workbook uses Arial, which every
+// Windows and macOS machine has, with Arabic. The PDF version (Book.PDF) is
+// drawn with Cairo embedded in the file.
 package report
 
 import (
@@ -126,7 +130,7 @@ func (rep Report) withDefaults() Report {
 // Look & page geometry
 
 const (
-	fontFamily = "Cairo"
+	fontFamily = "Arial" // the workbook's font; the PDF embeds Cairo (see pdftext.go)
 
 	clrNavy   = "1D3B4F" // headers, totals, title
 	clrAccent = "2C6E86" // company line, total labels
@@ -241,11 +245,6 @@ func planPages(blocks []planBlock, capFirst, capRest float64) ([]int, error) {
 	return starts, nil
 }
 
-// bodyHeight is the printable height of a page in sheet points at scale.
-func bodyHeight(scale int) float64 {
-	return (pageH - 2*marginTopBottom*72) / (float64(scale) / 100) * heightSafety
-}
-
 // ---------------------------------------------------------------------------
 // Cell formats
 
@@ -291,12 +290,15 @@ func (c cellFmt) sideRules(x string, w int) cellFmt  { c.side, c.sideW = x, w; r
 // Sheet writer (records the first error; later calls become no-ops)
 
 type sheetWriter struct {
-	f       *excelize.File
-	sheet   string
-	rtl     bool
-	styles  map[cellFmt]int
-	heights map[int]float64
-	err     error
+	f         *excelize.File
+	sheet     string
+	rtl       bool
+	styles    map[cellFmt]int
+	heights   map[int]float64
+	err       error
+	lastCol   string // the sheet's last column; "I" for the Watanya sheets
+	landscape bool
+	rec       *sheetRecord // what was written, for the PDF
 }
 
 func newWriter(f *excelize.File, sheet string, lang Lang) (*sheetWriter, error) {
@@ -308,6 +310,7 @@ func newWriter(f *excelize.File, sheet string, lang Lang) (*sheetWriter, error) 
 	return &sheetWriter{
 		f: f, sheet: sheet, rtl: lang == Arabic,
 		styles: map[cellFmt]int{}, heights: map[int]float64{},
+		lastCol: "I", rec: newRecord(sheet, lang == Arabic),
 	}, nil
 }
 
@@ -366,11 +369,13 @@ func (w *sheetWriter) cell(from, to string, v any, c cellFmt) {
 		if w.err = w.f.MergeCell(w.sheet, from, to); w.err != nil {
 			return
 		}
+		w.rec.merge(from, to)
 	}
 	if v != nil {
 		if w.err = w.f.SetCellValue(w.sheet, from, v); w.err != nil {
 			return
 		}
+		w.rec.at(keyOf(from)).value = v
 	}
 	w.paint(from, to, c)
 }
@@ -385,10 +390,20 @@ func (w *sheetWriter) rich(from, to string, runs []excelize.RichTextRun, c cellF
 		if w.err = w.f.MergeCell(w.sheet, from, to); w.err != nil {
 			return
 		}
+		w.rec.merge(from, to)
 	}
 	if w.err = w.f.SetCellRichText(w.sheet, from, runs); w.err != nil {
 		return
 	}
+	var spans []textSpan
+	for _, r := range runs {
+		sp := textSpan{text: r.Text, size: 11, color: clrInk}
+		if r.Font != nil {
+			sp.size, sp.bold, sp.color = r.Font.Size, r.Font.Bold, r.Font.Color
+		}
+		spans = append(spans, sp)
+	}
+	w.rec.at(keyOf(from)).spans = spans
 	w.paint(from, to, c)
 }
 
@@ -398,10 +413,12 @@ func (w *sheetWriter) paint(from, to string, c cellFmt) {
 	if w.err == nil {
 		w.err = w.f.SetCellStyle(w.sheet, from, to, id)
 	}
+	w.rec.paint(from, to, c)
 }
 
 func (w *sheetWriter) height(row int, h float64) {
 	w.heights[row] = h
+	w.rec.heights[row] = h
 	if w.err == nil {
 		w.err = w.f.SetRowHeight(w.sheet, row, h)
 	}
@@ -415,9 +432,12 @@ func (w *sheetWriter) columns(cols []colSpec) int {
 		if w.err == nil {
 			w.err = w.f.SetColWidth(w.sheet, c.col, c.col, c.width)
 		}
+		n, _ := excelize.ColumnNameToNumber(c.col)
+		w.rec.widths[n] = c.width
 		px += math.Floor(c.width*7 + 0.5)
 	}
-	scale := int(math.Floor((pageW - 2*marginSide*72) * widthSlack / (px * 0.75) * 100))
+	pw, _ := w.pageSize()
+	scale := int(math.Floor((pw - 2*marginSide*72) * widthSlack / (px * 0.75) * 100))
 	return max(10, min(100, scale))
 }
 
@@ -426,6 +446,28 @@ func (w *sheetWriter) pageBreak(row int) {
 	if w.err == nil {
 		w.err = w.f.InsertPageBreak(w.sheet, ref("A", row))
 	}
+	w.rec.breaks = append(w.rec.breaks, row)
+}
+
+// pageSize is the paper size in points for the sheet's orientation.
+func (w *sheetWriter) pageSize() (float64, float64) {
+	if w.landscape {
+		return pageH, pageW
+	}
+	return pageW, pageH
+}
+
+// bodyHeight is the printable height of a page in sheet points at scale.
+func (w *sheetWriter) bodyHeight(scale int) float64 {
+	_, ph := w.pageSize()
+	return (ph - 2*marginTopBottom*72) / (float64(scale) / 100) * heightSafety
+}
+
+// colAt returns the column n places before the last one ("I", 3 → "F").
+func (w *sheetWriter) colAt(fromLast int) string {
+	n, _ := excelize.ColumnNameToNumber(w.lastCol)
+	name, _ := excelize.ColumnNumberToName(max(1, n-fromLast))
+	return name
 }
 
 // frontHeight sums the heights of rows 1..last.
@@ -445,21 +487,22 @@ func (w *sheetWriter) frontHeight(last int) float64 {
 func (w *sheetWriter) titleBlock(rep Report, subtitle, note string) int {
 	t := rep.Lang.texts()
 	w.height(1, 16)
-	w.cell("A1", "F1", strings.ToUpper(rep.Company), txt(9).bold().color(clrAccent).start(0))
-	w.cell("G1", "I1", fmt.Sprintf(t.prepared, formatDate(rep.Lang, rep.PreparedOn)), txt(8.5).color(clrMuted).end(0))
+	mid, right, last := w.colAt(3), w.colAt(2), w.lastCol // F, G, I on a nine-column sheet
+	w.cell("A1", mid+"1", strings.ToUpper(rep.Company), txt(9).bold().color(clrAccent).start(0))
+	w.cell(right+"1", last+"1", fmt.Sprintf(t.prepared, formatDate(rep.Lang, rep.PreparedOn)), txt(8.5).color(clrMuted).end(0))
 
 	w.height(2, 34)
-	w.cell("A2", "I2", rep.Title, txt(22).bold().color(clrNavy).start(0))
+	w.cell("A2", last+"2", rep.Title, txt(22).bold().color(clrNavy).start(0))
 
 	w.height(3, 20)
-	w.cell("A3", "F3", joinDot(subtitle, rep.Period), txt(11).color(clrMuted).start(0))
+	w.cell("A3", mid+"3", joinDot(subtitle, rep.Period), txt(11).color(clrMuted).start(0))
 	if note != "" {
-		w.cell("G3", "I3", note, txt(9).color(clrMuted).end(0).shrink())
+		w.cell(right+"3", last+"3", note, txt(9).color(clrMuted).end(0).shrink())
 	}
 
 	w.height(4, 6)
 	w.height(5, 2.25) // accent rule
-	w.paint("A5", "I5", txt(10).fill(clrNavy))
+	w.paint("A5", last+"5", txt(10).fill(clrNavy))
 	w.height(6, 14)
 	return 7
 }
@@ -478,6 +521,9 @@ func (w *sheetWriter) printSetup(rep Report, o printOpts) {
 	}
 	f, sheet, t := w.f, w.sheet, rep.Lang.texts()
 	size, orientation, adjust, first := 9, "portrait", uint(o.scale), uint(1) // 9 = A4
+	if w.landscape {
+		orientation = "landscape"
+	}
 
 	// Header/footer sections are physical (&L = left), so mirror them in RTL.
 	hf := func(startText, endText string) string {
@@ -492,6 +538,15 @@ func (w *sheetWriter) printSetup(rep Report, o printOpts) {
 			weight = "Bold"
 		}
 		return fmt.Sprintf(`&"%s,%s"&%d&K%s`, fontFamily, weight, size, color)
+	}
+	w.rec.title, w.rec.landscape, w.rec.print = rep.Title, w.landscape, o
+	w.rec.header = [2]hfText{
+		{strings.ToUpper(rep.Company), true, 9, clrAccent},
+		{o.running, false, 9, clrMuted},
+	}
+	w.rec.footer = [2]hfText{
+		{fmt.Sprintf(t.prepared, formatDate(rep.Lang, rep.PreparedOn)), false, 8, clrMuted},
+		{fmt.Sprintf(t.pageOf, o.pages), false, 8, clrMuted},
 	}
 	running := hf(
 		style(true, 9, clrAccent)+hfEscape(strings.ToUpper(rep.Company)),
@@ -534,7 +589,7 @@ func (w *sheetWriter) printSetup(rep Report, o printOpts) {
 		func() error {
 			q := quoteSheet(sheet)
 			names := []excelize.DefinedName{
-				{Name: "_xlnm.Print_Area", RefersTo: fmt.Sprintf("%s!$A$1:$I$%d", q, o.lastRow), Scope: sheet},
+				{Name: "_xlnm.Print_Area", RefersTo: fmt.Sprintf("%s!$A$1:$%s$%d", q, w.lastCol, o.lastRow), Scope: sheet},
 			}
 			if o.titleRow > 0 {
 				names = append(names, excelize.DefinedName{

@@ -51,6 +51,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
+	github.com/go-text/typesetting v0.3.5
 	github.com/gofiber/contrib/fibersentry v1.0.8 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
@@ -112,7 +113,7 @@ require (
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
-	golang.org/x/image v0.32.0 // indirect
+	golang.org/x/image v0.32.0
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect

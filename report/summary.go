@@ -33,6 +33,11 @@ const (
 // returns the number of printed pages. Call it on a new, empty sheet; the
 // sheet is created if it does not exist.
 func WriteSummarySheet(f *excelize.File, sheet string, rep Report) (int, error) {
+	n, _, err := writeSummarySheet(f, sheet, rep)
+	return n, err
+}
+
+func writeSummarySheet(f *excelize.File, sheet string, rep Report) (int, *sheetRecord, error) {
 	rep = rep.withDefaults()
 	var groups []SummaryGroup
 	for _, g := range rep.Groups {
@@ -41,11 +46,11 @@ func WriteSummarySheet(f *excelize.File, sheet string, rep Report) (int, error) 
 		}
 	}
 	if len(groups) == 0 {
-		return 0, errors.New("summary: no drop-off groups")
+		return 0, nil, errors.New("summary: no drop-off groups")
 	}
 	w, err := newWriter(f, sheet, rep.Lang)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	t := rep.Lang.texts()
 	tot := summarize(groups)
@@ -71,10 +76,10 @@ func WriteSummarySheet(f *excelize.File, sheet string, rep Report) (int, error) 
 		}
 	}
 	blocks[len(blocks)-1].h += hSumGap + hSumGrand // the grand total rides with the last block
-	body := bodyHeight(scale)
+	body := w.bodyHeight(scale)
 	starts, err := planPages(blocks, body-w.frontHeight(hdrRow), body-hSumHeader)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	newPage := map[int]bool{}
 	for _, s := range starts[1:] {
@@ -95,9 +100,9 @@ func WriteSummarySheet(f *excelize.File, sheet string, rep Report) (int, error) 
 		running: joinDot(rep.Title, rep.Period),
 	})
 	if w.err != nil {
-		return 0, w.err
+		return 0, nil, w.err
 	}
-	return len(starts), nil
+	return len(starts), w.rec, nil
 }
 
 func (w *sheetWriter) kpiCards(r int, t *texts, dropOffs int, tot totals) int {

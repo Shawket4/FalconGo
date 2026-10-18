@@ -250,17 +250,26 @@ func (h *ReceiptPilesHandler) ExportReceiptPiles(c *fiber.Ctx) error {
 		})
 	}
 
-	blob, err := services.RenderPilePlanExcel(plan)
+	// lang: "en" or "ar" (the default, as the workbook always was);
+	// format: "xlsx" (default) or "pdf" for the same three sheets as a PDF.
+	lang := strings.ToLower(strings.TrimSpace(c.Query("lang", "ar")))
+	asPDF := strings.EqualFold(c.Query("format", ""), "pdf")
+	blob, err := services.RenderPilePlan(plan, lang, asPDF)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to build workbook: " + err.Error(),
 		})
 	}
 
-	filename := fmt.Sprintf("receipt_piles_%s_%s.xlsx",
+	ext, ctype := "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	if asPDF {
+		ext, ctype = "pdf", "application/pdf"
+	}
+	filename := fmt.Sprintf("receipt_piles_%s_%s.%s",
 		strings.ReplaceAll(req.StartDate, "-", ""),
-		strings.ReplaceAll(req.EndDate, "-", ""))
-	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		strings.ReplaceAll(req.EndDate, "-", ""), ext)
+	c.Set("Content-Type", ctype)
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Set("Access-Control-Expose-Headers", "Content-Disposition")
 	return c.Send(blob)
 }

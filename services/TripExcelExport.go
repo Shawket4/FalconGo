@@ -1,15 +1,13 @@
 package services
 
 import (
-	"bytes"
-	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
 
 	"Falcon/Models"
-
-	"github.com/xuri/excelize/v2"
+	"Falcon/report"
 )
 
 // Trip export, server-side.
@@ -22,16 +20,19 @@ import (
 //   - Building a workbook in the browser meant shipping every row to the client
 //     and holding a second copy in JS memory just to write it back out.
 //
-// The output is intended to match or improve on the TypeScript version, not to
-// be a plainer fallback: same branded banner, stat pills, frozen header,
-// zebra striping, per-cell colouring for the receipt flags, and a SUM totals
-// row — plus an autofilter and a second summary sheet the old one lacked.
+// It now takes its look from the Watanya report (package report): title
+// block, headline cards, coloured receipt flags, a live SUBTOTAL totals row,
+// autofilter, frozen header, A4 print setup — and the same sheets as a PDF.
 
 // TripExportLabels carries the already-translated column headers and titles.
 //
 // The server has no i18n bundle, and inventing a second set of English strings
 // would let the two exports drift. The client sends what it renders.
 type TripExportLabels struct {
+	// Lang is the language the labels are in: "ar" lays the sheets out
+	// right-to-left and prints the report's own captions in Arabic.
+	Lang string `json:"lang"`
+
 	Title    string `json:"title"`
 	Subtitle string `json:"subtitle"`
 	Sheet    string `json:"sheet"`
@@ -108,46 +109,54 @@ func (l TripExportLabels) withDefaults() TripExportLabels {
 	return l
 }
 
-type tripColumn struct {
-	header string
-	width  float64
-	// kind drives the number format and the totals row: text, int, num, money,
-	// date, datetime, flag.
-	kind  string
-	total bool
-}
-
 // BuildTripsExcel renders the workbook and returns it as bytes.
 //
 // `showFinancials` mirrors the permission masking used elsewhere: below
 // permission 3 the fee column is omitted entirely rather than zeroed, so the
 // spreadsheet does not imply every trip was free.
 func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFinancials bool, meta string) ([]byte, error) {
-	l := labels.withDefaults()
+	return BuildTripsExport(trips, labels, showFinancials, meta, false)
+}
 
-	cols := []tripColumn{
-		{l.ReceiptNo, 14, "text", false},
-		{l.Date, 13, "date", false},
-		{l.Company, 22, "text", false},
-		{l.Terminal, 22, "text", false},
-		{l.DropOffPoint, 24, "text", false},
-		{l.Vehicle, 14, "text", false},
-		{l.Driver, 22, "text", false},
-		{l.TankCapacity, 14, "int", true},
-		{l.Distance, 13, "num", true},
+// BuildTripsExport renders the trips export as a workbook, or with asPDF as a
+// PDF of both of its sheets.
+//
+// The layout is the Watanya report's (package report): title block,
+// headline cards, a column header repeated on every printed page, A4 print
+// setup with planned page breaks, running header and page-numbered footer,
+// right-to-left for Arabic. The data, order, columns and permission masking
+// are the export's own, unchanged; the totals row stays a live SUBTOTAL so it
+// follows the autofilter.
+func BuildTripsExport(trips []Models.TripStruct, labels TripExportLabels, showFinancials bool, meta string, asPDF bool) ([]byte, error) {
+	l := labels.withDefaults()
+	lang := report.English
+	if strings.EqualFold(strings.TrimSpace(l.Lang), "ar") {
+		lang = report.Arabic
+	}
+
+	cols := []report.Column{
+		{Header: l.ReceiptNo, Width: 11, Kind: report.Center},
+		{Header: l.Date, Width: 10.5, Kind: report.Date},
+		{Header: l.Company, Width: 14, Kind: report.Text},
+		{Header: l.Terminal, Width: 16, Kind: report.Text},
+		{Header: l.DropOffPoint, Width: 18, Kind: report.Text},
+		{Header: l.Vehicle, Width: 11, Kind: report.Center},
+		{Header: l.Driver, Width: 18, Kind: report.Text},
+		{Header: l.TankCapacity, Width: 10, Kind: report.Int, Total: true},
+		{Header: l.Distance, Width: 10, Kind: report.Decimal, Total: true},
 	}
 	if showFinancials {
-		cols = append(cols, tripColumn{l.Fee, 14, "money", true})
+		cols = append(cols, report.Column{Header: l.Fee, Width: 11, Kind: report.Money, Total: true})
 	}
 	cols = append(cols,
-		tripColumn{l.InGarage, 11, "flag", false},
-		tripColumn{l.InOffice, 11, "flag", false},
-		tripColumn{l.Stamped, 11, "flag", false},
-		tripColumn{l.GarageReceivedBy, 18, "text", false},
-		tripColumn{l.GarageDate, 17, "datetime", false},
-		tripColumn{l.OfficeReceivedBy, 18, "text", false},
-		tripColumn{l.OfficeDate, 17, "datetime", false},
-		tripColumn{l.Remark, 34, "text", false},
+		report.Column{Header: l.InGarage, Width: 8, Kind: report.Flag},
+		report.Column{Header: l.InOffice, Width: 8, Kind: report.Flag},
+		report.Column{Header: l.Stamped, Width: 8, Kind: report.Flag},
+		report.Column{Header: l.GarageReceivedBy, Width: 14, Kind: report.Text},
+		report.Column{Header: l.GarageDate, Width: 14, Kind: report.DateTime},
+		report.Column{Header: l.OfficeReceivedBy, Width: 14, Kind: report.Text},
+		report.Column{Header: l.OfficeDate, Width: 14, Kind: report.DateTime},
+		report.Column{Header: l.Remark, Width: 22, Kind: report.Text},
 	)
 
 	// Deterministic order, matching what the client produced so downstream
@@ -164,102 +173,9 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		return sorted[i].ReceiptNo < sorted[j].ReceiptNo
 	})
 
-	f := excelize.NewFile()
-	sheet := sanitizeSheetName(l.Sheet)
-	idx, err := f.NewSheet(sheet)
-	if err != nil {
-		return nil, err
-	}
-	f.SetActiveSheet(idx)
-	if sheet != "Sheet1" {
-		_ = f.DeleteSheet("Sheet1")
-	}
-
-	styles, err := newTripStyles(f)
-	if err != nil {
-		return nil, err
-	}
-
-	lastCol, _ := excelize.ColumnNumberToName(len(cols))
-
-	// ── Banner (rows 1-3) ────────────────────────────────────────────────────
-	_ = f.MergeCell(sheet, "A1", fmt.Sprintf("%s1", lastCol))
-	_ = f.MergeCell(sheet, "A2", fmt.Sprintf("%s2", lastCol))
-	_ = f.MergeCell(sheet, "A3", fmt.Sprintf("%s3", lastCol))
-	_ = f.SetCellValue(sheet, "A1", l.Title)
-	_ = f.SetCellValue(sheet, "A2", l.Subtitle)
-	_ = f.SetCellValue(sheet, "A3", meta)
-	_ = f.SetCellStyle(sheet, "A1", fmt.Sprintf("%s1", lastCol), styles.title)
-	_ = f.SetCellStyle(sheet, "A2", fmt.Sprintf("%s2", lastCol), styles.subtitle)
-	_ = f.SetCellStyle(sheet, "A3", fmt.Sprintf("%s3", lastCol), styles.meta)
-	_ = f.SetRowHeight(sheet, 1, 38)
-	_ = f.SetRowHeight(sheet, 2, 22)
-	_ = f.SetRowHeight(sheet, 3, 20)
-	_ = f.SetRowHeight(sheet, 4, 8)
-
-	// ── Stat pills (rows 5-6) ────────────────────────────────────────────────
-	stats := computeTripStats(sorted, l, showFinancials)
-	perStat := len(cols) / max(1, len(stats))
-	if perStat < 1 {
-		perStat = 1
-	}
-	for i, s := range stats {
-		start := i*perStat + 1
-		if start > len(cols) {
-			break
-		}
-		end := start + perStat - 1
-		if end > len(cols) {
-			end = len(cols)
-		}
-		startCol, _ := excelize.ColumnNumberToName(start)
-		endCol, _ := excelize.ColumnNumberToName(end)
-
-		_ = f.MergeCell(sheet, fmt.Sprintf("%s5", startCol), fmt.Sprintf("%s5", endCol))
-		_ = f.MergeCell(sheet, fmt.Sprintf("%s6", startCol), fmt.Sprintf("%s6", endCol))
-		_ = f.SetCellValue(sheet, fmt.Sprintf("%s5", startCol), s.label)
-		_ = f.SetCellValue(sheet, fmt.Sprintf("%s6", startCol), s.value)
-		_ = f.SetCellStyle(sheet, fmt.Sprintf("%s5", startCol), fmt.Sprintf("%s5", endCol), styles.statLabel)
-
-		style := styles.statValue
-		if s.money {
-			style = styles.statValueMoney
-		}
-		_ = f.SetCellStyle(sheet, fmt.Sprintf("%s6", startCol), fmt.Sprintf("%s6", endCol), style)
-	}
-	_ = f.SetRowHeight(sheet, 5, 18)
-	_ = f.SetRowHeight(sheet, 6, 30)
-
-	// ── Header (row 7) ───────────────────────────────────────────────────────
-	const headerRow = 7
-	for i, c := range cols {
-		cell, _ := excelize.CoordinatesToCellName(i+1, headerRow)
-		_ = f.SetCellValue(sheet, cell, c.header)
-		colName, _ := excelize.ColumnNumberToName(i + 1)
-		_ = f.SetColWidth(sheet, colName, colName, c.width)
-	}
-	_ = f.SetCellStyle(sheet, fmt.Sprintf("A%d", headerRow), fmt.Sprintf("%s%d", lastCol, headerRow), styles.header)
-	_ = f.SetRowHeight(sheet, headerRow, 34)
-
-	// Freeze everything above the first data row so the header and the KPIs stay
-	// visible while scrolling thousands of rows -- the whole point of moving the
-	// row cap.
-	_ = f.SetPanes(sheet, &excelize.Panes{
-		Freeze:      true,
-		Split:       false,
-		XSplit:      0,
-		YSplit:      headerRow,
-		TopLeftCell: fmt.Sprintf("A%d", headerRow+1),
-		ActivePane:  "bottomLeft",
-	})
-	_ = f.AutoFilter(sheet, fmt.Sprintf("A%d:%s%d", headerRow, lastCol, headerRow), nil)
-
-	// ── Data rows ────────────────────────────────────────────────────────────
-	row := headerRow + 1
-	for _, t := range trips2(sorted) {
-		striped := (row-headerRow)%2 == 0
-
-		values := []interface{}{
+	rows := make([][]any, 0, len(sorted))
+	for _, t := range sorted {
+		values := []any{
 			orDash(t.ReceiptNo),
 			parseTripDate(t.Date),
 			orDash(t.Company),
@@ -273,104 +189,77 @@ func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFin
 		if showFinancials {
 			values = append(values, t.Fee)
 		}
-		inGarage := hasStep(t, "Garage")
-		inOffice := hasStep(t, "Office")
-		stamped := isStamped(t)
+		inGarage, inOffice, stamped := hasStep(t, "Garage"), hasStep(t, "Office"), isStamped(t)
 		values = append(values,
-			yesNo(inGarage, l), yesNo(inOffice, l), yesNo(stamped, l),
+			report.YesNo{Text: yesNo(inGarage, l), On: inGarage},
+			report.YesNo{Text: yesNo(inOffice, l), On: inOffice},
+			report.YesNo{Text: yesNo(stamped, l), On: stamped},
 			stepReceivedBy(t, "Garage"),
 			stepReceivedAt(t, "Garage"),
 			stepReceivedBy(t, "Office"),
 			stepReceivedAt(t, "Office"),
 			receiptRemark(t),
 		)
-
-		for i, v := range values {
-			cell, _ := excelize.CoordinatesToCellName(i+1, row)
-			if v == nil {
-				_ = f.SetCellValue(sheet, cell, "")
-			} else {
-				_ = f.SetCellValue(sheet, cell, v)
-			}
-			_ = f.SetCellStyle(sheet, cell, cell, styles.cell(cols[i].kind, striped))
-		}
-
-		// Receipt flags are colour-coded green/muted, as in the client build --
-		// the column is scanned, not read. Counted from the end: 3 flags +
-		// 4 receipt-step columns + the remark column.
-		flagStart := len(values) - 8
-		for offset, on := range []bool{inGarage, inOffice, stamped} {
-			cell, _ := excelize.CoordinatesToCellName(flagStart+offset+1, row)
-			_ = f.SetCellStyle(sheet, cell, cell, styles.flag(on, striped))
-		}
-
-		_ = f.SetRowHeight(sheet, row, 20)
-		row++
+		rows = append(rows, values)
 	}
 
-	// ── Totals row ───────────────────────────────────────────────────────────
-	if len(sorted) > 0 {
-		totalRow := row
-		_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", totalRow), l.Totals)
-		for i, c := range cols {
-			cell, _ := excelize.CoordinatesToCellName(i+1, totalRow)
-			if c.total {
-				colName, _ := excelize.ColumnNumberToName(i + 1)
-				// A live SUM rather than a precomputed number, so the figure
-				// still agrees with the rows after someone filters or deletes.
-				_ = f.SetCellFormula(sheet, cell,
-					fmt.Sprintf("SUBTOTAL(109,%s%d:%s%d)", colName, headerRow+1, colName, totalRow-1))
-			} else if i > 0 {
-				_ = f.SetCellValue(sheet, cell, "")
-			}
-			_ = f.SetCellStyle(sheet, cell, cell, styles.totalFor(c.kind))
-		}
-		_ = f.SetRowHeight(sheet, totalRow, 28)
-	}
-
-	if err := writeTripSummarySheet(f, sorted, l, showFinancials); err != nil {
-		return nil, err
-	}
-
-	f.SetActiveSheet(idx)
-
-	var buf bytes.Buffer
-	if err := f.Write(&buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// trips2 exists only to keep the data loop readable above.
-func trips2(t []Models.TripStruct) []Models.TripStruct { return t }
-
-type tripStat struct {
-	label string
-	value interface{}
-	money bool
-}
-
-func computeTripStats(trips []Models.TripStruct, l TripExportLabels, showFinancials bool) []tripStat {
-	var capacity, distance, fees float64
-	stamped := 0
-	for _, t := range trips {
-		capacity += float64(t.TankCapacity)
-		distance += tripDistance(t)
-		fees += t.Fee
-		if isStamped(t) {
-			stamped++
-		}
-	}
-
-	stats := []tripStat{
-		{l.TotalTrips, len(trips), false},
-		{l.TotalVolume, round2(capacity), false},
-		{l.TotalDistance, round2(distance), false},
+	stats := computeTripStats(sorted, showFinancials)
+	cards := []report.Card{
+		{Label: l.TotalTrips, Value: report.FormatCount(int64(stats.trips))},
+		{Label: l.TotalVolume, Value: report.FormatCount(int64(math.Round(stats.capacity)))},
+		{Label: l.TotalDistance, Value: report.FormatAmount(stats.distance)},
 	}
 	if showFinancials {
-		stats = append(stats, tripStat{l.TotalFees, round2(fees), true})
+		cards = append(cards, report.Card{Label: l.TotalFees, Value: report.FormatAmount(stats.fees), Dark: true})
 	}
-	return append(stats, tripStat{l.StampedCount, stamped, false})
+	cards = append(cards, report.Card{Label: l.StampedCount, Value: report.FormatCount(int64(stats.stamped))})
+
+	book := report.NewBook()
+	defer book.Close()
+	sheet := sanitizeSheetName(l.Sheet)
+	table := report.Table{
+		Lang: lang, Company: "Apex Transport",
+		Title: l.Title, Subtitle: l.Subtitle, Period: meta,
+		Running: joinDot(l.Title, l.Subtitle),
+		Columns: cols, Cards: cards,
+		Bands:      []report.Band{{Rows: rows}},
+		AutoFilter: true, FreezeHeader: true, Landscape: true,
+	}
+	if len(rows) > 0 {
+		table.TotalLabel, table.TotalMode = l.Totals, report.TotalSubtotal
+	}
+	if _, err := book.Table(sheet, table); err != nil {
+		return nil, err
+	}
+	if err := writeTripSummarySheet(book, sorted, l, lang, showFinancials, meta); err != nil {
+		return nil, err
+	}
+	if asPDF {
+		return book.PDF(l.Title)
+	}
+	return book.XLSX()
+}
+
+type tripStats struct {
+	trips, stamped           int
+	capacity, distance, fees float64
+}
+
+func computeTripStats(trips []Models.TripStruct, showFinancials bool) tripStats {
+	var s tripStats
+	for _, t := range trips {
+		s.trips++
+		s.capacity += float64(t.TankCapacity)
+		s.distance += tripDistance(t)
+		if showFinancials {
+			s.fees += t.Fee
+		}
+		if isStamped(t) {
+			s.stamped++
+		}
+	}
+	s.capacity, s.distance, s.fees = round2(s.capacity), round2(s.distance), round2(s.fees)
+	return s
 }
 
 // writeTripSummarySheet adds a per-company breakdown.
@@ -378,17 +267,7 @@ func computeTripStats(trips []Models.TripStruct, l TripExportLabels, showFinanci
 // Not present in the TypeScript export. With the row cap gone an export can now
 // be tens of thousands of rows, and a sheet that large is unreadable without an
 // aggregate to open on.
-func writeTripSummarySheet(f *excelize.File, trips []Models.TripStruct, l TripExportLabels, showFinancials bool) error {
-	name := sanitizeSheetName(l.Summary)
-	if _, err := f.NewSheet(name); err != nil {
-		return err
-	}
-
-	styles, err := newTripStyles(f)
-	if err != nil {
-		return err
-	}
-
+func writeTripSummarySheet(book *report.Book, trips []Models.TripStruct, l TripExportLabels, lang report.Lang, showFinancials bool, meta string) error {
 	type agg struct {
 		trips    int
 		capacity float64
@@ -414,45 +293,47 @@ func writeTripSummarySheet(f *excelize.File, trips []Models.TripStruct, l TripEx
 	}
 	sort.Strings(order)
 
-	headers := []string{l.Company, l.TotalTrips, l.TotalVolume, l.TotalDistance}
+	cols := []report.Column{
+		{Header: l.Company, Width: 28, Kind: report.Text},
+		{Header: l.TotalTrips, Width: 14, Kind: report.Int, Total: true},
+		{Header: l.TotalVolume, Width: 16, Kind: report.Decimal, Total: true},
+		{Header: l.TotalDistance, Width: 16, Kind: report.Decimal, Total: true},
+	}
 	if showFinancials {
-		headers = append(headers, l.TotalFees)
+		cols = append(cols, report.Column{Header: l.TotalFees, Width: 16, Kind: report.Money, Total: true})
 	}
-	widths := []float64{28, 14, 16, 16, 16}
-
-	for i, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(name, cell, h)
-		colName, _ := excelize.ColumnNumberToName(i + 1)
-		_ = f.SetColWidth(name, colName, colName, widths[i])
-	}
-	lastCol, _ := excelize.ColumnNumberToName(len(headers))
-	_ = f.SetCellStyle(name, "A1", fmt.Sprintf("%s1", lastCol), styles.header)
-	_ = f.SetRowHeight(name, 1, 34)
-
-	row := 2
+	var rows [][]any
 	for _, key := range order {
 		a := byCompany[key]
-		striped := row%2 == 0
-		vals := []interface{}{key, a.trips, round2(a.capacity), round2(a.distance)}
-		kinds := []string{"text", "int", "num", "num"}
+		vals := []any{key, a.trips, round2(a.capacity), round2(a.distance)}
 		if showFinancials {
 			vals = append(vals, round2(a.fees))
-			kinds = append(kinds, "money")
 		}
-		for i, v := range vals {
-			cell, _ := excelize.CoordinatesToCellName(i+1, row)
-			_ = f.SetCellValue(name, cell, v)
-			_ = f.SetCellStyle(name, cell, cell, styles.cell(kinds[i], striped))
-		}
-		_ = f.SetRowHeight(name, row, 20)
-		row++
+		rows = append(rows, vals)
 	}
+	table := report.Table{
+		Lang: lang, Company: "Apex Transport",
+		Title: l.Title, Subtitle: l.Summary, Period: meta,
+		Running:      joinDot(l.Title, l.Summary),
+		Columns:      cols,
+		Bands:        []report.Band{{Rows: rows}},
+		FreezeHeader: true,
+	}
+	if len(rows) > 0 {
+		table.TotalLabel = l.Totals
+	}
+	_, err := book.Table(sanitizeSheetName(l.Summary), table)
+	return err
+}
 
-	_ = f.SetPanes(name, &excelize.Panes{
-		Freeze: true, YSplit: 1, TopLeftCell: "A2", ActivePane: "bottomLeft",
-	})
-	return nil
+func joinDot(parts ...string) string {
+	var out []string
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, "  ·  ")
 }
 
 /* -------------------------------------------------------------------------- */
@@ -492,7 +373,7 @@ func stepReceivedAt(t Models.TripStruct, location string) interface{} {
 			return s.ReceivedAt
 		}
 	}
-	return nil
+	return time.Time{}
 }
 
 // receiptRemark flags receipt numbers that fall outside the terminal's serial

@@ -34,6 +34,11 @@ const (
 // and returns the number of printed pages. Call it on a new, empty sheet; the
 // sheet is created if it does not exist.
 func WriteDetailsSheet(f *excelize.File, sheet string, rep Report) (int, error) {
+	n, _, err := writeDetailsSheet(f, sheet, rep)
+	return n, err
+}
+
+func writeDetailsSheet(f *excelize.File, sheet string, rep Report) (int, *sheetRecord, error) {
 	rep = rep.withDefaults()
 	var secs []TripSection
 	trips := 0
@@ -48,11 +53,11 @@ func WriteDetailsSheet(f *excelize.File, sheet string, rep Report) (int, error) 
 		trips += len(s.Trips)
 	}
 	if len(secs) == 0 {
-		return 0, errors.New("details: no trips")
+		return 0, nil, errors.New("details: no trips")
 	}
 	w, err := newWriter(f, sheet, rep.Lang)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	t := rep.Lang.texts()
 	scale := w.columns(detailCols)
@@ -64,7 +69,7 @@ func WriteDetailsSheet(f *excelize.File, sheet string, rep Report) (int, error) 
 	// A route that fits on a page is one block. A longer route becomes its
 	// opening block plus one block per further trip, so the planner can pick
 	// the split; a page that starts mid-route repeats the route band.
-	body := bodyHeight(scale)
+	body := w.bodyHeight(scale)
 	capFirst, capRest := body-w.frontHeight(hdrRow), body-hDetHeader
 	tail := hRouteTotal + hRouteGap
 	type span struct {
@@ -95,7 +100,7 @@ func WriteDetailsSheet(f *excelize.File, sheet string, rep Report) (int, error) 
 	}
 	starts, err := planPages(blocks, capFirst, capRest)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	newPage := map[int]bool{}
 	for _, s := range starts[1:] {
@@ -123,9 +128,9 @@ func WriteDetailsSheet(f *excelize.File, sheet string, rep Report) (int, error) 
 		running: joinDot(rep.Title, t.detailsTitle, rep.Period),
 	})
 	if w.err != nil {
-		return 0, w.err
+		return 0, nil, w.err
 	}
-	return len(starts), nil
+	return len(starts), w.rec, nil
 }
 
 // detailsHeader writes the column labels (repeated at the top of every

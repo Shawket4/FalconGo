@@ -67,7 +67,13 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 
 	meta := buildExportMeta(c, len(trips))
 
-	data, err := services.BuildTripsExcel(trips, labels, hasFinancialAccess, meta)
+	// lang normally travels with the labels (it is the language they are
+	// in); the query string is accepted too.
+	if labels.Lang == "" {
+		labels.Lang = c.Query("lang", "")
+	}
+	asPDF := strings.EqualFold(c.Query("format", ""), "pdf")
+	data, err := services.BuildTripsExport(trips, labels, hasFinancialAccess, meta, asPDF)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to build the spreadsheet",
@@ -75,9 +81,13 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 		})
 	}
 
-	filename := fmt.Sprintf("trips-%s.xlsx", time.Now().Format("2006-01-02"))
+	ext, ctype := "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	if asPDF {
+		ext, ctype = "pdf", "application/pdf"
+	}
+	filename := fmt.Sprintf("trips-%s.%s", time.Now().Format("2006-01-02"), ext)
 
-	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set("Content-Type", ctype)
 	// Both forms: filename for older clients, filename* for anything non-ASCII.
 	c.Set("Content-Disposition", fmt.Sprintf(
 		`attachment; filename="%s"; filename*=UTF-8''%s`, filename, url.PathEscape(filename)))

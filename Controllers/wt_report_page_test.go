@@ -336,18 +336,24 @@ func TestWtParseDate(t *testing.T) {
 }
 
 // WT_REPORT_OUT=/some/dir go test ./Controllers -run TestWatanyaReportWriteFixture
-// writes the fixture report in both languages there, for inspection.
+// writes the fixture report there for inspection: the workbook in both
+// languages, and each PDF part in both languages under pdf/.
 func TestWatanyaReportWriteFixture(t *testing.T) {
 	dir := os.Getenv("WT_REPORT_OUT")
 	if dir == "" {
 		t.Skip("WT_REPORT_OUT not set")
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "pdf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	trips, maps := wtFixture()
 	for _, c := range []struct {
 		lang report.Lang
-		name string
-	}{{report.English, "new_en.xlsx"}, {report.Arabic, "new_ar.xlsx"}} {
-		path, err := wtRenderReport(wtBuildReport(trips, maps, c.lang))
+		tag  string
+	}{{report.English, "en"}, {report.Arabic, "ar"}} {
+		rep := wtBuildReport(trips, maps, c.lang)
+		rep.Period = wtPeriod(c.lang, "2026-09-01", "2026-09-30")
+		path, err := wtRenderReport(rep)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -356,8 +362,33 @@ func TestWatanyaReportWriteFixture(t *testing.T) {
 			t.Fatal(err)
 		}
 		os.Remove(path)
-		if err := os.WriteFile(filepath.Join(dir, c.name), b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "new_"+c.tag+".xlsx"), b, 0o644); err != nil {
 			t.Fatal(err)
+		}
+		for _, part := range []string{"summary", "details"} {
+			pdf, err := wtRenderPDF(rep, part)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "pdf", part+"_"+c.tag+".pdf"), pdf, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func TestWtPeriod(t *testing.T) {
+	for _, c := range []struct {
+		lang             report.Lang
+		start, end, want string
+	}{
+		{report.English, "2026-08-01", "2026-08-31", "August 2026"},
+		{report.English, "2026-08-01", "2026-08-15", "1–15 Aug 2026"},
+		{report.Arabic, "2026-08-01", "2026-08-31", "أغسطس 2026"},
+		{report.English, "nonsense", "2026-01-03", "nonsense – 2026-01-03"},
+	} {
+		if got := wtPeriod(c.lang, c.start, c.end); got != c.want {
+			t.Errorf("wtPeriod(%q, %q) = %q, want %q", c.start, c.end, got, c.want)
 		}
 	}
 }
