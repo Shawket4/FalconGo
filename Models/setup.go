@@ -253,6 +253,12 @@ func runAutoMigrations() {
 		Observability.ReportJobFailure("startup", "automigrate_phase12", err)
 	}
 
+	// Phase 13: Trail of the writes applied through the AI advisor
+	if err := DB.AutoMigrate(&AiAuditLog{}); err != nil {
+		log.Printf("phase-13 AutoMigrate: %v", err)
+		Observability.ReportJobFailure("startup", "automigrate_phase13", err)
+	}
+
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
 	fixAllSequences()
