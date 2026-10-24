@@ -69,3 +69,7 @@ temp/
 *.tmp
 # Agent scratch: worktrees are embedded git repos and break clones.
 .claude/
+
+# Personal data written at runtime: never commit
+pin_exports/
+storage/payslips/

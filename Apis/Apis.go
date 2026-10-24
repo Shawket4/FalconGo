@@ -5,7 +5,6 @@ import (
 	"Falcon/Database"
 	"Falcon/Models"
 	"Falcon/Observability"
-	"Falcon/Scrapper"
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
@@ -1311,36 +1310,6 @@ func UpdateTempPermission(c *fiber.Ctx) error {
 	}
 }
 
-func GetVehicleStatus(c *fiber.Ctx) error {
-	currentUser := Controllers.RequestUser(c)
-	if currentUser.Id != 0 {
-		if currentUser.Permission == 0 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else {
-			var data struct {
-				CarNoPlate string `json:"CarNoPlate"`
-			}
-
-			err := c.BodyParser(&data)
-
-			if err != nil {
-				log.Println(err.Error())
-			}
-			for _, s := range Scrapper.VehicleStatusList {
-				if s.PlateNo == data.CarNoPlate {
-					return c.JSON(s)
-				}
-			}
-			return c.JSON(fiber.Map{
-				"message": "Car Not Found",
-			})
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
-	}
-}
 
 type Trip struct {
 	TripId            int             `json:"TripId"`
@@ -1450,9 +1419,6 @@ func UpdateCarStatusByID(CarID uint) (*Models.Car, error) {
 
 // Updated EditCarTrip function
 
-func GetVehicleMapPoints(c *fiber.Ctx) error {
-	return c.JSON(Scrapper.VehicleStatusList)
-}
 
 func GetLocations(c *fiber.Ctx) error {
 	currentUser := Controllers.RequestUser(c)
