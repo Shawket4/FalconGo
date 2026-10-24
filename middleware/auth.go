@@ -4,6 +4,7 @@ import (
 	"Falcon/Models"
 	"Falcon/utils"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -53,6 +54,18 @@ func Verify(requiredPermission int) fiber.Handler {
 
 		// Store user in context for later use in handlers
 		c.Locals("user", &user)
+
+		// Writes applied through the AI advisor carry X-Via-AI and need
+		// permission 4 whatever the route itself asks for, so a lower-level
+		// admin cannot approve an AI change on a route open to them.
+		if via := c.Get(HeaderViaAI); via != "" {
+			c.Locals("via_ai", strings.Clone(via))
+			if AIWriteForbidden(via, c.Method(), user.Permission) {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "AI-applied changes require permission 4",
+				})
+			}
+		}
 
 		// If no specific permission is required, just check if user has any permission
 		if requiredPermission == 0 {

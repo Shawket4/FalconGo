@@ -296,6 +296,12 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	cars.Put("/:id", Apis.UpdateCarDocuments)
 	cars.Delete("/:id", Apis.DeleteCar)
 	cars.Get("/:carId/service-invoices", Controllers.GetServiceInvoicesByCarID)
+	// Operating company/area. Permission 4: this is what the AI advisor
+	// applies, and the only endpoint that writes these columns.
+	cars.Patch("/:id/assignment", middleware.Verify(4), Apis.UpdateCarAssignment)
+
+	// Trail of the writes applied through the AI advisor
+	api.Get("/ai-audit", middleware.Verify(4), Controllers.ListAiAuditLogs)
 
 	// Car profile data
 	api.Use("/GetCarProfileData", middleware.Verify(1), Apis.GetCarProfileData)
@@ -547,6 +553,10 @@ func FiberConfig() {
 	// Request logging
 	app.Use(middleware.RequestLogger())
 
+	// Records every write that arrives through the AI advisor (X-Via-AI) in
+	// ai_audit_logs, after the handler so the status is known.
+	app.Use(middleware.AIAudit())
+
 	// Compression
 	app.Use(compress.New(compress.Config{
 		Level: compress.LevelBestSpeed,
@@ -559,7 +569,7 @@ func FiberConfig() {
 		// sentry-trace and baggage carry the caller's trace id. They are not
 		// CORS-safelisted, so without them here the browser strips them at
 		// preflight and every request looks like the start of a new trace.
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage, X-Via-AI, X-AI-Suggestion-Id",
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
