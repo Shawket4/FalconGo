@@ -202,23 +202,53 @@ func FetchUsers(c *fiber.Ctx) error {
 	return c.JSON(users)
 }
 
+// parsePermission reads a permission level sent either as a number (4) or as
+// a string ("4") — the dashboard's select holds strings — and keeps it on the
+// 1–4 ladder that middleware.Verify checks against.
+func parsePermission(raw json.RawMessage) (int, error) {
+	text := strings.Trim(strings.TrimSpace(string(raw)), `"`)
+	level, err := strconv.Atoi(text)
+	if err != nil || level < 1 || level > 4 {
+		return 0, fiber.NewError(fiber.StatusBadRequest, "permission must be 1, 2, 3 or 4")
+	}
+	return level, nil
+}
+
+func isUniqueViolation(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "SQLSTATE 23505")
+}
+
 func RegisterUser(c *fiber.Ctx) error {
-	var data map[string]string
+	var data struct {
+		Name       string          `json:"name"`
+		Email      string          `json:"email"`
+		Password   string          `json:"password"`
+		Permission json.RawMessage `json:"permission"`
+	}
 
 	if err := c.BodyParser(&data); err != nil {
 		log.Println(err.Error())
-		return err
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	data.Name = strings.TrimSpace(data.Name)
+	data.Email = strings.TrimSpace(data.Email)
+	if data.Name == "" || data.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Name and email are required"})
+	}
+	if len(data.Password) < 6 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least 6 characters"})
+	}
+	permissionlevel, err := parsePermission(data.Permission)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
-	var user Models.User
-	permissionlevel, err := strconv.Atoi(data["permission"])
+	password, err := bcrypt.GenerateFromPassword([]byte(data.Password), 14)
 	if err != nil {
 		log.Println(err.Error())
-		return c.JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error hashing password"})
 	}
+	var user Models.User
 	user.Permission = permissionlevel
 
 	// user := Models.User{
@@ -231,8 +261,8 @@ func RegisterUser(c *fiber.Ctx) error {
 	// 	DrugTestExpirationDate:      data["DrugTestExpirationDate"],
 	// 	MobileNumber:                data["mobile_number"],
 	// }
-	user.Name = data["name"]
-	user.Email = data["email"]
+	user.Name = data.Name
+	user.Email = data.Email
 	user.Password = password
 	user.IsApproved = 1
 	// if CurrentUser.Permission >= 3 {
@@ -359,34 +389,75 @@ func RegisterUser(c *fiber.Ctx) error {
 	// Database.DB.Create(&user)
 
 	// Database.DB.Create(&user)
-	Models.DB.Create(&user)
+	if err := Models.DB.Create(&user).Error; err != nil {
+		if isUniqueViolation(err) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "A user with this email already exists"})
+		}
+		log.Println(err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error On Saving User To DB"})
+	}
 
 	return c.JSON(user)
 }
 
+// UpdateUser changes only the fields the request carries. The dashboard's
+// edit form sends name, email, permission and an optional new password; a
+// field it leaves out (IsApproved, an empty password) keeps its stored value
+// instead of being zeroed.
 func UpdateUser(c *fiber.Ctx) error {
-	var input Models.User
+	var input struct {
+		Id         uint            `json:"id"`
+		Name       *string         `json:"name"`
+		Email      *string         `json:"email"`
+		Password   *string         `json:"password"`
+		Permission json.RawMessage `json:"permission"`
+		IsApproved *int            `json:"IsApproved"`
+	}
 
 	if err := c.BodyParser(&input); err != nil {
 		log.Println(err.Error())
-		return err
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	var user Models.User
-	Models.DB.Where("id = ?", input.Id).First(&user)
-
-	if user.Id == 0 {
-		return c.JSON(fiber.Map{
-			"message": "User not found",
+	if input.Id == 0 || Models.DB.Where("id = ?", input.Id).First(&user).Error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "User not found",
 		})
 	}
 
-	user.Name = input.Name
-	user.Email = input.Email
-	user.Permission = input.Permission
-	user.IsApproved = input.IsApproved
+	if input.Name != nil && strings.TrimSpace(*input.Name) != "" {
+		user.Name = strings.TrimSpace(*input.Name)
+	}
+	if input.Email != nil && strings.TrimSpace(*input.Email) != "" {
+		user.Email = strings.TrimSpace(*input.Email)
+	}
+	if len(input.Permission) > 0 && string(input.Permission) != "null" {
+		level, err := parsePermission(input.Permission)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		user.Permission = level
+	}
+	if input.IsApproved != nil {
+		user.IsApproved = *input.IsApproved
+	}
+	if input.Password != nil && *input.Password != "" {
+		if len(*input.Password) < 6 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password must be at least 6 characters"})
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), 14)
+		if err != nil {
+			log.Println(err.Error())
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error hashing password"})
+		}
+		user.Password = hash
+	}
 
 	if err := Models.DB.Save(&user).Error; err != nil {
+		if isUniqueViolation(err) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "A user with this email already exists"})
+		}
 		log.Println(err.Error())
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error On Saving User To DB",
