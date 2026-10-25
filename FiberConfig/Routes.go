@@ -406,6 +406,14 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Positions
 	tires.Post("/positions/assign", Controllers.AssignTireToPosition)
 	tires.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
+	// maint-rust's stock ledger. Called server-to-server with the user's
+	// relayed token (jwt cookie) at /api/go/api/maint-stock/... through nginx,
+	// like the /api/cars and /api/service-invoices routes it already uses. The
+	// POST takes credits as well as debits; see RecordMaintStockMovement.
+	api.Post("/maint-stock/debit", middleware.Verify(1), Controllers.RecordMaintStockMovement)
+	api.Get("/maint-stock/tires", middleware.Verify(1), Controllers.GetMaintTireStock)
+	api.Get("/maint-stock/oil", middleware.Verify(1), Controllers.GetMaintOilStock)
+
 	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
 	// it had no auth at all. No client calls it, so it is admin-only.
 	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)

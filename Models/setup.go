@@ -259,6 +259,12 @@ func runAutoMigrations() {
 		Observability.ReportJobFailure("startup", "automigrate_phase13", err)
 	}
 
+	// Phase 14: maint-rust's stock ledger (tire/oil credits and debits)
+	if err := MigrateMaintStockMovements(DB); err != nil {
+		log.Printf("phase-14 maint_stock_movements: %v", err)
+		Observability.ReportJobFailure("startup", "migrate_phase14", err)
+	}
+
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
 	fixAllSequences()
