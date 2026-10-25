@@ -719,16 +719,6 @@ func SortReportTrips(trips []Models.TripStruct) {
 /* One drop-off, laid out as the report lays it out                            */
 /* -------------------------------------------------------------------------- */
 
-// WatanyaBandRates maps a fee band (1..15) to its EGP per 1,000 litres. Same
-// table as the report's wtFeeIndexToAmount; a band outside it earns nothing,
-// which is deliberate — an unpriced band is a data-entry error, and inventing
-// a rate would quietly bill a guess.
-var WatanyaBandRates = map[int]float64{
-	1: 104.5, 2: 122.1, 3: 129.8, 4: 156.2, 5: 183.7,
-	6: 196.9, 7: 210.1, 8: 235.4, 9: 261.8, 10: 288.2,
-	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
-}
-
 // Where a receipt physically is, from its most recent step.
 const (
 	ReceiptAtOffice = "office"
@@ -848,9 +838,8 @@ func BuildDropOffDetail(
 			FeeIndex: fee.FeeIndex,
 			Unmapped: !priced,
 		}
+		var pricedCost, pricedLitres float64
 		if withMoney {
-			rate := fee.ActualFee
-			table.ActualFee = &rate
 			zero := 0.0
 			table.TotalCost = &zero
 		}
@@ -870,9 +859,17 @@ func BuildDropOffDetail(
 				Status:       status,
 			}
 			if withMoney {
-				// Same arithmetic as the report: litres × rate per 1,000 litres.
-				rate := fee.ActualFee
-				cost := float64(t.TankCapacity) * rate / 1000.0
+				// The report's figures: the trip's stored base revenue, and
+				// the rate per 1,000 litres it was priced at. A trip the
+				// engine could not price costs 0 here and is left off the
+				// report.
+				cost, rate := 0.0, 0.0
+				if t.BaseRevenue != nil {
+					cost = *t.BaseRevenue
+					rate = RatePer1000L(cost, float64(t.TankCapacity))
+					pricedCost += cost
+					pricedLitres += float64(t.TankCapacity)
+				}
 				row.ActualFee = &rate
 				row.Cost = &cost
 				*table.TotalCost += cost
@@ -889,6 +886,10 @@ func BuildDropOffDetail(
 			table.TotalCapacity += t.TankCapacity
 		}
 		table.ReceiptCount = len(table.Receipts)
+		if withMoney {
+			rate := RatePer1000L(pricedCost, pricedLitres)
+			table.ActualFee = &rate
+		}
 
 		if priced {
 			mapped = append(mapped, table)
@@ -918,9 +919,17 @@ func BuildDropOffDetail(
 	return detail
 }
 
-// FeeInfo is the priced route metadata a table carries.
+// FeeInfo is the route metadata a table carries. The money comes from the
+// trips' stored pricing, not from here.
 type FeeInfo struct {
-	Distance  float64
-	FeeIndex  int
-	ActualFee float64
+	Distance float64
+	FeeIndex int
+}
+
+// RatePer1000L is the EGP-per-1,000-litre rate an amount was priced at.
+func RatePer1000L(amount, litres float64) float64 {
+	if litres <= 0 {
+		return 0
+	}
+	return math.Round(amount*1000/litres*1e6) / 1e6
 }

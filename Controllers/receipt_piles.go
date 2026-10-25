@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"Falcon/Models"
+	"Falcon/middleware"
 	"Falcon/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,17 +29,14 @@ import (
 
 const pilesCompany = "Watanya"
 
-// The level at which the money on this screen becomes visible. The filing plan
-// itself -- which boxes, which letters, which names, where the paper is -- is
-// open to anyone who can see trips at all, because it is warehouse work rather
-// than accounting. Matches the threshold GetTripStatistics already uses.
-const pilesFinancialPermission = 3
+// The money on this screen -- the rate and the per-receipt cost, read from the
+// trips' stored pricing -- is visible from middleware.MoneyPermission. The
+// filing plan itself -- which boxes, which letters, which names, where the
+// paper is -- is open to anyone who can see trips at all, because it is
+// warehouse work rather than accounting.
 
 // hasFinancialAccess reports whether this caller may see fees and costs.
-func hasFinancialAccess(c *fiber.Ctx) bool {
-	user, ok := c.Locals("user").(*Models.User)
-	return ok && user.Permission >= pilesFinancialPermission
-}
+func hasFinancialAccess(c *fiber.Ctx) bool { return middleware.MoneyVisible(c) }
 
 // receiptStatusByTrip maps each trip id to where its paper currently is.
 //
@@ -172,7 +170,7 @@ func (h *ReceiptPilesHandler) GetDropOffDetail(c *fiber.Ctx) error {
 
 	var trips []Models.TripStruct
 	err = h.DB.
-		Select("id, receipt_no, drop_off_point, terminal, date, car_no_plate, driver_name, tank_capacity, mileage").
+		Select("id, receipt_no, drop_off_point, terminal, date, car_no_plate, driver_name, tank_capacity, mileage, base_revenue").
 		Where("company = ? AND drop_off_point = ? AND date BETWEEN ? AND ?",
 			pilesCompany, name, req.StartDate, req.EndDate).
 		Find(&trips).Error
@@ -194,9 +192,8 @@ func (h *ReceiptPilesHandler) GetDropOffDetail(c *fiber.Ctx) error {
 	feeByKey := make(map[string]services.FeeInfo, len(mappings))
 	for _, m := range mappings {
 		feeByKey[m.Terminal+"|"+m.DropOffPoint] = services.FeeInfo{
-			Distance:  m.Distance,
-			FeeIndex:  int(m.Fee),
-			ActualFee: services.WatanyaBandRates[int(m.Fee)],
+			Distance: m.Distance,
+			FeeIndex: int(m.Fee),
 		}
 	}
 

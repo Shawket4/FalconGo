@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"Falcon/Models"
+	"Falcon/middleware"
 	"Falcon/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,8 +31,8 @@ import (
 // The response body is the file and nothing else, with Content-Disposition set
 // so the browser saves it directly.
 func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
-	user, ok := c.Locals("user").(*Models.User)
-	hasFinancialAccess := ok && user.Permission >= 3
+	// Below permission 3 the file carries no fee or revenue columns at all.
+	hasFinancialAccess := middleware.MoneyVisible(c)
 
 	// Labels come from the client so both exports read identically and there is
 	// no second set of English strings on the server to drift.
@@ -61,7 +62,7 @@ func (h *TripHandler) ExportTripsExcel(c *fiber.Ctx) error {
 		})
 	}
 
-	enrichTripFees(h.DB, trips, hasFinancialAccess)
+	enrichTripFees(h.DB, trips)
 	// Receipt-number serial validation drives the remark column.
 	services.EnrichReceiptValidity(h.DB, trips)
 
@@ -160,7 +161,7 @@ func (h *TripHandler) applyTripExportFilters(query *gorm.DB, c *fiber.Ctx) *gorm
 // stored -- so they have to be filled in after loading. The list endpoint does
 // this with a query per trip; at export size that is thousands of round trips
 // for a table that fits comfortably in memory.
-func enrichTripFees(db *gorm.DB, trips []Models.TripStruct, hasFinancialAccess bool) {
+func enrichTripFees(db *gorm.DB, trips []Models.TripStruct) {
 	var mappings []Models.FeeMapping
 	db.Find(&mappings)
 
@@ -180,11 +181,6 @@ func enrichTripFees(db *gorm.DB, trips []Models.TripStruct, hasFinancialAccess b
 		}
 		trips[i].Distance = m.Distance
 		trips[i].Fee = m.Fee
-
-		// Same masking the list endpoint applies.
-		if !hasFinancialAccess && trips[i].Company == "Petrol Arrows" {
-			trips[i].Fee = 0
-		}
 	}
 }
 

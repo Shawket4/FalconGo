@@ -77,10 +77,28 @@ type TripStruct struct {
 	Compartments datatypes.JSON `json:"compartments"`
 
 	// Trip details
-	Date      string  `json:"date"`
+	Date string `json:"date"`
+	// Revenue mirrors BaseRevenue (0 while unpriced) so readers that predate
+	// stored pricing see the real figure. It is owned by the pricing engine:
+	// no write path sets it from a request any more.
 	Revenue   float64 `json:"revenue"`
 	Mileage   float64 `json:"mileage"`
 	ReceiptNo string  `json:"receipt_no"`
+
+	// Stored pricing, written only by the pricing package (see
+	// pricing/engine.go). BaseRevenue is this row's own revenue, excluding
+	// car rental, under the rule effective on Date; RevenueVAT is VAT on it.
+	// Car rental is per truck-month, in truck_month_charges. PricedKm is the
+	// per-km basis for per-km companies: the logical trip's furthest drop on
+	// the one row that holds it, 0 on its siblings, NULL for volume-priced
+	// rows. A row that could not be priced has PricingError set and NULL
+	// revenue — never a silent 0.
+	BaseRevenue   *float64   `json:"base_revenue" gorm:"type:numeric"`
+	RevenueVAT    *float64   `json:"revenue_vat" gorm:"column:revenue_vat;type:numeric"`
+	PricedKm      *float64   `json:"priced_km" gorm:"type:numeric"`
+	PricingRuleID *uint      `json:"pricing_rule_id"`
+	PricedAt      *time.Time `json:"priced_at" gorm:"type:timestamptz"`
+	PricingError  *string    `json:"pricing_error" gorm:"type:text"`
 	// Set when the receipt number knowingly falls outside the terminal's
 	// serialization pattern (e.g. a manual replacement book).
 	ReceiptOverride bool `json:"receipt_override" gorm:"not null;default:false"`

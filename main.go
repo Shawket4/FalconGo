@@ -218,7 +218,12 @@ func startBackgroundWorkers() {
 	tripSummaryWorker.Start()
 	log.Println("✅ Trip Summary Worker started")
 
-	// 2. Speed Violation Monitoring Worker
+	// 2. Stored pricing: one-shot backfill, month freeze, nightly recompute
+	pricingWorker := workers.NewPricingWorker(Models.DB)
+	pricingWorker.Start()
+	log.Println("✅ Pricing Worker started")
+
+	// 3. Speed Violation Monitoring Worker
 	Slack.StartViolationMonitoring()
 	log.Println("✅ Speed Violation Monitoring started")
 

@@ -45,7 +45,7 @@ func wtStressFixture() ([]Models.TripStruct, []Models.FeeMapping) {
 			}
 		}
 	}
-	return trips, maps
+	return wtStore(trips, maps), maps
 }
 
 // tahomaFonts reads Tahoma from $TAHOMA_DIR (tahoma.ttf, tahomabd.ttf); nil
