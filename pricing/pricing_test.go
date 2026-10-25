@@ -483,6 +483,14 @@ func TestEffectiveDatedRuleAppliesForwardAndViaReprice(t *testing.T) {
 	if !asFrozen(err, &ferr) || len(ferr.Months) != 1 || ferr.Months[0] != "2025-06" {
 		t.Fatalf("reprice of a frozen month: err = %v; want FrozenError [2025-06]", err)
 	}
+	// ...but only for the company asked about: June is frozen for TAQA, which
+	// must not block re-pricing another company's June.
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		_, err := pricing.Reprice(tx, "2025-06-01", "2025-06-30", "Petrol Arrows", false)
+		return err
+	}); err != nil {
+		t.Errorf("Petrol Arrows June reprice refused because of TAQA's frozen June: %v", err)
+	}
 	// ...and with include_frozen moves the old June trips to the new rule
 	// and recomputes June's rental under it: 4 days, 50000 - 24 × 50000/28.
 	var rr pricing.RepriceResult

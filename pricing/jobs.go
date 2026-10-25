@@ -106,7 +106,8 @@ func Reprice(tx *gorm.DB, from, to, company string, includeFrozen bool) (Reprice
             SELECT DISTINCT to_char(month, 'YYYY-MM') FROM truck_month_charges
              WHERE frozen_at IS NOT NULL
                AND month >= date_trunc('month', ?::date) AND month <= ?::date
-             ORDER BY 1`, from, to).Scan(&frozen).Error; err != nil {
+               AND (? = '' OR company = ?)
+             ORDER BY 1`, from, to, company, company).Scan(&frozen).Error; err != nil {
 			return res, err
 		}
 		if len(frozen) > 0 {
