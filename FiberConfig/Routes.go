@@ -20,6 +20,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"gorm.io/gorm"
 )
@@ -526,17 +527,17 @@ func RegisterViolationRoutes(app *fiber.App) {
 	violations.Delete("/:id", middleware.Verify(3), Controllers.DeleteViolation)
 }
 
-func FiberConfig() {
-	fmt.Println("Server Up...")
-	engine := html.New("./Templates", ".html")
-
-	app := fiber.New(fiber.Config{
-		Views: engine,
-		// Reports 5xx to Sentry and then defers to Fiber's own handling, so
-		// responses are byte-for-byte what they were. With no SENTRY_DSN the
-		// capture is a no-op.
-		ErrorHandler: Observability.ErrorHandler(nil),
-	})
+// useGlobalMiddleware installs the middleware every request passes through,
+// outermost first. The order is load-bearing (see each comment), and is the
+// one thing about it worth testing, so it lives here rather than inline.
+func useGlobalMiddleware(app *fiber.App) {
+	// The outermost safety net: a panic in the global middleware below (which
+	// sits outside the inner recover) is reported by the Sentry middleware,
+	// re-panicked, and turned into a 500 here instead of killing the process.
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace:  true,
+		StackTraceHandler: Observability.LogPanic,
+	}))
 
 	// Sentry scope per request. Must precede the routes so handlers run inside
 	// a hub of their own.
@@ -557,6 +558,16 @@ func FiberConfig() {
 	// ai_audit_logs, after the handler so the status is known.
 	app.Use(middleware.AIAudit())
 
+	// Handler panics become a 500 here rather than killing the process —
+	// there was no recover at all, so one nil dereference took every request
+	// down with it. INSIDE AIAudit, so a panicking AI-applied write is still
+	// audited (with its 500), and therefore inside the Sentry middleware too,
+	// which is why ReportPanic reports it itself.
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace:  true,
+		StackTraceHandler: Observability.ReportPanic,
+	}))
+
 	// Compression
 	app.Use(compress.New(compress.Config{
 		Level: compress.LevelBestSpeed,
@@ -573,6 +584,21 @@ func FiberConfig() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+}
+
+func FiberConfig() {
+	fmt.Println("Server Up...")
+	engine := html.New("./Templates", ".html")
+
+	app := fiber.New(fiber.Config{
+		Views: engine,
+		// Reports 5xx to Sentry and then defers to Fiber's own handling, so
+		// responses are byte-for-byte what they were. With no SENTRY_DSN the
+		// capture is a no-op.
+		ErrorHandler: Observability.ErrorHandler(nil),
+	})
+
+	useGlobalMiddleware(app)
 
 	// Public routes
 	app.Post("/RegisterInstapay", Controllers.RegisterInstapayNew)

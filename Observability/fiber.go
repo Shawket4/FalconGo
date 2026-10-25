@@ -2,7 +2,11 @@ package Observability
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"runtime/debug"
 	"strconv"
+	"strings"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/contrib/fibersentry"
@@ -15,8 +19,10 @@ import (
 // a no-op, so this costs a map lookup and nothing else.
 func Middleware() fiber.Handler {
 	return fibersentry.New(fibersentry.Config{
-		// Re-panic so Fiber's own recovery still produces the 500 the client
-		// expects; Sentry only observes.
+		// Re-panic so the outermost recover (FiberConfig) still produces the
+		// 500 the client expects; Sentry only observes. Handler panics never
+		// get this far: the inner recover turns them into errors first and
+		// reports them through ReportPanic.
 		Repanic: true,
 		// Wait for delivery before the handler returns, so an error that kills
 		// the process still reaches Sentry.
@@ -116,6 +122,45 @@ func CaptureServerErrors() fiber.Handler {
 	}
 }
 
+// panicReportedKey marks a request whose panic ReportPanic already sent, so
+// ErrorHandler does not report the same fault a second time as a plain error.
+const panicReportedKey = "observability.panic_reported"
+
+// ReportPanic is the StackTraceHandler for Fiber's recover middleware: it
+// writes the stack to the service log and reports the panic on the request's
+// own hub, with the stack trace of the panicking goroutine.
+//
+// recover sits INSIDE the AI audit middleware (so a panicking write is still
+// audited, with status 500), which puts it inside the Sentry middleware too:
+// the panic is turned into an error before fibersentry could see it. This is
+// what keeps it reported as a panic rather than only as a "500".
+func ReportPanic(c *fiber.Ctx, e interface{}) {
+	_, _ = os.Stderr.WriteString(fmt.Sprintf("panic: %v\n%s\n", e, debug.Stack()))
+
+	hub := fibersentry.GetHubFromContext(c)
+	if hub == nil {
+		hub = sentry.CurrentHub()
+	}
+	hub.WithScope(func(scope *sentry.Scope) {
+		// Copies: the event outlives the request, and fiber reuses these
+		// buffers for the next one.
+		scope.SetTag("http.route", strings.Clone(c.Route().Path))
+		scope.SetTag("http.method", strings.Clone(c.Method()))
+		scope.SetLevel(sentry.LevelFatal)
+		hub.RecoverWithContext(c.UserContext(), e)
+	})
+	c.Locals(panicReportedKey, true)
+}
+
+// LogPanic is the StackTraceHandler for the OUTERMOST recover, the safety net
+// for a panic in the global middleware itself (which sits outside the inner
+// recover). The Sentry middleware inside it has already reported that panic
+// and re-panicked, so this only logs the stack and marks it reported.
+func LogPanic(c *fiber.Ctx, e interface{}) {
+	_, _ = os.Stderr.WriteString(fmt.Sprintf("panic: %v\n%s\n", e, debug.Stack()))
+	c.Locals(panicReportedKey, true)
+}
+
 // ErrorHandler reports server faults and hands everything else to Fiber.
 //
 // 5xx only, deliberately. A client sending a malformed body or hitting a route
@@ -134,7 +179,8 @@ func ErrorHandler(next fiber.ErrorHandler) fiber.ErrorHandler {
 			status = fe.Code
 		}
 
-		if status >= fiber.StatusInternalServerError {
+		reported, _ := c.Locals(panicReportedKey).(bool)
+		if status >= fiber.StatusInternalServerError && !reported {
 			// Use the request's own hub so the event carries this request's
 			// scope and nothing from a concurrent one.
 			if hub := fibersentry.GetHubFromContext(c); hub != nil {
