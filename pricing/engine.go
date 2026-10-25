@@ -151,28 +151,13 @@ func monthsOfGroups(tx *gorm.DB, seedSQL string, args ...any) ([]MonthRef, error
 	return out, err
 }
 
-// priceSeed prices every live row in the logical trips of the seed rows
-// (seedSQL selects trip ids; args are its parameters) under the rule
-// effective on each row's date.
-func priceSeed(tx *gorm.DB, seedSQL string, args ...any) (PriceResult, error) {
-	var res PriceResult
-	// Rules are looked up per row with LATERAL: the newest version whose
-	// effective_from is on or before the trip's date.
-	q := `
-        WITH seed AS (
-            SELECT DISTINCT COALESCE(NULLIF(t.parent_trip_id, 0), -t.id) AS g
-              FROM trips t WHERE t.id IN (` + seedSQL + `)
-        ),
-        live AS (
-            SELECT t.id, t.company, t.terminal, t.drop_off_point, t.date,
-                   t.tank_capacity::numeric AS tank_capacity,
-                   COALESCE(NULLIF(t.parent_trip_id, 0), -t.id) AS g,
-                   COALESCE(t.date ~ ` + validDate + `, false) AS date_ok,
-                   t.base_revenue AS old_base, t.pricing_error AS old_error
-              FROM trips t
-              JOIN seed s ON s.g = COALESCE(NULLIF(t.parent_trip_id, 0), -t.id)
-             WHERE t.deleted_at IS NULL
-        ),
+// pricedCTEs are the engine's formula: given a CTE named live (id, company,
+// terminal, drop_off_point, date, tank_capacity, g, date_ok, old_base,
+// old_error), joined finds each row's fee mapping and effective rule and
+// computed gives its base revenue, VAT rate, priced km or pricing error. It
+// takes one parameter, the unregistered drop-off. priceSeed stores what it
+// computes; Quote prices hypothetical drops with the very same text.
+const pricedCTEs = `
         joined AS (
             SELECT l.*,
                    fm.id                AS fm_id,
@@ -233,7 +218,31 @@ func priceSeed(tx *gorm.DB, seedSQL string, args ...any) (PriceResult, error) {
                        CASE WHEN j.rn = 1 THEN COALESCE(j.fm_distance, 0) ELSE 0 END
                    END AS km
               FROM joined j
+        )`
+
+// priceSeed prices every live row in the logical trips of the seed rows
+// (seedSQL selects trip ids; args are its parameters) under the rule
+// effective on each row's date.
+func priceSeed(tx *gorm.DB, seedSQL string, args ...any) (PriceResult, error) {
+	var res PriceResult
+	// Rules are looked up per row with LATERAL: the newest version whose
+	// effective_from is on or before the trip's date.
+	q := `
+        WITH seed AS (
+            SELECT DISTINCT COALESCE(NULLIF(t.parent_trip_id, 0), -t.id) AS g
+              FROM trips t WHERE t.id IN (` + seedSQL + `)
         ),
+        live AS (
+            SELECT t.id, t.company, t.terminal, t.drop_off_point, t.date,
+                   t.tank_capacity::numeric AS tank_capacity,
+                   COALESCE(NULLIF(t.parent_trip_id, 0), -t.id) AS g,
+                   COALESCE(t.date ~ ` + validDate + `, false) AS date_ok,
+                   t.base_revenue AS old_base, t.pricing_error AS old_error
+              FROM trips t
+              JOIN seed s ON s.g = COALESCE(NULLIF(t.parent_trip_id, 0), -t.id)
+             WHERE t.deleted_at IS NULL
+        ),
+        ` + pricedCTEs + `,
         upd AS (
             UPDATE trips t SET
                 base_revenue    = CASE WHEN c.err IS NULL THEN c.base END,
@@ -504,4 +513,40 @@ func Hydrate(tx *gorm.DB, trips []Models.TripStruct) error {
 		}
 	}
 	return nil
+}
+
+// QuoteResult is one drop-off's quote. Base and VAT are nil, and Error set,
+// when the drop could not be priced.
+type QuoteResult struct {
+	DropOffPoint string   `json:"drop_off_point"`
+	Base         *float64 `json:"base_revenue"`
+	VAT          *float64 `json:"revenue_vat"`
+	Error        *string  `json:"pricing_error"`
+}
+
+// Quote is what a trip would earn, priced by the engine's own formula
+// (pricedCTEs) without storing anything: one standalone drop of capacity
+// litres from terminal to each of company's mapped drop-offs, dated date
+// (YYYY-MM-DD). Car rental is not included: it is per truck-month, not per
+// trip.
+func Quote(db *gorm.DB, company, terminal, date string, capacity float64) ([]QuoteResult, error) {
+	var out []QuoteResult
+	err := db.Raw(`
+        WITH live AS (
+            SELECT fm.id, fm.company, fm.terminal, fm.drop_off_point,
+                   CAST(? AS text) AS date, CAST(? AS numeric) AS tank_capacity,
+                   -fm.id AS g, COALESCE(CAST(? AS text) ~ `+validDate+`, false) AS date_ok,
+                   NULL::numeric AS old_base, NULL::text AS old_error
+              FROM fee_mappings fm
+             WHERE fm.company = ? AND fm.terminal = ? AND fm.deleted_at IS NULL
+        ),
+        `+pricedCTEs+`
+        SELECT l.drop_off_point,
+               CASE WHEN c.err IS NULL THEN c.base::float8 END              AS base,
+               CASE WHEN c.err IS NULL THEN (c.base * c.vat_rate)::float8 END AS vat,
+               c.err AS error
+          FROM computed c JOIN live l ON l.id = c.id
+         ORDER BY l.drop_off_point`,
+		date, capacity, date, company, terminal, UnregisteredDropOff).Scan(&out).Error
+	return out, err
 }

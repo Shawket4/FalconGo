@@ -256,3 +256,36 @@ func ListTruckMonths(db *gorm.DB, month, company string) ([]TruckMonth, error) {
          ORDER BY company, car_no_plate, terminal`, month, company, company).Scan(&rows).Error
 	return rows, err
 }
+
+// CompanyRule is the version a report describes a company by: how it is
+// priced and, for per-km companies, at what rate.
+type CompanyRule struct {
+	Company   string
+	RuleID    uint
+	Method    string
+	PerKmRate float64
+}
+
+// RulesAt returns each company's version in force on date (YYYY-MM-DD; ""
+// means the newest), or, for a company whose first version starts later, that
+// first version. Statistics group a company's trips by its method; the money
+// itself always comes from what each trip stored.
+func RulesAt(db *gorm.DB, date string) (map[string]CompanyRule, error) {
+	if date == "" {
+		date = "9999-12-31"
+	}
+	var rows []CompanyRule
+	err := db.Raw(`
+        SELECT DISTINCT ON (company) company, id AS rule_id, method,
+               COALESCE(per_km_rate, 0)::float8 AS per_km_rate
+          FROM pricing_rules
+         ORDER BY company,
+                  (to_char(effective_from, 'YYYY-MM-DD') <= ?) DESC,
+                  CASE WHEN to_char(effective_from, 'YYYY-MM-DD') <= ? THEN effective_from END DESC NULLS LAST,
+                  effective_from ASC`, date, date).Scan(&rows).Error
+	out := make(map[string]CompanyRule, len(rows))
+	for _, r := range rows {
+		out[r.Company] = r
+	}
+	return out, err
+}

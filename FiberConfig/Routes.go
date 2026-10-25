@@ -66,9 +66,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	)
 
 	// Protected driver routes (requires PIN auth + active session)
+	// StripMoney: the driver app shows no money to anyone.
 	driverAppProtected := driverApp.Group("",
 		middleware.TabletIdentification(),
 		middleware.VerifyDriver(),
+		middleware.StripMoney(),
 	)
 
 	// Driver profile & settings
@@ -95,7 +97,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// LEGACY DRIVER ROUTES (Backward Compatibility)
 	// ============================================
-	driverRoutes := api.Group("/driver", middleware.Verify(0))
+	driverRoutes := api.Group("/driver", middleware.Verify(0), middleware.StripMoney())
 	driverRoutes.Post("/receipts/upload", receiptController.UploadReceiptBatch)
 	driverRoutes.Post("/ping-location", receiptController.RegisterLocationPing)
 	driverRoutes.Get("/trips", tripHandler.GetDriverTrips)
@@ -103,7 +105,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// RECEIPT MANAGEMENT
 	// ============================================
-	receipts := api.Group("/receipts", middleware.Verify(1))
+	// Receipt steps answer with the trip they belong to, revenue and all.
+	receipts := api.Group("/receipts", middleware.Verify(1), middleware.MaskMoney())
 
 	// Receipt steps
 	receipts.Post("/step", receiptController.AddReceiptStep)
@@ -200,7 +203,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	terminals.Put("/:id/receipt-patterns", middleware.Verify(3), locationsHandler.UpsertTerminalReceiptPattern)
 	terminals.Delete("/:id/receipt-patterns", middleware.Verify(3), locationsHandler.DeleteTerminalReceiptPattern)
 
-	mappings := api.Group("/mappings", middleware.Verify(1))
+	// The fee is money (EGP per 1,000 L, or a tariff band): MaskMoney zeroes
+	// it below permission 3. The trip form still gets the drop-off list.
+	mappings := api.Group("/mappings", middleware.Verify(1), middleware.MaskMoney())
 	mappings.Get("/", feeMappingHandler.GetAllFeeMappings)
 	mappings.Post("/enrich-osrm", middleware.Verify(3), osrm.BulkEnrichOSRM)
 	mappings.Post("/:id/location", middleware.Verify(3), osrm.UpdateDropOffLocation)
@@ -212,7 +217,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	mappings.Get("/fee", feeMappingHandler.GetFeeByMapping)
 	// Middleware before the handler: in the other order the handler answered
 	// first and VerifyAny never ran, so this was open to anyone.
-	api.Get("/all-terminals", middleware.VerifyAny(), feeMappingHandler.GetAllTerminals)
+	api.Get("/all-terminals", middleware.VerifyAny(), middleware.MaskMoney(), feeMappingHandler.GetAllTerminals)
 
 	// CRUD operations
 	mappings.Get("/:id", feeMappingHandler.GetFeeMapping)
@@ -223,7 +228,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// TRIP MANAGEMENT
 	// ============================================
-	trips := api.Group("/trips", middleware.Verify(1))
+	// MaskMoney scrubs revenue, fees, rental and VAT from every JSON answer in
+	// the group for callers below permission 3 (middleware/money_mask.go).
+	trips := api.Group("/trips", middleware.Verify(1), middleware.MaskMoney())
 	trips.Get("/", tripHandler.GetAllTrips)
 	trips.Get("/statistics", tripHandler.GetTripStatistics)
 	// Server-side Excel export: no row cap, returns the file itself.
@@ -244,7 +251,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// people who do it are not the people with financial access. The money on
 	// the screen -- the fee rate and the per-receipt cost -- is withheld inside
 	// the handler instead, so the plan itself is open while the prices are not.
-	piles := api.Group("/receipt-piles", middleware.Verify(1))
+	piles := api.Group("/receipt-piles", middleware.Verify(1), middleware.MaskMoney())
 	piles.Get("/", receiptPilesHandler.GetReceiptPiles)
 	piles.Get("/export", receiptPilesHandler.ExportReceiptPiles)
 	// One drop-off's receipts, per terminal, in the fee report's order.
@@ -263,10 +270,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Delete("/parent/:parent_id", tripHandler.DeleteParentTrip)
 
 	// TRIP SUMMARY ROUTE (Your original endpoint - now session-aware)
-	api.Get("/parent-trips/:parent_trip_id/summary", middleware.Verify(1), Controllers.GetFullTripSummaryByParentTrip)
+	api.Get("/parent-trips/:parent_trip_id/summary", middleware.Verify(1), middleware.MaskMoney(), Controllers.GetFullTripSummaryByParentTrip)
 
-	// Global stats
-	api.Get("/stats/widget-data", tripHandler.GetGlobalStats)
+	// Global stats. It used to be open to anyone; it carries revenue, so it
+	// needs a login, and the money is masked below permission 3.
+	api.Get("/stats/widget-data", middleware.Verify(1), middleware.MaskMoney(), tripHandler.GetGlobalStats)
 	api.Post("/UpdateToken", Models.UpdateToken)
 
 	// ============================================
@@ -641,7 +649,7 @@ func FiberConfig() {
 
 func SetupTripSummaryRoutes(app *fiber.App) {
 	// Trip summary routes - require authentication
-	api := app.Group("/api", middleware.Verify(1))
+	api := app.Group("/api", middleware.Verify(1), middleware.MaskMoney())
 
 	// Get trip summary by parent trip ID (most common use case)
 	// GET /api/parent-trips/:parent_trip_id/summary
