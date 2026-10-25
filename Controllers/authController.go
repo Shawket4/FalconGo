@@ -551,7 +551,24 @@ func Login(c *fiber.Ctx) error {
 	})
 }
 
-var CurrentUser *Models.User
+// RequestUser returns the admin user this request authenticated as: the one
+// middleware.Verify (a pointer) or VerifyAny (a value) stored in Locals.
+//
+// It replaces a package-level CurrentUser that nothing ever assigned, so every
+// handler that read it dereferenced nil. A request that never authenticated
+// gets an empty user (Id 0) rather than nil, which the handlers' existing
+// "Id != 0" checks already treat as not logged in.
+func RequestUser(c *fiber.Ctx) *Models.User {
+	switch u := c.Locals("user").(type) {
+	case *Models.User:
+		if u != nil {
+			return u
+		}
+	case Models.User:
+		return &u
+	}
+	return &Models.User{}
+}
 
 func User(c *fiber.Ctx) error {
 	cookie := c.Cookies("jwt")

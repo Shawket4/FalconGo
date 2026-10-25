@@ -286,9 +286,9 @@ func GetDriver(c *fiber.Ctx) error {
 }
 
 func GetTransporters(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var Transporters []string
@@ -640,9 +640,9 @@ func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
 }
 
 func RegisterTransporter(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -682,13 +682,13 @@ func RegisterTransporter(c *fiber.Ctx) error {
 }
 
 func GetCarProfileData(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else if Controllers.CurrentUser.Permission >= 1 && Controllers.CurrentUser.Permission != 4 {
+		} else if currentUser.Permission >= 1 && currentUser.Permission != 4 {
 			var Cars []Models.Car
-			if err := Models.DB.Model(&Models.Car{}).Where("transporter = ?", Controllers.CurrentUser.Name).Find(&Cars).Error; err != nil {
+			if err := Models.DB.Model(&Models.Car{}).Where("transporter = ?", currentUser.Name).Find(&Cars).Error; err != nil {
 				log.Println(err.Error())
 				return err
 			}
@@ -763,9 +763,9 @@ func GetDriverProfileData(c *fiber.Ctx) error {
 }
 
 func GetTransporterProfileData(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -799,9 +799,9 @@ func GetTransporterProfileData(c *fiber.Ctx) error {
 }
 
 func DeleteDriver(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var Driver struct {
@@ -832,9 +832,9 @@ func DeleteDriver(c *fiber.Ctx) error {
 }
 
 func DeleteCar(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var Car struct {
@@ -872,7 +872,7 @@ func UpdateCarDocuments(c *fiber.Ctx) error {
 	}
 
 	if input.Transporter == "" {
-		input.Transporter = Controllers.CurrentUser.Name
+		input.Transporter = Controllers.RequestUser(c).Name
 	}
 
 	var car Models.Car
@@ -1013,7 +1013,7 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 	}
 
 	if input.Transporter == "" {
-		input.Transporter = Controllers.CurrentUser.Name
+		input.Transporter = Controllers.RequestUser(c).Name
 	}
 
 	var driver Models.Driver
@@ -1133,9 +1133,9 @@ func UpdateDriverDocuments(c *fiber.Ctx) error {
 }
 
 func EditTransporter(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -1168,9 +1168,9 @@ func EditTransporter(c *fiber.Ctx) error {
 }
 
 func GetPendingRequests(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission < 3 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission < 3 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -1224,78 +1224,31 @@ func GetPendingRequests(c *fiber.Ctx) error {
 	}
 }
 
+// ApproveRequest and RejectRequest are the legacy approval queue. They took
+// the table and column names from the request body and spliced them into SQL
+// (RejectRequest was an arbitrary DELETE), against the retired MySQL database
+// that Database.ConnectToDB still points at. Nothing on Postgres needs them:
+// drivers are created and updated already approved (RegisterDriver,
+// UpdateDriver), and cars carry their own is_approved. They answer 410 so the
+// endpoint can never be turned back into an injection point by accident.
+func legacyApprovalGone(c *fiber.Ctx) error {
+	return c.Status(fiber.StatusGone).JSON(fiber.Map{
+		"message": "The legacy approval queue has been retired; drivers are approved on creation.",
+	})
+}
+
 func ApproveRequest(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission < 3 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else {
-			db := Database.ConnectToDB()
-			var RequestData struct {
-				TableName    string `json:"TableName"`
-				ColumnIdName string `json:"ColumnIdName"`
-				Id           int    `json:"Id"`
-			}
-			err := c.BodyParser(&RequestData)
-			if err != nil {
-				log.Println(err.Error())
-				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			}
-			query := fmt.Sprintf("UPDATE `%s` SET `IsApproved` = 1 WHERE `%s` = %v;", RequestData.TableName, RequestData.ColumnIdName, RequestData.Id)
-			_, err = db.Exec(query)
-			if err != nil {
-				log.Println(err.Error())
-				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			}
-			return c.JSON(fiber.Map{
-				"Message": "Request Approved",
-			})
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
-	}
+	return legacyApprovalGone(c)
 }
 
 func RejectRequest(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission < 3 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else {
-			db := Database.ConnectToDB()
-			var RequestData struct {
-				TableName    string `json:"TableName"`
-				ColumnIdName string `json:"ColumnIdName"`
-				Id           int    `json:"Id"`
-			}
-			err := c.BodyParser(&RequestData)
-			if err != nil {
-				log.Println(err.Error())
-				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			}
-			query := fmt.Sprintf("DELETE FROM `%s` WHERE `%s`.`%s` = %v;", RequestData.TableName, RequestData.TableName, RequestData.ColumnIdName, RequestData.Id)
-			_, err = db.Exec(query)
-			if err != nil {
-				log.Println(err.Error())
-				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			}
-			return c.JSON(fiber.Map{
-				"Message": "Request Rejected",
-			})
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
-	}
+	return legacyApprovalGone(c)
 }
 
 func GetNonDriverUsers(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission < 4 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission < 4 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -1327,9 +1280,9 @@ func GetNonDriverUsers(c *fiber.Ctx) error {
 }
 
 func UpdateTempPermission(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission < 4 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission < 4 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			db := Database.ConnectToDB()
@@ -1359,9 +1312,9 @@ func UpdateTempPermission(c *fiber.Ctx) error {
 }
 
 func GetVehicleStatus(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var data struct {
@@ -1502,9 +1455,9 @@ func GetVehicleMapPoints(c *fiber.Ctx) error {
 }
 
 func GetLocations(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			// db := Database.ConnectToDB()
@@ -1571,9 +1524,9 @@ func GetLocations(c *fiber.Ctx) error {
 }
 
 func CreateLocation(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var input struct {
@@ -1599,9 +1552,9 @@ func CreateLocation(c *fiber.Ctx) error {
 }
 
 func CreateTerminal(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var input struct {
@@ -1627,9 +1580,9 @@ func CreateTerminal(c *fiber.Ctx) error {
 }
 
 func CreateServiceEvent(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var input Models.Service
@@ -1682,9 +1635,9 @@ func CreateServiceEvent(c *fiber.Ctx) error {
 }
 
 func EditServiceEvent(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var input Models.Service
@@ -1734,9 +1687,9 @@ func EditServiceEvent(c *fiber.Ctx) error {
 }
 
 func DeleteServiceEvent(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			var input struct {
@@ -1768,9 +1721,9 @@ func DeleteServiceEvent(c *fiber.Ctx) error {
 }
 
 func GetAllServiceEvents(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
 		} else {
 			limitStr := c.Query("limit")
@@ -1782,8 +1735,8 @@ func GetAllServiceEvents(c *fiber.Ctx) error {
 
 			db := Models.DB.Model(&Models.Service{})
 
-			if Controllers.CurrentUser.Permission != 4 {
-				db = db.Where("transporter = ?", Controllers.CurrentUser.Name)
+			if currentUser.Permission != 4 {
+				db = db.Where("transporter = ?", currentUser.Name)
 			}
 
 			if carIDStr != "" {
