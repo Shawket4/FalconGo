@@ -265,6 +265,14 @@ func runAutoMigrations() {
 		Observability.ReportJobFailure("startup", "migrate_phase14", err)
 	}
 
+	// Phase 15: stored trip pricing (rules, bands, truck-month rental, the
+	// trips.base_revenue family). The backfill that prices existing trips
+	// runs once, in the background, from workers.PricingWorker.
+	if err := MigratePricing(DB); err != nil {
+		log.Printf("phase-15 pricing: %v", err)
+		Observability.ReportJobFailure("startup", "migrate_phase15", err)
+	}
+
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
 	fixAllSequences()

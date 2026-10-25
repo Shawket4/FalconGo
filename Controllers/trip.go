@@ -3,6 +3,7 @@ package Controllers
 import (
 	"Falcon/Models"
 	"Falcon/Observability"
+	"Falcon/pricing"
 	"Falcon/report"
 	"Falcon/services"
 	"Falcon/utils"
@@ -3205,6 +3206,13 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 	}
 
 	oldTripDate := existingTrip.Date
+	// What the trip was priced from, to tell whether this edit re-prices it.
+	priceInputs := func(t Models.TripStruct) string {
+		return fmt.Sprintf("%s\x00%s\x00%s\x00%d\x00%s\x00%s\x00%d",
+			t.Company, t.Terminal, t.DropOffPoint, t.TankCapacity, t.Date, t.CarNoPlate, t.CarID)
+	}
+	oldPriceInputs := priceInputs(existingTrip)
+	oldMonth, oldMonthOK := pricing.MonthOf(existingTrip.Company, existingTrip.Date)
 
 	// Parse the update data
 	updatedTrip := new(Models.TripStruct)
@@ -3364,14 +3372,14 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.Date = updatedTrip.Date
 	}
 
-	// For numerical fields, check explicitly to allow setting to zero
+	// For numerical fields, check explicitly to allow setting to zero.
+	//
+	// Revenue is not one of them any more: it is owned by the pricing engine
+	// and computed from the rule effective on the trip's date. A revenue in
+	// the body (and the old X-Update-Revenue header) is ignored; a wrong
+	// figure is corrected by fixing its inputs or a rule, then re-pricing
+	// (POST /api/pricing/reprice), never by typing a number in.
 	if c.Body() != nil {
-		if c.Get("X-Update-Revenue") != "" {
-			existingTrip.Revenue = updatedTrip.Revenue
-		} else if updatedTrip.Revenue != 0 {
-			existingTrip.Revenue = updatedTrip.Revenue
-		}
-
 		if c.Get("X-Update-Mileage") != "" {
 			existingTrip.Mileage = updatedTrip.Mileage
 		} else if updatedTrip.Mileage != 0 {
@@ -3383,12 +3391,37 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		existingTrip.ReceiptNo = updatedTrip.ReceiptNo
 	}
 
-	// Save the updated trip
-	result = h.DB.Save(&existingTrip)
-	if result.Error != nil {
+	// Save the updated trip and, when anything it is priced from changed (or
+	// it was never priced), re-price it — with its logical trip, since a
+	// container's change can move which sibling holds the furthest drop —
+	// and recompute the truck-month it left as well as the one it is in.
+	repriced := priceInputs(existingTrip) != oldPriceInputs ||
+		existingTrip.PricedAt == nil || existingTrip.PricingError != nil
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Omit(pricing.Columns...).Save(&existingTrip).Error; err != nil {
+			return err
+		}
+		if !repriced {
+			return nil
+		}
+		var extra []pricing.MonthRef
+		if oldMonthOK {
+			extra = append(extra, oldMonth)
+		}
+		if _, err := pricing.PriceTrips(tx, []uint{existingTrip.ID}, extra...); err != nil {
+			return err
+		}
+		trips := []Models.TripStruct{existingTrip}
+		if err := pricing.Hydrate(tx, trips); err != nil {
+			return err
+		}
+		existingTrip = trips[0]
+		return nil
+	})
+	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to update trip",
-			"error":   result.Error.Error(),
+			"error":   err.Error(),
 		})
 	}
 
@@ -3474,12 +3507,19 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 		})
 	}
 
-	// Perform soft delete (GORM default with DeletedAt field)
-	result = h.DB.Delete(&trip)
-	if result.Error != nil {
+	// Perform soft delete (GORM default with DeletedAt field), then re-price
+	// the rest of its logical trip and recompute its truck-month without it.
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&trip).Error; err != nil {
+			return err
+		}
+		_, err := pricing.PriceTrips(tx, []uint{trip.ID})
+		return err
+	})
+	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to delete trip",
-			"error":   result.Error.Error(),
+			"error":   err.Error(),
 		})
 	}
 
@@ -4916,9 +4956,9 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 			input.Containers[i].Company, input.Containers[i].Terminal, input.Containers[i].DropOffPoint).
 			First(&mapping)
 
-		// Set mileage and revenue from mapping
+		// Mileage is the planned distance. Revenue is priced below, once
+		// every container exists: a per-km trip bills its furthest drop.
 		input.Containers[i].Mileage = mapping.Distance
-		input.Containers[i].Revenue = mapping.Fee
 
 		// Set calculated fields for response (not stored)
 		input.Containers[i].Distance = mapping.Distance
@@ -4933,6 +4973,25 @@ func (h *TripHandler) CreateMultiContainerTrip(c *fiber.Ctx) error {
 		}
 
 		createdContainers = append(createdContainers, input.Containers[i])
+	}
+
+	// Price the containers under the rule effective on the trip date and
+	// recompute the truck-month. An unpriceable container (unregistered
+	// drop-off, no rule for the company, unknown band) is stored with a
+	// pricing_error rather than failing the trip.
+	if _, err := pricing.PriceParent(tx, input.ParentTrip.ID); err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to price the trip",
+			"error":   err.Error(),
+		})
+	}
+	if err := pricing.Hydrate(tx, createdContainers); err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to load the trip's pricing",
+			"error":   err.Error(),
+		})
 	}
 
 	// Update car's driver assignment
@@ -5330,6 +5389,16 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		}
 	}
 
+	// The months the containers sit in before the edit: a date, company or
+	// car change moves them out, and the month they leave must lose them.
+	oldMonths, err := pricing.MonthsOfParent(h.DB, uint(id))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to load the trip's pricing",
+			"error":   err.Error(),
+		})
+	}
+
 	// Begin transaction
 	tx := h.DB.Begin()
 	defer func() {
@@ -5487,12 +5556,11 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					})
 				}
 
-				// Update mileage and revenue
+				// Update mileage; revenue is re-priced below.
 				if err := tx.Model(&Models.TripStruct{}).
 					Where("id = ?", container.ID).
 					Updates(map[string]interface{}{
 						"mileage": mapping.Distance,
-						"revenue": mapping.Fee,
 					}).Error; err != nil {
 					tx.Rollback()
 					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -5539,7 +5607,6 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 						}
 
 						containerUpdate["mileage"] = mapping.Distance
-						containerUpdate["revenue"] = mapping.Fee
 					}
 				}
 
@@ -5638,7 +5705,6 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					ReceiptNo:       container.ReceiptNo,
 					ReceiptOverride: container.ReceiptOverride,
 					Mileage:         mapping.Distance,
-					Revenue:         mapping.Fee,
 				}
 
 				if plan.Applied {
@@ -5656,6 +5722,18 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					})
 				}
 			}
+		}
+	}
+
+	// Re-price every container (the furthest drop may have moved) and
+	// recompute the months they left and the months they are in.
+	if parentFieldsUpdated || (input.UpdateContainers && len(input.Containers) > 0) {
+		if _, err := pricing.PriceParent(tx, uint(id), oldMonths...); err != nil {
+			tx.Rollback()
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to price the trip",
+				"error":   err.Error(),
+			})
 		}
 	}
 
@@ -5727,6 +5805,8 @@ func (h *TripHandler) DeleteParentTrip(c *fiber.Ctx) error {
 	// Count containers before deletion
 	var containerCount int64
 	tx.Model(&Models.TripStruct{}).Where("parent_trip_id = ?", uint(id)).Count(&containerCount)
+	var containerIDs []uint
+	tx.Model(&Models.TripStruct{}).Where("parent_trip_id = ?", uint(id)).Pluck("id", &containerIDs)
 
 	// Soft delete all container trips
 	if err := tx.Where("parent_trip_id = ?", uint(id)).Delete(&Models.TripStruct{}).Error; err != nil {
@@ -5742,6 +5822,15 @@ func (h *TripHandler) DeleteParentTrip(c *fiber.Ctx) error {
 		tx.Rollback()
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to delete parent trip",
+			"error":   err.Error(),
+		})
+	}
+
+	// The containers' truck-months lose their days.
+	if _, err := pricing.PriceTrips(tx, containerIDs); err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to recompute the trip's truck-month",
 			"error":   err.Error(),
 		})
 	}

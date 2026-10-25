@@ -412,6 +412,14 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/maint-stock/tires", middleware.Verify(1), Controllers.GetMaintTireStock)
 	api.Get("/maint-stock/oil", middleware.Verify(1), Controllers.GetMaintOilStock)
 
+	// Stored trip pricing: effective-dated rules, truck-month rental, re-price.
+	// Reads are financial data (3); every write is permission 4.
+	api.Get("/pricing/rules", middleware.Verify(3), Controllers.GetPricingRules)
+	api.Post("/pricing/rules", middleware.Verify(4), Controllers.CreatePricingRule)
+	api.Delete("/pricing/rules/:id", middleware.Verify(4), Controllers.DeletePricingRule)
+	api.Get("/pricing/truck-months", middleware.Verify(3), Controllers.GetTruckMonths)
+	api.Post("/pricing/reprice", middleware.Verify(4), Controllers.RepricePricing)
+
 	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
 	// it had no auth at all. No client calls it, so it is admin-only.
 	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)
