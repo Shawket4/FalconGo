@@ -2,12 +2,15 @@ package Controllers
 
 import (
 	"Falcon/Models"
+	"Falcon/middleware"
+	"Falcon/pricing"
 	"Falcon/services"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -426,6 +429,35 @@ func (h *FeeMappingHandler) GetDropOffPointsByTerminal(c *fiber.Ctx) error {
 		mappingsMap[mapping.DropOffPoint] = map[string]interface{}{
 			"fee":      mapping.Fee,
 			"distance": mapping.Distance,
+		}
+	}
+
+	// ?tank_capacity=N (permission 3 and up): what a trip of N litres to each
+	// drop-off would earn, priced by the pricing engine under the rule in
+	// force on ?date= (default today), so the trip form can show money rather
+	// than the raw fee, which is a band number for some companies and unused
+	// for per-km ones. expected_revenue excludes VAT and car rental.
+	if raw := c.Query("tank_capacity"); raw != "" && middleware.MoneyVisible(c) {
+		capacity, err := strconv.ParseFloat(raw, 64)
+		if err != nil || capacity <= 0 {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"message": "tank_capacity must be a positive number of litres",
+			})
+		}
+		date := c.Query("date", time.Now().In(pricing.Cairo).Format("2006-01-02"))
+		quotes, err := pricing.Quote(h.DB, company, terminal, date, capacity)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to price drop-offs",
+				"error":   err.Error(),
+			})
+		}
+		for _, q := range quotes {
+			if m, ok := mappingsMap[q.DropOffPoint]; ok {
+				m["expected_revenue"] = q.Base
+				m["expected_vat"] = q.VAT
+				m["pricing_error"] = q.Error
+			}
 		}
 	}
 

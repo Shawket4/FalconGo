@@ -48,6 +48,7 @@ type TripExportLabels struct {
 	TankCapacity     string `json:"tank_capacity"`
 	Distance         string `json:"distance"`
 	Fee              string `json:"fee"`
+	Revenue          string `json:"revenue"`
 	InGarage         string `json:"in_garage"`
 	InOffice         string `json:"in_office"`
 	Stamped          string `json:"stamped"`
@@ -60,7 +61,8 @@ type TripExportLabels struct {
 	TotalTrips    string `json:"total_trips"`
 	TotalVolume   string `json:"total_volume"`
 	TotalDistance string `json:"total_distance"`
-	TotalFees     string `json:"total_fees"`
+	TotalFees     string `json:"total_fees"` // unused: fee rates do not add up to money
+	TotalRevenue  string `json:"total_revenue"`
 	StampedCount  string `json:"stamped_count"`
 	Totals        string `json:"totals"`
 	Yes           string `json:"yes"`
@@ -90,6 +92,13 @@ func (l TripExportLabels) withDefaults() TripExportLabels {
 	l.TankCapacity = def(l.TankCapacity, "Capacity (L)")
 	l.Distance = def(l.Distance, "Distance (km)")
 	l.Fee = def(l.Fee, "Fee")
+	arabic := strings.EqualFold(strings.TrimSpace(l.Lang), "ar")
+	if arabic {
+		l.Revenue = def(l.Revenue, "الإيراد (ج.م)")
+		l.TotalRevenue = def(l.TotalRevenue, "إجمالي الإيراد")
+	}
+	l.Revenue = def(l.Revenue, "Revenue (EGP)")
+	l.TotalRevenue = def(l.TotalRevenue, "Total Revenue")
 	l.InGarage = def(l.InGarage, "In Garage")
 	l.InOffice = def(l.InOffice, "In Office")
 	l.Stamped = def(l.Stamped, "Stamped")
@@ -111,9 +120,12 @@ func (l TripExportLabels) withDefaults() TripExportLabels {
 
 // BuildTripsExcel renders the workbook and returns it as bytes.
 //
-// `showFinancials` mirrors the permission masking used elsewhere: below
-// permission 3 the fee column is omitted entirely rather than zeroed, so the
-// spreadsheet does not imply every trip was free.
+// `showFinancials` mirrors the permission masking used elsewhere
+// (middleware.MoneyVisible): below permission 3 the fee and revenue columns
+// and the revenue totals are omitted entirely rather than zeroed, so the
+// spreadsheet does not imply every trip was free. Revenue is the trip's
+// stored base revenue (excluding VAT and car rental); a trip the pricing
+// engine could not price has an empty revenue cell.
 func BuildTripsExcel(trips []Models.TripStruct, labels TripExportLabels, showFinancials bool, meta string) ([]byte, error) {
 	return BuildTripsExport(trips, labels, showFinancials, meta, false)
 }
@@ -161,7 +173,11 @@ func buildTripsBook(trips []Models.TripStruct, labels TripExportLabels, showFina
 		{Header: l.Distance, Width: 13.5, Kind: report.Decimal, Total: true},
 	}
 	if showFinancials {
-		cols = append(cols, report.Column{Header: l.Fee, Width: 16.5, Kind: report.Money, Total: true})
+		// The fee is the mapping's rate (EGP per 1,000 L, or a band number):
+		// not money to add up. Revenue is.
+		cols = append(cols,
+			report.Column{Header: l.Fee, Width: 16.5, Kind: report.Money},
+			report.Column{Header: l.Revenue, Width: 16.5, Kind: report.Money, Total: true})
 	}
 	cols = append(cols,
 		report.Column{Header: l.InGarage, Width: 8, Kind: report.Flag},
@@ -202,7 +218,11 @@ func buildTripsBook(trips []Models.TripStruct, labels TripExportLabels, showFina
 			tripDistance(t),
 		}
 		if showFinancials {
-			values = append(values, t.Fee)
+			var revenue any // empty: not priced
+			if t.BaseRevenue != nil {
+				revenue = round2(*t.BaseRevenue)
+			}
+			values = append(values, t.Fee, revenue)
 		}
 		inGarage, inOffice, stamped := hasStep(t, "Garage"), hasStep(t, "Office"), isStamped(t)
 		values = append(values,
@@ -225,7 +245,7 @@ func buildTripsBook(trips []Models.TripStruct, labels TripExportLabels, showFina
 		{Label: l.TotalDistance, Value: report.FormatAmount(stats.distance)},
 	}
 	if showFinancials {
-		cards = append(cards, report.Card{Label: l.TotalFees, Value: report.FormatAmount(stats.fees), Dark: true})
+		cards = append(cards, report.Card{Label: l.TotalRevenue, Value: report.FormatAmount(stats.revenue), Dark: true})
 	}
 	cards = append(cards, report.Card{Label: l.StampedCount, Value: report.FormatCount(int64(stats.stamped))})
 
@@ -254,8 +274,8 @@ func buildTripsBook(trips []Models.TripStruct, labels TripExportLabels, showFina
 }
 
 type tripStats struct {
-	trips, stamped           int
-	capacity, distance, fees float64
+	trips, stamped              int
+	capacity, distance, revenue float64
 }
 
 func computeTripStats(trips []Models.TripStruct, showFinancials bool) tripStats {
@@ -264,14 +284,14 @@ func computeTripStats(trips []Models.TripStruct, showFinancials bool) tripStats 
 		s.trips++
 		s.capacity += float64(t.TankCapacity)
 		s.distance += tripDistance(t)
-		if showFinancials {
-			s.fees += t.Fee
+		if showFinancials && t.BaseRevenue != nil {
+			s.revenue += *t.BaseRevenue
 		}
 		if isStamped(t) {
 			s.stamped++
 		}
 	}
-	s.capacity, s.distance, s.fees = round2(s.capacity), round2(s.distance), round2(s.fees)
+	s.capacity, s.distance, s.revenue = round2(s.capacity), round2(s.distance), round2(s.revenue)
 	return s
 }
 
@@ -285,7 +305,7 @@ func writeTripSummarySheet(book *report.Book, trips []Models.TripStruct, l TripE
 		trips    int
 		capacity float64
 		distance float64
-		fees     float64
+		revenue  float64
 	}
 	byCompany := map[string]*agg{}
 	order := []string{}
@@ -302,7 +322,9 @@ func writeTripSummarySheet(book *report.Book, trips []Models.TripStruct, l TripE
 		a.trips++
 		a.capacity += float64(t.TankCapacity)
 		a.distance += tripDistance(t)
-		a.fees += t.Fee
+		if t.BaseRevenue != nil {
+			a.revenue += *t.BaseRevenue
+		}
 	}
 	sort.Strings(order)
 
@@ -313,14 +335,14 @@ func writeTripSummarySheet(book *report.Book, trips []Models.TripStruct, l TripE
 		{Header: l.TotalDistance, Width: 16, Kind: report.Decimal, Total: true},
 	}
 	if showFinancials {
-		cols = append(cols, report.Column{Header: l.TotalFees, Width: 18, Kind: report.Money, Total: true})
+		cols = append(cols, report.Column{Header: l.TotalRevenue, Width: 18, Kind: report.Money, Total: true})
 	}
 	var rows [][]any
 	for _, key := range order {
 		a := byCompany[key]
 		vals := []any{key, a.trips, round2(a.capacity), round2(a.distance)}
 		if showFinancials {
-			vals = append(vals, round2(a.fees))
+			vals = append(vals, round2(a.revenue))
 		}
 		rows = append(rows, vals)
 	}

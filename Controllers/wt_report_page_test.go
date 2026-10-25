@@ -38,7 +38,7 @@ func wtFakeTrips(n int) []Models.TripStruct {
 			Mileage:      float64(100 + rnd.Intn(400)),
 		})
 	}
-	return out
+	return wtStore(out, wtFakeMappings())
 }
 
 func wtFakeMappings() []Models.FeeMapping {
@@ -219,7 +219,7 @@ func TestWatanyaReportContent(t *testing.T) {
 	trips, maps := wtFixture()
 	priced := map[string]float64{}
 	for _, m := range maps {
-		priced[m.Terminal+"|"+m.DropOffPoint] = wtFeeIndexToAmount[int(m.Fee)]
+		priced[m.Terminal+"|"+m.DropOffPoint] = wtSeedBandRates[int(m.Fee)]
 	}
 	var wantTrips, wantCap int
 	var wantAmount float64

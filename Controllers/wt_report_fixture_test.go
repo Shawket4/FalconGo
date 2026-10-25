@@ -3,8 +3,10 @@ package Controllers
 import (
 	"fmt"
 	"math/rand"
+	"testing"
 
 	"Falcon/Models"
+	"Falcon/testutil"
 )
 
 // wtFixture is a representative month of Watanya work: real terminal names,
@@ -64,6 +66,7 @@ func wtFixture() ([]Models.TripStruct, []Models.FeeMapping) {
 			})
 		}
 	}
+	trips = wtStore(trips, mappings)
 	// No fee mapping for this route: excluded from the report.
 	for i := 0; i < 3; i++ {
 		trips = append(trips, Models.TripStruct{
@@ -73,4 +76,51 @@ func wtFixture() ([]Models.TripStruct, []Models.FeeMapping) {
 		})
 	}
 	return trips, mappings
+}
+
+// wtSeedBandRates is the Watanya band table the pricing seed stores
+// (apex-rust's WATANYA_BAND_RATES); TestWatanyaSeedBandsMatchFixtures pins
+// the two together. The report reads stored prices, so its fixtures carry
+// what the engine stores.
+var wtSeedBandRates = map[int]float64{
+	1: 104.5, 2: 122.1, 3: 129.8, 4: 156.2, 5: 183.7,
+	6: 196.9, 7: 210.1, 8: 235.4, 9: 261.8, 10: 288.2,
+	11: 314.6, 12: 341.0, 13: 367.4, 14: 393.8, 15: 420.2,
+}
+
+// wtStore sets each mapped trip's stored base revenue as the pricing engine
+// would: tank_capacity x band rate / 1,000.
+func wtStore(trips []Models.TripStruct, maps []Models.FeeMapping) []Models.TripStruct {
+	band := map[string]int{}
+	for _, m := range maps {
+		band[m.Terminal+"|"+m.DropOffPoint] = int(m.Fee)
+	}
+	for i := range trips {
+		if b, ok := band[trips[i].Terminal+"|"+trips[i].DropOffPoint]; ok {
+			v := float64(trips[i].TankCapacity) * wtSeedBandRates[b] / 1000
+			trips[i].BaseRevenue = &v
+		}
+	}
+	return trips
+}
+
+// TestWatanyaSeedBandsMatchFixtures: the fixtures' band table is the one the
+// pricing seed stores, so the report tests price as production does.
+func TestWatanyaSeedBandsMatchFixtures(t *testing.T) {
+	db := testutil.TripSchema(t)
+	var bands []struct {
+		Band int
+		Rate float64
+	}
+	db.Raw(`SELECT b.band, b.rate_per_1000l::float8 AS rate FROM pricing_bands b
+              JOIN pricing_rules r ON r.id = b.rule_id
+             WHERE r.company = 'Watanya' AND r.effective_from = '2000-01-01'`).Scan(&bands)
+	if len(bands) != len(wtSeedBandRates) {
+		t.Fatalf("seed has %d bands, fixtures %d", len(bands), len(wtSeedBandRates))
+	}
+	for _, b := range bands {
+		if wtSeedBandRates[b.Band] != b.Rate {
+			t.Errorf("band %d: seed %.2f, fixtures %.2f", b.Band, b.Rate, wtSeedBandRates[b.Band])
+		}
+	}
 }

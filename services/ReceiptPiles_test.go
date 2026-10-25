@@ -400,8 +400,8 @@ func TestBuildDropOffDetailMatchesReportOrder(t *testing.T) {
 		detailTrip("هايكستب", "2026-07-07", "890987", 500),
 	}
 	fees := map[string]FeeInfo{
-		"بدر|حلوان 1":     {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
-		"هايكستب|حلوان 1": {Distance: 90, FeeIndex: 2, ActualFee: WatanyaBandRates[2]},
+		"بدر|حلوان 1":     {Distance: 120, FeeIndex: 4},
+		"هايكستب|حلوان 1": {Distance: 90, FeeIndex: 2},
 	}
 
 	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
@@ -441,20 +441,39 @@ func TestBuildDropOffDetailMatchesReportOrder(t *testing.T) {
 	}
 }
 
-// Cost is litres x rate per 1,000 litres, the same arithmetic the report uses.
+// Cost is the trip's stored base revenue, as on the report, and the rate is
+// the one it was priced at. An unpriced trip costs 0 and is not in the rate.
 func TestBuildDropOffDetailPricesLikeTheReport(t *testing.T) {
-	trips := []Models.TripStruct{detailTrip("بدر", "2026-07-01", "1", 20000)}
+	stored := 20000 * 156.2 / 1000.0 // what the engine stores for band 4
+	priced := detailTrip("بدر", "2026-07-01", "1", 20000)
+	priced.BaseRevenue = &stored
+	unpriced := detailTrip("بدر", "2026-07-02", "2", 5000)
+	trips := []Models.TripStruct{priced, unpriced}
 	fees := map[string]FeeInfo{
-		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
+		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4},
 	}
 	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
 
-	want := 20000 * 156.2 / 1000.0 // band 4
-	if got := detail.Terminals[0].Receipts[0].Cost; got == nil || *got != want {
-		t.Errorf("cost %v, want %v", got, want)
+	rows := detail.Terminals[0].Receipts
+	if got := rows[0].Cost; got == nil || *got != stored {
+		t.Errorf("cost %v, want %v", got, stored)
 	}
-	if detail.TotalCost == nil || *detail.TotalCost != want || detail.TotalCapacity != 20000 {
-		t.Errorf("totals %v / %d, want %v / 20000", detail.TotalCost, detail.TotalCapacity, want)
+	if got := rows[0].ActualFee; got == nil || *got != 156.2 {
+		t.Errorf("rate %v, want 156.2", got)
+	}
+	if got := rows[1].Cost; got == nil || *got != 0 {
+		t.Errorf("unpriced cost %v, want 0", got)
+	}
+	if got := detail.Terminals[0].ActualFee; got == nil || *got != 156.2 {
+		t.Errorf("table rate %v, want 156.2 (the unpriced trip is not in it)", got)
+	}
+	if detail.TotalCost == nil || *detail.TotalCost != stored || detail.TotalCapacity != 25000 {
+		t.Errorf("totals %v / %d, want %v / 25000", detail.TotalCost, detail.TotalCapacity, stored)
+	}
+	// Without financial access there is no money at all.
+	masked := BuildDropOffDetail("حلوان 1", trips, fees, nil, false)
+	if masked.TotalCost != nil || masked.Terminals[0].ActualFee != nil || masked.Terminals[0].Receipts[0].Cost != nil {
+		t.Error("money present without financial access")
 	}
 }
 
@@ -469,7 +488,7 @@ func TestBuildDropOffDetailKeepsUnmappedTerminalsLast(t *testing.T) {
 		detailTrip("بدر", "2026-07-01", "111", 1000),
 	}
 	fees := map[string]FeeInfo{
-		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4, ActualFee: WatanyaBandRates[4]},
+		"بدر|حلوان 1": {Distance: 120, FeeIndex: 4},
 	}
 	detail := BuildDropOffDetail("حلوان 1", trips, fees, nil, true)
 

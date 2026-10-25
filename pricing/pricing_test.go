@@ -579,3 +579,58 @@ func TestFreezeWaitsForTheGraceDays(t *testing.T) {
 		t.Errorf("second backfill = %+v, %v; want nothing to do", again, err)
 	}
 }
+
+// TestQuoteIsWhatTheEngineStores: Quote prices a hypothetical drop with the
+// engine's own formula, so for every standalone fixture trip it gives exactly
+// what the backfill stored for it — base, VAT or pricing error.
+func TestQuoteIsWhatTheEngineStores(t *testing.T) {
+	db := fixtureDB(t)
+	backfill(t, db)
+	var rows []struct {
+		Company, Terminal, DropOffPoint, Date string
+		TankCapacity                          float64
+		Base, VAT                             *float64
+		PricingError                          *string
+	}
+	db.Raw(`SELECT company, terminal, drop_off_point, date, tank_capacity::float8 AS tank_capacity,
+                   base_revenue::float8 AS base, revenue_vat::float8 AS vat, pricing_error
+              FROM trips WHERE deleted_at IS NULL AND COALESCE(parent_trip_id, 0) = 0`).Scan(&rows)
+	if len(rows) < 40 {
+		t.Fatalf("only %d standalone rows", len(rows))
+	}
+	f := func(p *float64) string {
+		if p == nil {
+			return "NULL"
+		}
+		return money(*p)
+	}
+	for _, r := range rows {
+		quotes, err := pricing.Quote(db, r.Company, r.Terminal, r.Date, r.TankCapacity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var q *pricing.QuoteResult
+		for i := range quotes {
+			if quotes[i].DropOffPoint == r.DropOffPoint {
+				q = &quotes[i]
+			}
+		}
+		if q == nil {
+			if r.PricingError == nil {
+				t.Errorf("%+v: priced, but no quote for its drop-off", r)
+			}
+			continue // unmapped: Quote only lists mapped drop-offs
+		}
+		if f(q.Base) != f(r.Base) || f(q.VAT) != f(r.VAT) || (q.Error == nil) != (r.PricingError == nil) {
+			t.Errorf("%s %s -> %s on %s: quote %s / %s, stored %s / %s",
+				r.Company, r.Terminal, r.DropOffPoint, r.Date, f(q.Base), f(q.VAT), f(r.Base), f(r.VAT))
+		}
+	}
+	// A company with no rule is quoted with the engine's own error.
+	db.Exec(`INSERT INTO fee_mappings (company, terminal, drop_off_point, distance, fee) VALUES ('Nobody', 'T', 'D', 1, 1)`)
+	quotes, _ := pricing.Quote(db, "Nobody", "T", "2025-05-05", 1000)
+	if len(quotes) != 1 || quotes[0].Base != nil || quotes[0].Error == nil ||
+		!strings.Contains(*quotes[0].Error, "no pricing rule") {
+		t.Errorf("unknown company quote = %+v", quotes)
+	}
+}
