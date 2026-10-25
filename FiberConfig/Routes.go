@@ -212,7 +212,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	mappings.Get("/terminals/:company", feeMappingHandler.GetTerminalsByCompany)
 	mappings.Get("/dropoffs/:company/:terminal", feeMappingHandler.GetDropOffPointsByTerminal)
 	mappings.Get("/fee", feeMappingHandler.GetFeeByMapping)
-	api.Get("/all-terminals", feeMappingHandler.GetAllTerminals, middleware.VerifyAny())
+	// Middleware before the handler: in the other order the handler answered
+	// first and VerifyAny never ran, so this was open to anyone.
+	api.Get("/all-terminals", middleware.VerifyAny(), feeMappingHandler.GetAllTerminals)
 
 	// CRUD operations
 	mappings.Get("/:id", feeMappingHandler.GetFeeMapping)
@@ -263,7 +265,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Delete("/parent/:parent_id", tripHandler.DeleteParentTrip)
 
 	// TRIP SUMMARY ROUTE (Your original endpoint - now session-aware)
-	api.Get("/parent-trips/:parent_trip_id/summary", Controllers.GetFullTripSummaryByParentTrip, middleware.Verify(1))
+	api.Get("/parent-trips/:parent_trip_id/summary", middleware.Verify(1), Controllers.GetFullTripSummaryByParentTrip)
 
 	// Global stats
 	api.Get("/stats/widget-data", tripHandler.GetGlobalStats)
@@ -272,7 +274,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// DRIVER MANAGEMENT (Admin)
 	// ============================================
-	api.Post("/protected/RegisterDriver", Controllers.RegisterDriver, middleware.Verify(1))
+	api.Post("/protected/RegisterDriver", middleware.Verify(1), Controllers.RegisterDriver)
 	drivers := api.Group("/drivers", middleware.Verify(1))
 	drivers.Get("/", Apis.GetDrivers)
 	drivers.Post("/", Controllers.RegisterDriver)
@@ -404,7 +406,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Positions
 	tires.Post("/positions/assign", Controllers.AssignTireToPosition)
 	tires.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
-	app.Post("/UpdateTireList", Apis.UpdateTireList)
+	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
+	// it had no auth at all. No client calls it, so it is admin-only.
+	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)
 
 	// ============================================
 	// TRANSPORTER MANAGEMENT
