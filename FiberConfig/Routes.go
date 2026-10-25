@@ -426,6 +426,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/pricing/rules", middleware.Verify(4), Controllers.CreatePricingRule)
 	api.Delete("/pricing/rules/:id", middleware.Verify(4), Controllers.DeletePricingRule)
 	api.Get("/pricing/truck-months", middleware.Verify(3), Controllers.GetTruckMonths)
+	api.Get("/pricing/quote", middleware.Verify(3), Controllers.GetPricingQuote)
 	api.Post("/pricing/reprice", middleware.Verify(4), Controllers.RepricePricing)
 
 	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and

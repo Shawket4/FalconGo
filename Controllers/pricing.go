@@ -158,6 +158,38 @@ func GetTruckMonths(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"month": month, "rows": rows, "totals": totals})
 }
 
+// GetPricingQuote is GET /api/pricing/quote?company=&terminal=&tank_capacity=&date=:
+// what one standalone delivery of tank_capacity litres would earn on each of
+// the company's routes (one terminal's, or every terminal's when terminal is
+// empty), priced by the engine itself on the rule in force on date (default
+// today, Cairo). Nothing is stored. Callers that need a price — the advisor's
+// route planner among them — ask here instead of re-deriving the formula.
+func GetPricingQuote(c *fiber.Ctx) error {
+	company := strings.TrimSpace(c.Query("company"))
+	if company == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "company is required"})
+	}
+	capacity, err := strconv.ParseFloat(c.Query("tank_capacity"), 64)
+	if err != nil || capacity <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "tank_capacity must be a positive number of litres"})
+	}
+	date := strings.TrimSpace(c.Query("date"))
+	if date == "" {
+		date = time.Now().In(pricing.Cairo).Format("2006-01-02")
+	} else if _, err := time.Parse("2006-01-02", date); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "date must be YYYY-MM-DD"})
+	}
+	quotes, err := pricing.Quote(Models.DB, company, strings.TrimSpace(c.Query("terminal")), date, capacity)
+	if err != nil {
+		log.Printf("pricing: quote %s: %v", company, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not price the routes"})
+	}
+	if quotes == nil {
+		quotes = []pricing.QuoteResult{}
+	}
+	return c.JSON(fiber.Map{"company": company, "date": date, "tank_capacity": capacity, "quotes": quotes})
+}
+
 // repriceInput is the body of POST /api/pricing/reprice.
 type repriceInput struct {
 	From          string `json:"from"`
