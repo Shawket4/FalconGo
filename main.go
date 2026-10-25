@@ -38,6 +38,8 @@ func main() {
 	log.Println("Starting Falcon Logistics System")
 	log.Println("========================================")
 
+	startProfiler()
+
 	// Sentry, if SENTRY_DSN is set. Deferred flush so a crash on the way out
 	// still delivers. With no DSN this installs nothing and the flush is a
 	// no-op, leaving the service exactly as it was.

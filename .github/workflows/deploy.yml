@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.25.x"
           cache: true
 
       - name: Install dependencies
@@ -37,10 +37,18 @@ jobs:
           # -X main.version stamps the Sentry release, so an error can be
           # traced to the deploy that introduced it. Without it every build
           # reports "falcon@dev" and releases are useless.
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
-            -ldflags "-X main.version=${GITHUB_SHA::7}" \
-            -o main ./main.go
+          # -trimpath -s -w: smaller binary, no build paths baked in; Go keeps
+          # its own symbol table, so panics and Sentry traces still name
+          # functions. -pgo=auto uses default.pgo (a production CPU profile)
+          # when one is committed next to main.go. GOAMD64=v3 targets
+          # AVX2/BMI2/FMA CPUs (the VPS is an AMD EPYC); on an older CPU the
+          # binary refuses to start with a message naming v3.
+          GOOS=linux GOARCH=amd64 GOAMD64=v3 CGO_ENABLED=0 go build \
+            -trimpath -pgo=auto \
+            -ldflags "-s -w -X main.version=${GITHUB_SHA::7}" \
+            -o main .
           chmod +x main
+          ls -lh main
 
       - name: Prepare deployment package
         run: |
@@ -91,8 +99,14 @@ jobs:
           # Final setup
           chmod +x $APP_DIR/main
           sudo chown -R ${{ secrets.SSH_USER }}:$(id -gn ${{ secrets.SSH_USER }}) $APP_DIR
-          
+
+          # What the binary runs on, for the deploy log.
+          grep -m1 'model name' /proc/cpuinfo; echo "cores: $(nproc)"
+          /lib64/ld-linux-x86-64.so.2 --help 2>/dev/null | grep -E 'x86-64-v[234]' || true
+
           sudo systemctl restart Falcon
+          sleep 8
+          systemctl is-active Falcon || { sudo journalctl -u Falcon -n 30 --no-pager; exit 1; }
           EOF
 
           chmod +x deploy.sh
