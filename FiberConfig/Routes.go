@@ -584,7 +584,7 @@ func useGlobalMiddleware(app *fiber.App) {
 		// sentry-trace and baggage carry the caller's trace id. They are not
 		// CORS-safelisted, so without them here the browser strips them at
 		// preflight and every request looks like the start of a new trace.
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage, X-Via-AI, X-AI-Suggestion-Id",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage, X-Via-AI, X-AI-Suggestion-Id, X-Update-Revenue, X-Update-Mileage",
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
