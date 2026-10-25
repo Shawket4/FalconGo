@@ -239,8 +239,9 @@ func (ctrl *DriverAuthController) RegeneratePIN(c *fiber.Ctx) error {
 		return utils.InternalServerErrorResponse(c, "Failed to save new PIN")
 	}
 
-	// Log the PIN regeneration
-	log.Printf("PIN regenerated for driver %d (%s): %s", driver.ID, driver.Name, plainPIN)
+	// Log the regeneration, never the PIN: it is a live credential, and the
+	// service log is kept, shipped and read far more widely than this response.
+	log.Printf("PIN regenerated for driver %d (%s)", driver.ID, driver.Name)
 
 	return utils.SuccessResponse(c, fiber.Map{
 		"message": "PIN regenerated successfully",

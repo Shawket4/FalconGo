@@ -16,15 +16,20 @@ func CreateOilChange(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return err
 	}
-	var car Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.CarID).Find(&car).Error; err != nil {
+	// First, not Find: an unknown car_id saved an oil change against an empty
+	// plate and pointed no car at it.
+	car, err := carByID(input.CarID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Car not found"})
+	}
+	if err != nil {
 		log.Println(err.Error())
 		return err
 	}
 	input.CarNoPlate = car.CarNoPlate
 	authorUser := c.Locals("user").(*Models.User)
 	input.Author = authorUser.Name
-	input, err := input.Add()
+	input, err = input.Add()
 	if err != nil {
 		log.Println(err)
 		return err
@@ -62,8 +67,16 @@ func EditOilChange(c *fiber.Ctx) error {
 	}
 	input.CarNoPlate = car.CarNoPlate
 
+	// First, not Find: a missing or zero ID left oilChange empty and Edit()'s
+	// full Save INSERTed it as a new oil change.
+	if input.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Oil change not found"})
+	}
 	var oilChange Models.OilChange
-	if err := Models.DB.Model(&Models.OilChange{}).Where("id = ?", input.ID).Find(&oilChange).Error; err != nil {
+	if err := Models.DB.First(&oilChange, input.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Oil change not found"})
+		}
 		log.Println(err.Error())
 		return err
 	}

@@ -2,6 +2,7 @@ package Controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func RegisterDriver(c *fiber.Ctx) error {
@@ -167,20 +169,41 @@ func UpdateDriver(c *fiber.Ctx) error {
 		log.Println(err)
 		return err
 	}
+	// The body's ID, else the route's :id. Then First, not Find: a missing or
+	// zero ID left driver empty and Save INSERTed a new driver.
+	id := input.ID
+	if id == 0 {
+		if p, err := strconv.ParseUint(c.Params("id"), 10, 64); err == nil {
+			id = uint(p)
+		}
+	}
+	if id == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Driver not found"})
+	}
 	var driver Models.Driver
-	if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", input.ID).Find(&driver).Error; err != nil {
+	if err := Models.DB.First(&driver, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Driver not found"})
+		}
 		log.Println(err.Error())
 		return err
 	}
-	driver.Name = input.Name
-	driver.MobileNumber = input.MobileNumber
-	driver.IDLicenseExpirationDate = input.IDLicenseExpirationDate
-	driver.DriverLicenseExpirationDate = input.DriverLicenseExpirationDate
-	driver.SafetyLicenseExpirationDate = input.SafetyLicenseExpirationDate
-	driver.DrugTestExpirationDate = input.DrugTestExpirationDate
-	driver.IsApproved = true
-	driver.PIN = nil
-	if err := Models.DB.Save(&driver).Error; err != nil {
+	// Only the columns this form edits. A full Save also wrote PIN = nil,
+	// which wiped the driver's tablet login on every profile edit.
+	if err := Models.DB.Model(&driver).Select(
+		"name", "mobile_number",
+		"id_license_expiration_date", "driver_license_expiration_date",
+		"safety_license_expiration_date", "drug_test_expiration_date",
+		"is_approved",
+	).Updates(Models.Driver{
+		Name:                        input.Name,
+		MobileNumber:                input.MobileNumber,
+		IDLicenseExpirationDate:     input.IDLicenseExpirationDate,
+		DriverLicenseExpirationDate: input.DriverLicenseExpirationDate,
+		SafetyLicenseExpirationDate: input.SafetyLicenseExpirationDate,
+		DrugTestExpirationDate:      input.DrugTestExpirationDate,
+		IsApproved:                  true,
+	}).Error; err != nil {
 		log.Println(err.Error())
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error On Saving User To DB",
@@ -551,7 +574,24 @@ func Login(c *fiber.Ctx) error {
 	})
 }
 
-var CurrentUser *Models.User
+// RequestUser returns the admin user this request authenticated as: the one
+// middleware.Verify (a pointer) or VerifyAny (a value) stored in Locals.
+//
+// It replaces a package-level CurrentUser that nothing ever assigned, so every
+// handler that read it dereferenced nil. A request that never authenticated
+// gets an empty user (Id 0) rather than nil, which the handlers' existing
+// "Id != 0" checks already treat as not logged in.
+func RequestUser(c *fiber.Ctx) *Models.User {
+	switch u := c.Locals("user").(type) {
+	case *Models.User:
+		if u != nil {
+			return u
+		}
+	case Models.User:
+		return &u
+	}
+	return &Models.User{}
+}
 
 func User(c *fiber.Ctx) error {
 	cookie := c.Cookies("jwt")

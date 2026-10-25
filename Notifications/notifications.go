@@ -204,14 +204,14 @@ func GetExpiringDocuments() {
 }
 
 func ReturnNotifications(c *fiber.Ctx) error {
-	Controllers.User(c)
-	if Controllers.CurrentUser.Id != 0 {
-		if Controllers.CurrentUser.Permission == 0 {
+	currentUser := Controllers.RequestUser(c)
+	if currentUser.Id != 0 {
+		if currentUser.Permission == 0 {
 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else if Controllers.CurrentUser.Permission == 1 {
+		} else if currentUser.Permission == 1 {
 			var UserNotifications []Notification
 			for _, s := range Notifications {
-				if s.Transporter == Controllers.CurrentUser.Name {
+				if s.Transporter == currentUser.Name {
 					UserNotifications = append(UserNotifications, s)
 				}
 			}

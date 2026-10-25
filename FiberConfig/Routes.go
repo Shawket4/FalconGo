@@ -20,6 +20,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"gorm.io/gorm"
 )
@@ -211,7 +212,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	mappings.Get("/terminals/:company", feeMappingHandler.GetTerminalsByCompany)
 	mappings.Get("/dropoffs/:company/:terminal", feeMappingHandler.GetDropOffPointsByTerminal)
 	mappings.Get("/fee", feeMappingHandler.GetFeeByMapping)
-	api.Get("/all-terminals", feeMappingHandler.GetAllTerminals, middleware.VerifyAny())
+	// Middleware before the handler: in the other order the handler answered
+	// first and VerifyAny never ran, so this was open to anyone.
+	api.Get("/all-terminals", middleware.VerifyAny(), feeMappingHandler.GetAllTerminals)
 
 	// CRUD operations
 	mappings.Get("/:id", feeMappingHandler.GetFeeMapping)
@@ -262,7 +265,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	trips.Delete("/parent/:parent_id", tripHandler.DeleteParentTrip)
 
 	// TRIP SUMMARY ROUTE (Your original endpoint - now session-aware)
-	api.Get("/parent-trips/:parent_trip_id/summary", Controllers.GetFullTripSummaryByParentTrip, middleware.Verify(1))
+	api.Get("/parent-trips/:parent_trip_id/summary", middleware.Verify(1), Controllers.GetFullTripSummaryByParentTrip)
 
 	// Global stats
 	api.Get("/stats/widget-data", tripHandler.GetGlobalStats)
@@ -271,7 +274,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// DRIVER MANAGEMENT (Admin)
 	// ============================================
-	api.Post("/protected/RegisterDriver", Controllers.RegisterDriver, middleware.Verify(1))
+	api.Post("/protected/RegisterDriver", middleware.Verify(1), Controllers.RegisterDriver)
 	drivers := api.Group("/drivers", middleware.Verify(1))
 	drivers.Get("/", Apis.GetDrivers)
 	drivers.Post("/", Controllers.RegisterDriver)
@@ -403,7 +406,17 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// Positions
 	tires.Post("/positions/assign", Controllers.AssignTireToPosition)
 	tires.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
-	app.Post("/UpdateTireList", Apis.UpdateTireList)
+	// maint-rust's stock ledger. Called server-to-server with the user's
+	// relayed token (jwt cookie) at /api/go/api/maint-stock/... through nginx,
+	// like the /api/cars and /api/service-invoices routes it already uses. The
+	// POST takes credits as well as debits; see RecordMaintStockMovement.
+	api.Post("/maint-stock/debit", middleware.Verify(1), Controllers.RecordMaintStockMovement)
+	api.Get("/maint-stock/tires", middleware.Verify(1), Controllers.GetMaintTireStock)
+	api.Get("/maint-stock/oil", middleware.Verify(1), Controllers.GetMaintOilStock)
+
+	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
+	// it had no auth at all. No client calls it, so it is admin-only.
+	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)
 
 	// ============================================
 	// TRANSPORTER MANAGEMENT
@@ -526,17 +539,17 @@ func RegisterViolationRoutes(app *fiber.App) {
 	violations.Delete("/:id", middleware.Verify(3), Controllers.DeleteViolation)
 }
 
-func FiberConfig() {
-	fmt.Println("Server Up...")
-	engine := html.New("./Templates", ".html")
-
-	app := fiber.New(fiber.Config{
-		Views: engine,
-		// Reports 5xx to Sentry and then defers to Fiber's own handling, so
-		// responses are byte-for-byte what they were. With no SENTRY_DSN the
-		// capture is a no-op.
-		ErrorHandler: Observability.ErrorHandler(nil),
-	})
+// useGlobalMiddleware installs the middleware every request passes through,
+// outermost first. The order is load-bearing (see each comment), and is the
+// one thing about it worth testing, so it lives here rather than inline.
+func useGlobalMiddleware(app *fiber.App) {
+	// The outermost safety net: a panic in the global middleware below (which
+	// sits outside the inner recover) is reported by the Sentry middleware,
+	// re-panicked, and turned into a 500 here instead of killing the process.
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace:  true,
+		StackTraceHandler: Observability.LogPanic,
+	}))
 
 	// Sentry scope per request. Must precede the routes so handlers run inside
 	// a hub of their own.
@@ -557,6 +570,16 @@ func FiberConfig() {
 	// ai_audit_logs, after the handler so the status is known.
 	app.Use(middleware.AIAudit())
 
+	// Handler panics become a 500 here rather than killing the process —
+	// there was no recover at all, so one nil dereference took every request
+	// down with it. INSIDE AIAudit, so a panicking AI-applied write is still
+	// audited (with its 500), and therefore inside the Sentry middleware too,
+	// which is why ReportPanic reports it itself.
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace:  true,
+		StackTraceHandler: Observability.ReportPanic,
+	}))
+
 	// Compression
 	app.Use(compress.New(compress.Config{
 		Level: compress.LevelBestSpeed,
@@ -569,10 +592,25 @@ func FiberConfig() {
 		// sentry-trace and baggage carry the caller's trace id. They are not
 		// CORS-safelisted, so without them here the browser strips them at
 		// preflight and every request looks like the start of a new trace.
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage, X-Via-AI, X-AI-Suggestion-Id",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-Device-ID, X-Device-Name, X-Device-Type, sentry-trace, baggage, X-Via-AI, X-AI-Suggestion-Id, X-Update-Revenue, X-Update-Mileage",
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+}
+
+func FiberConfig() {
+	fmt.Println("Server Up...")
+	engine := html.New("./Templates", ".html")
+
+	app := fiber.New(fiber.Config{
+		Views: engine,
+		// Reports 5xx to Sentry and then defers to Fiber's own handling, so
+		// responses are byte-for-byte what they were. With no SENTRY_DSN the
+		// capture is a no-op.
+		ErrorHandler: Observability.ErrorHandler(nil),
+	})
+
+	useGlobalMiddleware(app)
 
 	// Public routes
 	app.Post("/RegisterInstapay", Controllers.RegisterInstapayNew)

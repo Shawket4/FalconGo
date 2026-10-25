@@ -5395,7 +5395,9 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 		parentFieldsUpdated = true
 	}
 	if input.ParentTrip.DriverName != "" {
-		existingParent.DriverID = input.ParentTrip.DriverID
+		// The ID is taken above, and only when one is sent: a rename that
+		// carries driver_name alone used to zero driver_id on the parent and,
+		// through updateData below, on every container.
 		existingParent.DriverName = input.ParentTrip.DriverName
 		parentFieldsUpdated = true
 	}
@@ -5630,29 +5632,31 @@ func (h *TripHandler) UpdateParentTrip(c *fiber.Ctx) error {
 					})
 				}
 
-				if container.DropOffPoint == unregisteredDropOff {
-					continue
-				}
-
-				// Get fee mapping for new container
+				// Get fee mapping for new container. The unregistered
+				// placeholder is not a place, so it has no mapping: it is
+				// created unpriced, exactly as CreateMultiContainerTrip
+				// creates it. It used to be skipped here, so the container was
+				// silently dropped while the response still said 200.
 				var mapping Models.FeeMapping
-				err := h.DB.Where("company = ? AND terminal = ? AND drop_off_point = ?",
-					existingParent.Company, existingParent.Terminal, container.DropOffPoint).
-					First(&mapping).Error
+				if container.DropOffPoint != unregisteredDropOff {
+					err := tx.Where("company = ? AND terminal = ? AND drop_off_point = ?",
+						existingParent.Company, existingParent.Terminal, container.DropOffPoint).
+						First(&mapping).Error
 
-				if err != nil {
-					if err == gorm.ErrRecordNotFound {
+					if err != nil {
+						if err == gorm.ErrRecordNotFound {
+							tx.Rollback()
+							return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+								"message": fmt.Sprintf("No mapping found for %s -> %s",
+									existingParent.Terminal, container.DropOffPoint),
+							})
+						}
 						tx.Rollback()
-						return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-							"message": fmt.Sprintf("No mapping found for %s -> %s",
-								existingParent.Terminal, container.DropOffPoint),
+						return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+							"message": "Failed to validate mapping",
+							"error":   err.Error(),
 						})
 					}
-					tx.Rollback()
-					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-						"message": "Failed to validate mapping",
-						"error":   err.Error(),
-					})
 				}
 
 				// Create new container with ALL fields
