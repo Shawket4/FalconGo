@@ -8,9 +8,7 @@ import (
 	"Falcon/MultiRouteOptimizer"
 	"Falcon/Notifications"
 	"Falcon/Observability"
-	"Falcon/PetroApp"
 	"Falcon/PreviewData"
-	"Falcon/Scrapper"
 	"Falcon/Slack"
 	"Falcon/Whatsapp"
 	"Falcon/middleware"
@@ -438,13 +436,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// VEHICLE TRACKING & MONITORING
 	// ============================================
-	api.Use("/GetVehicleStatus", middleware.Verify(1), Apis.GetVehicleStatus)
-	api.Use("/GetVehicleMapPoints", middleware.Verify(1), Apis.GetVehicleMapPoints)
-	api.Use("/GetVehicleMilage", middleware.Verify(1), Scrapper.GetVehicleMileageHistory)
 	api.Get("/GetVehicleSpeedAlerts", middleware.Verify(1), Controllers.GetVehicleSpeedAlerts)
-	protectedApis.Get("/GetVehicleRouteByTrip", Scrapper.GetVehicleRouteByTrip)
-	protectedApis.Get("/GetVehicleRouteByDate", Scrapper.GetVehicleRouteByDate)
-	protectedApis.Get("/StoreVehicleRouteData", Scrapper.StoreVehicleRouteData)
 
 	// ============================================
 	// LOCATION MANAGEMENT
@@ -456,7 +448,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// ============================================
 	// PETRO APP & UTILITIES
 	// ============================================
-	app.Post("/get-closest-stations", middleware.VerifyAny(), PetroApp.GetClosestStations)
 	api.Post("/multi-route-optimizer", MultiRouteOptimizer.OptimalRouteHandler)
 	app.Post("/convert/upload", middleware.Verify(1), ETA.ConvertToExcel)
 	// ============================================

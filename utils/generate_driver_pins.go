@@ -106,7 +106,7 @@ func GeneratePINsForExistingDrivers(db *gorm.DB) error {
 	}
 
 	log.Printf("Found %d drivers without PINs\n", len(drivers))
-	log.Println("Generating unique PINs with collision detection...\n")
+	log.Println("Generating unique PINs with collision detection...")
 
 	var assignments []PINAssignment
 	successCount := 0
@@ -151,7 +151,7 @@ func GeneratePINsForExistingDrivers(db *gorm.DB) error {
 	log.Println("⚠️  IMPORTANT: SAVE THESE PINS!")
 	log.Println("========================================")
 	log.Println("These PINs are shown ONLY ONCE and cannot be recovered.")
-	log.Println("Share these PINs with the respective drivers securely.\n")
+	log.Println("Share these PINs with the respective drivers securely.")
 
 	// Print PIN assignments in a table format
 	if len(assignments) > 0 {

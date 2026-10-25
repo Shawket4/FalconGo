@@ -1,7 +1,6 @@
 package Constants
 
 import (
-	"Falcon/Models"
 	"os"
 	"log"
 	"github.com/joho/godotenv"
@@ -9,17 +8,6 @@ import (
 
 // const SMBPath = "/samba/main/"
 const SMBPath = "./Temp/"
-
-var EmailConfig Models.EmailConfig = Models.EmailConfig{
-	SMTPServer:   "smtp.gmail.com",
-	SMTPPort:     465,
-	Username:     "redacted@example.com",
-	Password:     "REDACTED",
-	FromEmail:    "redacted@example.com",
-	FromName:     "Apex",
-	TLSEnabled:   true,
-	SkipTLSCheck: false,
-}
 
 const WhatsappGoService = "http://localhost:3000"
 

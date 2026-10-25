@@ -3485,45 +3485,6 @@ func (h *TripHandler) DeleteTrip(c *fiber.Ctx) error {
 
 	services.NotifyTripAudit(trip.Date)
 
-	// defer func() {
-	// 	go func() {
-	// 		emailBody := fmt.Sprintf(`
-	// 		Trip details:
-
-	// 		Receipt No: %s
-	// 		Date: %s
-	// 		Company: %s
-	// 		Terminal: %s
-	// 		Drop-off: %s
-	// 		Tank: %d
-	// 		Driver: %s
-	// 		Car: %s
-	// 		Distance: %.2f km
-	// 		Fee: $%.2f
-
-	// 		This is an automated message.
-	// 		`,
-	// 			trip.ReceiptNo,
-	// 			trip.Date,
-	// 			trip.Company,
-	// 			trip.Terminal,
-	// 			trip.DropOffPoint,
-	// 			trip.TankCapacity,
-	// 			trip.DriverName,
-	// 			trip.CarNoPlate,
-	// 			trip.Distance,
-	// 			trip.Fee,
-	// 		)
-	// 		email.SendEmail(Constants.EmailConfig, Models.EmailMessage{
-	// 			To:      []string{"redacted@example.com", "redacted@example.com"},
-	// 			Subject: fmt.Sprintf("%s: Receipt No: %s Has Been Deleted", trip.Company, trip.ReceiptNo),
-	// 			Body:    emailBody,
-	// 			IsHTML:  false,
-	// 		})
-	// 	}()
-
-	// }()
-
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "Trip deleted successfully",
 	})
