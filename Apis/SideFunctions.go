@@ -6,6 +6,7 @@ import (
 	"Falcon/Observability"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -337,6 +338,41 @@ func (h *FuelHandler) GetFuelStatistics(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// carByID loads the car a fuel event or oil change is for. A zero or unknown
+// car_id is gorm.ErrRecordNotFound, so the caller answers 404 instead of
+// saving the event against an empty plate.
+func carByID(carID uint) (Models.Car, error) {
+	var car Models.Car
+	if carID == 0 {
+		return car, gorm.ErrRecordNotFound
+	}
+	err := Models.DB.First(&car, carID).Error
+	return car, err
+}
+
+// fuelEventCheck validates what every fuel event write needs before it
+// touches the database: fuel in it (liters is the divisor of the fuel rate;
+// zero stored an infinite rate and a response that could not be encoded) and
+// a real car. It returns the car, or ok=false and the response it wrote.
+func fuelEventCheck(c *fiber.Ctx, ev *Models.FuelEvent) (Models.Car, bool, error) {
+	if ev.Liters <= 0 {
+		return Models.Car{}, false, c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "liters must be greater than zero",
+		})
+	}
+	car, err := carByID(ev.CarID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return car, false, c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "car not found",
+		})
+	}
+	if err != nil {
+		log.Println(err.Error())
+		return car, false, err
+	}
+	return car, true, nil
+}
+
 func AddFuelEvent(c *fiber.Ctx) error {
 	var inputJson Models.FuelEvent
 	if err := c.BodyParser(&inputJson); err != nil {
@@ -346,10 +382,9 @@ func AddFuelEvent(c *fiber.Ctx) error {
 		})
 	}
 
-	var car Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", inputJson.CarID).Find(&car).Error; err != nil {
-		log.Println(err.Error())
-		return err
+	car, ok, resp := fuelEventCheck(c, &inputJson)
+	if !ok {
+		return resp
 	}
 	fmt.Println(car)
 	inputJson.CarNoPlate = car.CarNoPlate
@@ -387,21 +422,35 @@ func EditFuelEvent(c *fiber.Ctx) error {
 			"error": "invalid request body",
 		})
 	}
-	var car Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", inputJson.CarID).Find(&car).Error; err != nil {
+	// The event must exist and be live. With Find, a missing or zero ID left
+	// fuelEvent empty and the Save below INSERTed a new row; and Save writes
+	// the request's (null) deleted_at, so editing a soft-deleted event revived
+	// it. First applies the soft-delete scope, so both are a 404 here.
+	if inputJson.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "fuel event not found",
+		})
+	}
+	var fuelEvent Models.FuelEvent
+	if err := Models.DB.First(&fuelEvent, inputJson.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "fuel event not found",
+			})
+		}
 		log.Println(err.Error())
 		return err
+	}
+	car, ok, resp := fuelEventCheck(c, &inputJson)
+	if !ok {
+		return resp
 	}
 	inputJson.CarNoPlate = car.CarNoPlate
 
 	inputJson.Price = inputJson.PricePerLiter * inputJson.Liters
 	inputJson.FuelRate = float64(inputJson.OdometerAfter-inputJson.OdometerBefore) / inputJson.Liters
-	var fuelEvent Models.FuelEvent
-	if err := Models.DB.Model(&Models.FuelEvent{}).Where("id = ?", inputJson.ID).Find(&fuelEvent).Error; err != nil {
-		log.Println(err.Error())
-		return err
-	}
 	inputJson.CreatedAt = fuelEvent.CreatedAt
+	inputJson.DeletedAt = fuelEvent.DeletedAt
 
 	if err := Models.DB.Save(&inputJson).Error; err != nil {
 		log.Println(err.Error())

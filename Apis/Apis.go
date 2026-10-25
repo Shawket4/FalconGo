@@ -1657,8 +1657,16 @@ func EditServiceEvent(c *fiber.Ctx) error {
 			}
 			input.CarNoPlate = car.CarNoPlate
 
+			// First, not Find: Find leaves a missing or zero ID as an empty
+			// struct, which Edit then saves as a brand-new row.
+			if input.ID == 0 {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Service event not found"})
+			}
 			var serviceEvent Models.Service
-			if err := Models.DB.Model(&Models.Service{}).Where("id = ?", input.ID).Find(&serviceEvent).Error; err != nil {
+			if err := Models.DB.First(&serviceEvent, input.ID).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Service event not found"})
+				}
 				log.Println(err.Error())
 				return err
 			}
