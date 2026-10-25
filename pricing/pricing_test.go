@@ -634,6 +634,30 @@ func TestQuoteIsWhatTheEngineStores(t *testing.T) {
 				r.Company, r.Terminal, r.DropOffPoint, r.Date, f(q.Base), f(q.VAT), f(r.Base), f(r.VAT))
 		}
 	}
+	// An empty terminal quotes every terminal's routes, each the same as the
+	// per-terminal quote.
+	for _, r := range rows[:5] {
+		one, _ := pricing.Quote(db, r.Company, r.Terminal, r.Date, r.TankCapacity)
+		all, err := pricing.Quote(db, r.Company, "", r.Date, r.TankCapacity)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mine := 0
+		for _, a := range all {
+			if a.Terminal != r.Terminal {
+				continue
+			}
+			mine++
+			for _, o := range one {
+				if o.DropOffPoint == a.DropOffPoint && (f(o.Base) != f(a.Base) || f(o.VAT) != f(a.VAT)) {
+					t.Errorf("%s %s: all-terminal quote %s differs from %s", r.Terminal, a.DropOffPoint, f(a.Base), f(o.Base))
+				}
+			}
+		}
+		if mine != len(one) || len(all) < len(one) {
+			t.Errorf("%s: %d of %d routes under its terminal in the all-terminal quote", r.Terminal, mine, len(one))
+		}
+	}
 	// A company with no rule is quoted with the engine's own error.
 	db.Exec(`INSERT INTO fee_mappings (company, terminal, drop_off_point, distance, fee) VALUES ('Nobody', 'T', 'D', 1, 1)`)
 	quotes, _ := pricing.Quote(db, "Nobody", "T", "2025-05-05", 1000)

@@ -518,6 +518,7 @@ func Hydrate(tx *gorm.DB, trips []Models.TripStruct) error {
 // QuoteResult is one drop-off's quote. Base and VAT are nil, and Error set,
 // when the drop could not be priced.
 type QuoteResult struct {
+	Terminal     string   `json:"terminal"`
 	DropOffPoint string   `json:"drop_off_point"`
 	Base         *float64 `json:"base_revenue"`
 	VAT          *float64 `json:"revenue_vat"`
@@ -527,8 +528,8 @@ type QuoteResult struct {
 // Quote is what a trip would earn, priced by the engine's own formula
 // (pricedCTEs) without storing anything: one standalone drop of capacity
 // litres from terminal to each of company's mapped drop-offs, dated date
-// (YYYY-MM-DD). Car rental is not included: it is per truck-month, not per
-// trip.
+// (YYYY-MM-DD). An empty terminal quotes every terminal's routes. Car rental
+// is not included: it is per truck-month, not per trip.
 func Quote(db *gorm.DB, company, terminal, date string, capacity float64) ([]QuoteResult, error) {
 	var out []QuoteResult
 	err := db.Raw(`
@@ -538,15 +539,15 @@ func Quote(db *gorm.DB, company, terminal, date string, capacity float64) ([]Quo
                    -fm.id AS g, COALESCE(CAST(? AS text) ~ `+validDate+`, false) AS date_ok,
                    NULL::numeric AS old_base, NULL::text AS old_error
               FROM fee_mappings fm
-             WHERE fm.company = ? AND fm.terminal = ? AND fm.deleted_at IS NULL
+             WHERE fm.company = ? AND (? = '' OR fm.terminal = ?) AND fm.deleted_at IS NULL
         ),
         `+pricedCTEs+`
-        SELECT l.drop_off_point,
+        SELECT l.terminal, l.drop_off_point,
                CASE WHEN c.err IS NULL THEN c.base::float8 END              AS base,
                CASE WHEN c.err IS NULL THEN (c.base * c.vat_rate)::float8 END AS vat,
                c.err AS error
           FROM computed c JOIN live l ON l.id = c.id
-         ORDER BY l.drop_off_point`,
-		date, capacity, date, company, terminal, UnregisteredDropOff).Scan(&out).Error
+         ORDER BY l.terminal, l.drop_off_point`,
+		date, capacity, date, company, terminal, terminal, UnregisteredDropOff).Scan(&out).Error
 	return out, err
 }
