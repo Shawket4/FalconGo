@@ -33,6 +33,7 @@ type carProfileInput struct {
 	ChassisNo          *string  `json:"chassis_no"`
 	EngineNo           *string  `json:"engine_no"`
 	EngineCC           *int     `json:"engine_cc"`
+	EngineCylinders    *int     `json:"engine_cylinders"`
 	PayloadTons        *float64 `json:"payload_tons"`
 	Color              *string  `json:"color"`
 	TrailerNoPlate     *string  `json:"trailer_no_plate"`
@@ -70,8 +71,8 @@ func RegisterCar(c *fiber.Ctx) error {
 	if car.CarNoPlate == "" {
 		return badCar(c, "The plate number is required")
 	}
-	if car.EngineCC < 0 || car.PayloadTons < 0 || car.TrailerPayloadTons < 0 {
-		return badCar(c, "Engine size and payload cannot be negative")
+	if car.EngineCC < 0 || car.EngineCylinders < 0 || car.PayloadTons < 0 || car.TrailerPayloadTons < 0 {
+		return badCar(c, "Engine size, cylinders and payload cannot be negative")
 	}
 	for _, date := range []string{car.LicenseExpirationDate, car.CalibrationExpirationDate, car.TankLicenseExpirationDate} {
 		if err := documents.CheckLegacyDate(date); err != nil {
@@ -149,9 +150,10 @@ func updateCar(c *fiber.Ctx, id uint, raw []byte) error {
 		return badCar(c, "The plate number is required")
 	}
 	if (in.EngineCC != nil && *in.EngineCC < 0) ||
+		(in.EngineCylinders != nil && *in.EngineCylinders < 0) ||
 		(in.PayloadTons != nil && *in.PayloadTons < 0) ||
 		(in.TrailerPayloadTons != nil && *in.TrailerPayloadTons < 0) {
-		return badCar(c, "Engine size and payload cannot be negative")
+		return badCar(c, "Engine size, cylinders and payload cannot be negative")
 	}
 	for _, date := range []*string{in.LicenseExpirationDate, in.CalibrationExpirationDate, in.TankLicenseExpirationDate} {
 		if date != nil {
@@ -181,6 +183,9 @@ func updateCar(c *fiber.Ctx, id uint, raw []byte) error {
 	text("engine_no", in.EngineNo)
 	if in.EngineCC != nil {
 		set["engine_cc"] = *in.EngineCC
+	}
+	if in.EngineCylinders != nil {
+		set["engine_cylinders"] = *in.EngineCylinders
 	}
 	if in.PayloadTons != nil {
 		set["payload_tons"] = *in.PayloadTons
