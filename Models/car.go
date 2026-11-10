@@ -10,9 +10,21 @@ import (
 
 type Car struct {
 	gorm.Model
-	TabletID                  *uint            `json:"tablet_id" gorm:"index"`
-	Tablet                    *Tablet          `json:"tablet,omitempty" gorm:"foreignKey:TabletID"`
-	CarNoPlate                string           `json:"car_no_plate"`
+	TabletID   *uint   `json:"tablet_id" gorm:"index"`
+	Tablet     *Tablet `json:"tablet,omitempty" gorm:"foreignKey:TabletID"`
+	CarNoPlate string  `json:"car_no_plate"`
+	// What the vehicle licence says about the vehicle itself. All optional;
+	// zero or empty means not recorded. A trailer has a plate, a chassis
+	// number and a payload of its own, and no engine.
+	ChassisNo                 string           `json:"chassis_no" gorm:"not null;default:''"`
+	EngineNo                  string           `json:"engine_no" gorm:"not null;default:''"`
+	EngineCC                  int              `json:"engine_cc" gorm:"column:engine_cc;not null;default:0"`
+	PayloadTons               float64          `json:"payload_tons" gorm:"not null;default:0"`
+	Color                     string           `json:"color" gorm:"not null;default:''"`
+	TrailerNoPlate            string           `json:"trailer_no_plate" gorm:"not null;default:''"`
+	TrailerChassisNo          string           `json:"trailer_chassis_no" gorm:"not null;default:''"`
+	TrailerPayloadTons        float64          `json:"trailer_payload_tons" gorm:"not null;default:0"`
+	TrailerColor              string           `json:"trailer_color" gorm:"not null;default:''"`
 	CarType                   string           `json:"car_type"`
 	Transporter               string           `json:"transporter"`
 	TankCapacity              int              `json:"tank_capacity"`
@@ -42,7 +54,8 @@ type Car struct {
 	SlackStatus               string           `json:"slack_status"`
 	LastUpdatedSlackStatus    time.Time        `json:"last_updated_slack_status"`
 
-	// Image fields
+	// Legacy image columns. Superseded by the documents tables (their files
+	// were imported as each document's first version); nothing writes them.
 	CarLicenseImageName             string `json:"car_license_image_name"`
 	CarLicenseImageNameBack         string `json:"car_license_image_name_back"`
 	CalibrationLicenseImageName     string `json:"calibration_license_image_name"`

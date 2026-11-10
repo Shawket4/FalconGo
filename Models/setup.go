@@ -273,6 +273,14 @@ func runAutoMigrations() {
 		Observability.ReportJobFailure("startup", "migrate_phase15", err)
 	}
 
+	// Phase 16: documents (papers and photos for cars and drivers, with
+	// their version history) and cars.trailer_no_plate. The import of the old
+	// per-column dates and images is documents.Backfill, run from main.
+	if err := MigrateDocuments(DB); err != nil {
+		log.Printf("phase-16 documents: %v", err)
+		Observability.ReportJobFailure("startup", "migrate_phase16", err)
+	}
+
 	// 🔥 CRITICAL: Fix sequences again AFTER migrations
 	// This ensures newly created tables have proper sequences
 	fixAllSequences()

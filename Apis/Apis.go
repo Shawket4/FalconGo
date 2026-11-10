@@ -15,11 +15,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -74,16 +72,6 @@ type User struct {
 	MobileNumber string `json:"Mobile_Number"`
 }
 
-type CarResponse struct {
-	Models.Car
-	CarLicenseURL             string `json:"car_license_url,omitempty"`
-	CarLicenseBackURL         string `json:"car_license_back_url,omitempty"`
-	CalibrationLicenseURL     string `json:"calibration_license_url,omitempty"`
-	CalibrationLicenseBackURL string `json:"calibration_license_back_url,omitempty"`
-	TankLicenseURL            string `json:"tank_license_url,omitempty"`
-	TankLicenseBackURL        string `json:"tank_license_back_url,omitempty"`
-}
-
 func GetCars(c *fiber.Ctx) error {
 	limitStr := c.Query("limit")
 	pageStr := c.Query("page", "1")
@@ -117,48 +105,23 @@ func GetCars(c *fiber.Ctx) error {
 		}
 	}
 
-	// Build response with image URLs
-	baseURL := c.BaseURL() // e.g., http://localhost:3000
-	carsResponse := make([]CarResponse, len(cars))
-
-	for i, car := range cars {
-		carsResponse[i] = CarResponse{Car: car}
-
-		// Decode the stored layout so every client sees one shape —
-		// compartments: [] — instead of having to cope with a null column, a
-		// JSON string, and an array.
-		compartments, err := car.CompartmentList()
+	// Decode the stored layout so every client sees one shape —
+	// compartments: [] — instead of having to cope with a null column, a
+	// JSON string, and an array.
+	for i := range cars {
+		compartments, err := cars[i].CompartmentList()
 		if err != nil {
-			log.Printf("car %d has an unreadable compartment layout: %v", car.ID, err)
+			log.Printf("car %d has an unreadable compartment layout: %v", cars[i].ID, err)
 			compartments = []int{}
 		}
-		carsResponse[i].Car.Compartments = compartments
-
-		if car.CarLicenseImageName != "" {
-			carsResponse[i].CarLicenseURL = fmt.Sprintf("%s/images/car-licenses/%s", baseURL, car.CarLicenseImageName)
-		}
-		if car.CarLicenseImageNameBack != "" {
-			carsResponse[i].CarLicenseBackURL = fmt.Sprintf("%s/images/car-licenses-back/%s", baseURL, car.CarLicenseImageNameBack)
-		}
-		if car.CalibrationLicenseImageName != "" {
-			carsResponse[i].CalibrationLicenseURL = fmt.Sprintf("%s/images/calibration-licenses/%s", baseURL, car.CalibrationLicenseImageName)
-		}
-		if car.CalibrationLicenseImageNameBack != "" {
-			carsResponse[i].CalibrationLicenseBackURL = fmt.Sprintf("%s/images/calibration-licenses-back/%s", baseURL, car.CalibrationLicenseImageNameBack)
-		}
-		if car.TankLicenseImageName != "" {
-			carsResponse[i].TankLicenseURL = fmt.Sprintf("%s/images/tank-licenses/%s", baseURL, car.TankLicenseImageName)
-		}
-		if car.TankLicenseImageNameBack != "" {
-			carsResponse[i].TankLicenseBackURL = fmt.Sprintf("%s/images/tank-licenses-back/%s", baseURL, car.TankLicenseImageNameBack)
-		}
+		cars[i].Compartments = compartments
 	}
 
 	if limitStr != "" {
 		limit, _ := strconv.Atoi(limitStr)
 		page, _ := strconv.Atoi(pageStr)
 		return c.JSON(fiber.Map{
-			"data": carsResponse,
+			"data": cars,
 			"pagination": fiber.Map{
 				"page":       page,
 				"limit":      limit,
@@ -168,7 +131,7 @@ func GetCars(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(carsResponse)
+	return c.JSON(cars)
 }
 
 func GetCar(c *fiber.Ctx) error {
@@ -311,331 +274,6 @@ func DaysBetweenDates(Date1, Date2 string) int {
 	// Calculate days between dates
 	days := t2.Sub(t1).Hours() / 24
 	return int(days)
-}
-
-// func RegisterCar(c *fiber.Ctx) error {
-// 	Controllers.User(c)
-// 	if Controllers.CurrentUser.Id != 0 {
-// 		if Controllers.CurrentUser.Permission == 0 {
-// 			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-// 		} else {
-// 			db := Database.ConnectToDB()
-// 			// Get the body of the request
-// 			// Convert the body to a map
-// 			var car Car
-// 			formData := c.FormValue("request")
-// 			// format formData into data map
-// 			err := json.Unmarshal([]byte(formData), &car)
-// 			if err != nil {
-// 				log.Println(err)
-// 			}
-// 			// err := c.BodyParser(&car)
-// 			// if err != nil {
-// 			// 	log.Println(err.Error())
-// 			// 	return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-// 			// }
-
-// 			jsonCompartments, err := json.Marshal(car.Compartments)
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-// 			}
-// 			if Controllers.CurrentUser.Permission >= 3 {
-// 				car.IsApproved = 1
-// 			} else {
-// 				car.IsApproved = 0
-// 			}
-// 			if car.Transporter == "" {
-// 				car.Transporter = Controllers.CurrentUser.Name
-// 			}
-// 			carLicense, err := c.FormFile("CarLicense")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(carLicense, fmt.Sprintf("./CarLicenses/%s", carLicense.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			carLicenseBack, err := c.FormFile("CarLicenseBack")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(carLicenseBack, fmt.Sprintf("./CarLicenses/%s", carLicenseBack.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-
-// 			calibrationLicense, err := c.FormFile("CalibrationLicense")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(calibrationLicense, fmt.Sprintf("./CalibrationLicenses/%s", calibrationLicense.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			calibrationLicenseBack, err := c.FormFile("CalibrationLicenseBack")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(calibrationLicenseBack, fmt.Sprintf("./CalibrationLicenses/%s", calibrationLicenseBack.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-
-// 			tankLicense, err := c.FormFile("TankLicense")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(tankLicense, fmt.Sprintf("./TankLicenses/%s", tankLicense.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-
-// 			tankLicenseBack, err := c.FormFile("TankLicenseBack")
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-// 			// Save file to disk
-// 			// Allow multipart form
-// 			err = c.SaveFile(tankLicenseBack, fmt.Sprintf("./TankLicensesBack/%s", tankLicenseBack.Filename))
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.JSON(fiber.Map{
-// 					"message": err.Error(),
-// 					"file":    "save",
-// 				})
-// 			}
-
-// 			// Insert the car into the database
-// 			_, err = db.Exec("INSERT INTO `Cars` (`CarId`, `CarNoPlate`, `Transporter`, `TankCapacity`, `Compartments`, `LicenseExpirationDate`, `CalibrationExpirationDate`, `TankLicenseExpirationDate`, `IsApproved`, `CarLicenseImageName`, `CalibrationLicenseImageName`, `CarLicenseImageNameBack`, `CalibrationLicenseImageNameBack`, `TankLicenseImageName`, `TankLicenseImageNameBack`) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", car.CarNoPlate, car.Transporter, car.TankCapacity, jsonCompartments, car.LicenseExpirationDate, car.CalibrationExpirationDate, car.TankLicenseExpirationDate, car.IsApproved, carLicense.Filename, calibrationLicense.Filename, carLicenseBack.Filename, calibrationLicenseBack.Filename, tankLicense.Filename, tankLicenseBack.Filename)
-// 			if err != nil {
-// 				log.Println(err.Error())
-// 				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-// 			}
-// 			return c.JSON(
-// 				fiber.Map{
-// 					"Message":    "Car added successfully",
-// 					"CarNoPlate": car.CarNoPlate,
-// 				},
-// 			)
-// 		}
-// 	} else {
-// 		return c.JSON(fiber.Map{
-// 			"message": "Not Logged In.",
-// 		})
-// 	}
-// }
-
-func RegisterCar(c *fiber.Ctx) error {
-	var car Models.Car
-
-	// Check Content-Type to determine how to parse the request
-	contentType := string(c.Request().Header.ContentType())
-
-	if strings.Contains(contentType, "application/json") {
-		// Handle JSON request (no files)
-		if err := c.BodyParser(&car); err != nil {
-			log.Println("JSON parse error:", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Invalid request body",
-			})
-		}
-	} else {
-		// Handle multipart/form-data request (with files)
-		formData := c.FormValue("request")
-		if formData == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Missing 'request' form field",
-			})
-		}
-
-		if err := json.Unmarshal([]byte(formData), &car); err != nil {
-			log.Println("Form data parse error:", err)
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Invalid request body",
-			})
-		}
-
-		// Handle file uploads (only for multipart requests)
-		if err := handleFileUploads(c, &car); err != nil {
-			return err
-		}
-	}
-
-	car.IsApproved = true
-
-	car.Transporter = "Apex"
-
-	// Only rewrite the compartment layout when the caller actually sent one.
-	// Compartments is transient; marshalling it unconditionally stored a
-	// literal null whenever a client posted the car without it, silently
-	// erasing the layout the trip form validates against.
-	if car.Compartments != nil {
-		jsonCompartments, err := json.Marshal(car.Compartments)
-		if err != nil {
-			log.Println(err.Error())
-			return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
-		}
-		car.JSONCompartments = datatypes.JSON(jsonCompartments)
-	} else if car.ID != 0 {
-		// Save() writes every column, so carry the stored layout forward.
-		var stored Models.Car
-		if err := Models.DB.Select("json_compartments").First(&stored, car.ID).Error; err == nil {
-			car.JSONCompartments = stored.JSONCompartments
-		}
-	}
-
-	// Save to database
-	if err := Models.DB.Save(&car).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to save car",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message":      "Car added successfully",
-		"car_no_plate": car.CarNoPlate,
-		"car_id":       car.ID,
-	})
-}
-
-// Extract file handling logic into separate function
-func handleFileUploads(c *fiber.Ctx, car *Models.Car) error {
-	// Handle Car License Front
-	if carLicense, err := c.FormFile("CarLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicense.Filename)
-		if err := c.SaveFile(carLicense, fmt.Sprintf("./CarLicenses/%s", filename)); err != nil {
-			log.Println("Error saving CarLicense:", err)
-			Observability.ReportFailedUpload("CarLicense", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save car license image",
-			})
-		}
-		car.CarLicenseImageName = filename
-	}
-
-	// Handle Car License Back
-	if carLicenseBack, err := c.FormFile("CarLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicenseBack.Filename)
-		if err := c.SaveFile(carLicenseBack, fmt.Sprintf("./CarLicensesBack/%s", filename)); err != nil {
-			log.Println("Error saving CarLicenseBack:", err)
-			Observability.ReportFailedUpload("CarLicenseBack", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save car license back image",
-			})
-		}
-		car.CarLicenseImageNameBack = filename
-	}
-
-	// Handle Calibration License Front
-	if calibrationLicense, err := c.FormFile("CalibrationLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicense.Filename)
-		if err := c.SaveFile(calibrationLicense, fmt.Sprintf("./CalibrationLicenses/%s", filename)); err != nil {
-			log.Println("Error saving CalibrationLicense:", err)
-			Observability.ReportFailedUpload("CalibrationLicense", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save calibration license image",
-			})
-		}
-		car.CalibrationLicenseImageName = filename
-	}
-
-	// Handle Calibration License Back
-	if calibrationLicenseBack, err := c.FormFile("CalibrationLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicenseBack.Filename)
-		if err := c.SaveFile(calibrationLicenseBack, fmt.Sprintf("./CalibrationLicensesBack/%s", filename)); err != nil {
-			log.Println("Error saving CalibrationLicenseBack:", err)
-			Observability.ReportFailedUpload("CalibrationLicenseBack", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "Failed to save calibration license back image",
-			})
-		}
-		car.CalibrationLicenseImageNameBack = filename
-	}
-
-	// Handle Tank License (only for تريلا type)
-	if car.CarType == "تريلا" || car.CarType == "Trailer" {
-		if tankLicense, err := c.FormFile("TankLicense"); err == nil {
-			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicense.Filename)
-			if err := c.SaveFile(tankLicense, fmt.Sprintf("./TankLicenses/%s", filename)); err != nil {
-				log.Println("Error saving TankLicense:", err)
-				Observability.ReportFailedUpload("TankLicense", err)
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"message": "Failed to save tank license image",
-				})
-			}
-			car.TankLicenseImageName = filename
-		}
-
-		if tankLicenseBack, err := c.FormFile("TankLicenseBack"); err == nil {
-			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicenseBack.Filename)
-			if err := c.SaveFile(tankLicenseBack, fmt.Sprintf("./TankLicensesBack/%s", filename)); err != nil {
-				log.Println("Error saving TankLicenseBack:", err)
-				Observability.ReportFailedUpload("TankLicenseBack", err)
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"message": "Failed to save tank license back image",
-				})
-			}
-			car.TankLicenseImageNameBack = filename
-		}
-	}
-
-	return nil
 }
 
 func RegisterTransporter(c *fiber.Ctx) error {
@@ -859,278 +497,6 @@ func DeleteCar(c *fiber.Ctx) error {
 	}
 }
 
-func UpdateCarDocuments(c *fiber.Ctx) error {
-	var input Models.Car
-	formData := c.FormValue("request")
-
-	if err := json.Unmarshal([]byte(formData), &input); err != nil {
-		log.Println(err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-		})
-	}
-
-	if input.Transporter == "" {
-		input.Transporter = Controllers.RequestUser(c).Name
-	}
-
-	var car Models.Car
-	if err := Models.DB.Model(&Models.Car{}).Where("id = ?", input.ID).First(&car).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Car not found",
-		})
-	}
-
-	// Update basic fields
-	car.CarNoPlate = input.CarNoPlate
-	car.CarType = input.CarType
-	car.Transporter = input.Transporter
-	car.TankCapacity = input.TankCapacity
-	// Absent compartments means "leave the layout alone", not "erase it".
-	if input.Compartments != nil {
-		jsonCompartments, err := json.Marshal(input.Compartments)
-		if err != nil {
-			log.Println(err.Error())
-			return c.Status(fiber.StatusBadRequest).SendString("Invalid compartments data")
-		}
-		car.JSONCompartments = datatypes.JSON(jsonCompartments)
-	}
-	car.LicenseExpirationDate = input.LicenseExpirationDate
-	car.CalibrationExpirationDate = input.CalibrationExpirationDate
-	car.TankLicenseExpirationDate = input.TankLicenseExpirationDate
-
-	// Handle Car License Front update
-	if carLicense, err := c.FormFile("CarLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicense.Filename)
-		if err := c.SaveFile(carLicense, fmt.Sprintf("./uploads/car-licenses/%s", filename)); err != nil {
-			log.Println("Error saving CarLicense:", err)
-			Observability.ReportFailedUpload("CarLicense", err)
-		} else {
-			if car.CarLicenseImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/car-licenses/%s", car.CarLicenseImageName))
-			}
-			car.CarLicenseImageName = filename
-		}
-	}
-
-	// Handle Car License Back update
-	if carLicenseBack, err := c.FormFile("CarLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), carLicenseBack.Filename)
-		if err := c.SaveFile(carLicenseBack, fmt.Sprintf("./uploads/car-licenses-back/%s", filename)); err != nil {
-			log.Println("Error saving CarLicenseBack:", err)
-			Observability.ReportFailedUpload("CarLicenseBack", err)
-		} else {
-			if car.CarLicenseImageNameBack != "" {
-				os.Remove(fmt.Sprintf("./uploads/car-licenses-back/%s", car.CarLicenseImageNameBack))
-			}
-			car.CarLicenseImageNameBack = filename
-		}
-	}
-
-	// Handle Calibration License Front update
-	if calibrationLicense, err := c.FormFile("CalibrationLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicense.Filename)
-		if err := c.SaveFile(calibrationLicense, fmt.Sprintf("./uploads/calibration-licenses/%s", filename)); err != nil {
-			log.Println("Error saving CalibrationLicense:", err)
-			Observability.ReportFailedUpload("CalibrationLicense", err)
-		} else {
-			if car.CalibrationLicenseImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/calibration-licenses/%s", car.CalibrationLicenseImageName))
-			}
-			car.CalibrationLicenseImageName = filename
-		}
-	}
-
-	// Handle Calibration License Back update
-	if calibrationLicenseBack, err := c.FormFile("CalibrationLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), calibrationLicenseBack.Filename)
-		if err := c.SaveFile(calibrationLicenseBack, fmt.Sprintf("./uploads/calibration-licenses-back/%s", filename)); err != nil {
-			log.Println("Error saving CalibrationLicenseBack:", err)
-			Observability.ReportFailedUpload("CalibrationLicenseBack", err)
-		} else {
-			if car.CalibrationLicenseImageNameBack != "" {
-				os.Remove(fmt.Sprintf("./uploads/calibration-licenses-back/%s", car.CalibrationLicenseImageNameBack))
-			}
-			car.CalibrationLicenseImageNameBack = filename
-		}
-	}
-
-	// Handle Tank License updates (only for تريلا type)
-	if car.CarType == "تريلا" || car.CarType == "Trailer" {
-		if tankLicense, err := c.FormFile("TankLicense"); err == nil {
-			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicense.Filename)
-			if err := c.SaveFile(tankLicense, fmt.Sprintf("./uploads/tank-licenses/%s", filename)); err != nil {
-				log.Println("Error saving TankLicense:", err)
-				Observability.ReportFailedUpload("TankLicense", err)
-			} else {
-				if car.TankLicenseImageName != "" {
-					os.Remove(fmt.Sprintf("./uploads/tank-licenses/%s", car.TankLicenseImageName))
-				}
-				car.TankLicenseImageName = filename
-			}
-		}
-
-		if tankLicenseBack, err := c.FormFile("TankLicenseBack"); err == nil {
-			filename := fmt.Sprintf("%d_%s", time.Now().Unix(), tankLicenseBack.Filename)
-			if err := c.SaveFile(tankLicenseBack, fmt.Sprintf("./uploads/tank-licenses-back/%s", filename)); err != nil {
-				log.Println("Error saving TankLicenseBack:", err)
-				Observability.ReportFailedUpload("TankLicenseBack", err)
-			} else {
-				if car.TankLicenseImageNameBack != "" {
-					os.Remove(fmt.Sprintf("./uploads/tank-licenses-back/%s", car.TankLicenseImageNameBack))
-				}
-				car.TankLicenseImageNameBack = filename
-			}
-		}
-	}
-
-	if err := Models.DB.Save(&car).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to update car",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Car updated successfully",
-		"car_id":  car.ID,
-	})
-}
-
-// Add this to your Driver handler file
-
-func UpdateDriverDocuments(c *fiber.Ctx) error {
-	var input Models.Driver
-	formData := c.FormValue("request")
-
-	if err := json.Unmarshal([]byte(formData), &input); err != nil {
-		log.Println(err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-		})
-	}
-
-	if input.Transporter == "" {
-		input.Transporter = Controllers.RequestUser(c).Name
-	}
-
-	var driver Models.Driver
-	if err := Models.DB.Model(&Models.Driver{}).Where("id = ?", input.ID).First(&driver).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": "Driver not found",
-		})
-	}
-
-	// Update basic fields
-	driver.Name = input.Name
-	driver.MobileNumber = input.MobileNumber
-	driver.Transporter = input.Transporter
-	driver.SocialSecurityNo = input.SocialSecurityNo
-	driver.IDLicenseExpirationDate = input.IDLicenseExpirationDate
-	driver.DriverLicenseExpirationDate = input.DriverLicenseExpirationDate
-	driver.SafetyLicenseExpirationDate = input.SafetyLicenseExpirationDate
-	driver.DrugTestExpirationDate = input.DrugTestExpirationDate
-
-	// Handle ID License Front update
-	if idLicense, err := c.FormFile("IDLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), idLicense.Filename)
-		if err := c.SaveFile(idLicense, fmt.Sprintf("./uploads/driver-id-licenses/%s", filename)); err != nil {
-			log.Println("Error saving IDLicense:", err)
-			Observability.ReportFailedUpload("IDLicense", err)
-		} else {
-			if driver.IDLicenseImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/driver-id-licenses/%s", driver.IDLicenseImageName))
-			}
-			driver.IDLicenseImageName = filename
-		}
-	}
-
-	// Handle ID License Back update
-	if idLicenseBack, err := c.FormFile("IDLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), idLicenseBack.Filename)
-		if err := c.SaveFile(idLicenseBack, fmt.Sprintf("./uploads/driver-id-licenses-back/%s", filename)); err != nil {
-			log.Println("Error saving IDLicenseBack:", err)
-			Observability.ReportFailedUpload("IDLicenseBack", err)
-		} else {
-			if driver.IDLicenseImageNameBack != "" {
-				os.Remove(fmt.Sprintf("./uploads/driver-id-licenses-back/%s", driver.IDLicenseImageNameBack))
-			}
-			driver.IDLicenseImageNameBack = filename
-		}
-	}
-
-	// Handle Driver License Front update
-	if driverLicense, err := c.FormFile("DriverLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), driverLicense.Filename)
-		if err := c.SaveFile(driverLicense, fmt.Sprintf("./uploads/driver-licenses/%s", filename)); err != nil {
-			log.Println("Error saving DriverLicense:", err)
-			Observability.ReportFailedUpload("DriverLicense", err)
-		} else {
-			if driver.DriverLicenseImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/driver-licenses/%s", driver.DriverLicenseImageName))
-			}
-			driver.DriverLicenseImageName = filename
-		}
-	}
-
-	// Handle Driver License Back update
-	if driverLicenseBack, err := c.FormFile("DriverLicenseBack"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), driverLicenseBack.Filename)
-		if err := c.SaveFile(driverLicenseBack, fmt.Sprintf("./uploads/driver-licenses-back/%s", filename)); err != nil {
-			log.Println("Error saving DriverLicenseBack:", err)
-			Observability.ReportFailedUpload("DriverLicenseBack", err)
-		} else {
-			if driver.DriverLicenseImageNameBack != "" {
-				os.Remove(fmt.Sprintf("./uploads/driver-licenses-back/%s", driver.DriverLicenseImageNameBack))
-			}
-			driver.DriverLicenseImageNameBack = filename
-		}
-	}
-
-	// Handle Safety License Front update
-	if safetyLicense, err := c.FormFile("SafetyLicense"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), safetyLicense.Filename)
-		if err := c.SaveFile(safetyLicense, fmt.Sprintf("./uploads/safety-licenses/%s", filename)); err != nil {
-			log.Println("Error saving SafetyLicense:", err)
-			Observability.ReportFailedUpload("SafetyLicense", err)
-		} else {
-			if driver.SafetyLicenseImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/safety-licenses/%s", driver.SafetyLicenseImageName))
-			}
-			driver.SafetyLicenseImageName = filename
-		}
-	}
-
-	// Handle Drug Test Front update
-	if drugTest, err := c.FormFile("DrugTest"); err == nil {
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), drugTest.Filename)
-		if err := c.SaveFile(drugTest, fmt.Sprintf("./uploads/drug-tests/%s", filename)); err != nil {
-			log.Println("Error saving DrugTest:", err)
-			Observability.ReportFailedUpload("DrugTest", err)
-		} else {
-			if driver.DrugTestImageName != "" {
-				os.Remove(fmt.Sprintf("./uploads/drug-tests/%s", driver.DrugTestImageName))
-			}
-			driver.DrugTestImageName = filename
-		}
-	}
-
-	if err := Models.DB.Save(&driver).Error; err != nil {
-		log.Println(err.Error())
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to update driver",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message":   "Driver updated successfully",
-		"driver_id": driver.ID,
-		"driver":    driver,
-	})
-}
-
 func EditTransporter(c *fiber.Ctx) error {
 	currentUser := Controllers.RequestUser(c)
 	if currentUser.Id != 0 {
@@ -1310,7 +676,6 @@ func UpdateTempPermission(c *fiber.Ctx) error {
 	}
 }
 
-
 type Trip struct {
 	TripId            int             `json:"TripId"`
 	HasDriver         bool            `json:"HasDriver"`
@@ -1418,7 +783,6 @@ func UpdateCarStatusByID(CarID uint) (*Models.Car, error) {
 // Updated CreateCarTrip function
 
 // Updated EditCarTrip function
-
 
 func GetLocations(c *fiber.Ctx) error {
 	currentUser := Controllers.RequestUser(c)
