@@ -19,6 +19,7 @@ type Car struct {
 	ChassisNo                 string           `json:"chassis_no" gorm:"not null;default:''"`
 	EngineNo                  string           `json:"engine_no" gorm:"not null;default:''"`
 	EngineCC                  int              `json:"engine_cc" gorm:"column:engine_cc;not null;default:0"`
+	EngineCylinders           int              `json:"engine_cylinders" gorm:"column:engine_cylinders;not null;default:0"`
 	PayloadTons               float64          `json:"payload_tons" gorm:"not null;default:0"`
 	Color                     string           `json:"color" gorm:"not null;default:''"`
 	TrailerNoPlate            string           `json:"trailer_no_plate" gorm:"not null;default:''"`

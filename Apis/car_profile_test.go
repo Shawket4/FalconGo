@@ -76,7 +76,7 @@ func TestRegisterCarTakesOnlyAPlateAndStoresTheVehicleIdentity(t *testing.T) {
 	}
 	var bare Models.Car
 	Models.DB.First(&bare, uint(body["car_id"].(float64)))
-	if bare.CarNoPlate != "ABC 123" || bare.Transporter != "Apex" || !bare.IsApproved || bare.EngineCC != 0 || bare.TrailerNoPlate != "" {
+	if bare.CarNoPlate != "ABC 123" || bare.Transporter != "Apex" || !bare.IsApproved || bare.EngineCC != 0 || bare.EngineCylinders != 0 || bare.TrailerNoPlate != "" {
 		t.Errorf("bare car = %+v", bare)
 	}
 	if docs, _ := documents.ListOwner(Models.DB, documents.OwnerCar, bare.ID, true); len(docs) != 0 {
@@ -85,7 +85,7 @@ func TestRegisterCarTakesOnlyAPlateAndStoresTheVehicleIdentity(t *testing.T) {
 
 	code, body = sendCar(t, app, "POST", "/api/cars", map[string]any{
 		"car_no_plate": "XYZ 789", "car_type": "Trailer", "tank_capacity": 42000, "compartments": []int{14000, 14000, 14000},
-		"chassis_no": " WDB9340321L ", "engine_no": "OM471-55", "engine_cc": 12800, "payload_tons": 18.5, "color": "White",
+		"chassis_no": " WDB9340321L ", "engine_no": "OM471-55", "engine_cc": 12800, "engine_cylinders": 6, "payload_tons": 18.5, "color": "White",
 		"trailer_no_plate": "TR 4521", "trailer_chassis_no": "NP9TS3", "trailer_payload_tons": 32, "trailer_color": "Silver",
 		"license_expiration_date": "2026-11-30",
 	}, false)
@@ -97,7 +97,7 @@ func TestRegisterCarTakesOnlyAPlateAndStoresTheVehicleIdentity(t *testing.T) {
 	if full.ChassisNo != "WDB9340321L" && strings.TrimSpace(full.ChassisNo) != "WDB9340321L" {
 		t.Errorf("chassis = %q", full.ChassisNo)
 	}
-	if full.EngineNo != "OM471-55" || full.EngineCC != 12800 || full.PayloadTons != 18.5 || full.Color != "White" ||
+	if full.EngineNo != "OM471-55" || full.EngineCC != 12800 || full.EngineCylinders != 6 || full.PayloadTons != 18.5 || full.Color != "White" ||
 		full.TrailerNoPlate != "TR 4521" || full.TrailerChassisNo != "NP9TS3" || full.TrailerPayloadTons != 32 || full.TrailerColor != "Silver" {
 		t.Errorf("vehicle identity = %+v", full)
 	}
@@ -107,6 +107,7 @@ func TestRegisterCarTakesOnlyAPlateAndStoresTheVehicleIdentity(t *testing.T) {
 
 	for name, bad := range map[string]map[string]any{
 		"a negative engine size": {"car_no_plate": "N1", "engine_cc": -1},
+		"negative cylinders":     {"car_no_plate": "N4", "engine_cylinders": -6},
 		"a negative payload":     {"car_no_plate": "N2", "trailer_payload_tons": -3},
 		"a date that is not one": {"car_no_plate": "N3", "calibration_expiration_date": "tomorrow"},
 	} {
@@ -140,11 +141,11 @@ func TestUpdateCarChangesOnlyWhatIsSent(t *testing.T) {
 		return c
 	}
 
-	if code, body := sendCar(t, app, "PUT", path, map[string]any{"engine_no": "EN-9", "engine_cc": 11000, "color": "Red"}, false); code != 200 {
+	if code, body := sendCar(t, app, "PUT", path, map[string]any{"engine_no": "EN-9", "engine_cc": 11000, "engine_cylinders": 8, "color": "Red"}, false); code != 200 {
 		t.Fatalf("json edit = %d %v", code, body)
 	}
 	got := reload()
-	if got.EngineNo != "EN-9" || got.EngineCC != 11000 || got.Color != "Red" {
+	if got.EngineNo != "EN-9" || got.EngineCC != 11000 || got.EngineCylinders != 8 || got.Color != "Red" {
 		t.Errorf("sent fields not stored: %+v", got)
 	}
 	if got.CarNoPlate != "ABC 123" || got.ChassisNo != "CH-1" || got.TrailerNoPlate != "TR 1" || got.TankCapacity != 30000 ||
@@ -165,7 +166,7 @@ func TestUpdateCarChangesOnlyWhatIsSent(t *testing.T) {
 		t.Fatalf("advisor edit = %d", code)
 	}
 	got = reload()
-	if got.LicenseExpirationDate != "2027-05-05" || got.EngineNo != "EN-9" || got.ChassisNo != "CH-1" {
+	if got.LicenseExpirationDate != "2027-05-05" || got.EngineNo != "EN-9" || got.EngineCylinders != 8 || got.ChassisNo != "CH-1" {
 		t.Errorf("after the advisor's edit: %+v", got)
 	}
 	if lic, cal := carExpiry(t, car.ID, "vehicle_licence"), carExpiry(t, car.ID, "calibration_certificate"); lic != "2027-05-05" || cal != "2027-06-06" {
@@ -193,8 +194,8 @@ func TestUpdateCarChangesOnlyWhatIsSent(t *testing.T) {
 	}
 
 	// Clearing is sending the empty value.
-	sendCar(t, app, "PUT", path, map[string]any{"chassis_no": "", "engine_cc": 0, "compartments": []int{}}, false)
-	if got = reload(); got.ChassisNo != "" || got.EngineCC != 0 || string(got.JSONCompartments) != "[]" {
+	sendCar(t, app, "PUT", path, map[string]any{"chassis_no": "", "engine_cc": 0, "engine_cylinders": 0, "compartments": []int{}}, false)
+	if got = reload(); got.ChassisNo != "" || got.EngineCC != 0 || got.EngineCylinders != 0 || string(got.JSONCompartments) != "[]" {
 		t.Errorf("cleared fields = %q, %d, %s", got.ChassisNo, got.EngineCC, got.JSONCompartments)
 	}
 
@@ -205,6 +206,7 @@ func TestUpdateCarChangesOnlyWhatIsSent(t *testing.T) {
 	}{
 		"a blank plate":      {path, map[string]any{"car_no_plate": " "}, 400},
 		"a negative payload": {path, map[string]any{"payload_tons": -1}, 400},
+		"negative cylinders": {path, map[string]any{"engine_cylinders": -1}, 400},
 		"a bad date":         {path, map[string]any{"license_expiration_date": "05/05/2027"}, 400},
 		"a missing car":      {"/api/cars/999", map[string]any{"color": "Blue"}, 404},
 	} {
