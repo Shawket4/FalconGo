@@ -7,6 +7,7 @@ import (
 	"Falcon/Models"
 	"Falcon/Observability"
 	"Falcon/Slack"
+	"Falcon/documents"
 	"Falcon/workers"
 	"fmt"
 	"log"
@@ -66,6 +67,13 @@ func main() {
 		log.Println("could not instrument DB for Sentry:", err)
 	}
 	log.Println("✅ Database connected")
+
+	// Import the old per-column document dates and images into the documents
+	// tables. It only adds what is missing, so it is a no-op after the first
+	// boot; it runs in the background because it reads image files.
+	go documents.BackfillAtBoot(Models.DB, func(err error) {
+		Observability.ReportJobFailure("startup", "documents_backfill", err)
+	})
 
 	if err := Models.RefreshMaterializedViews(); err != nil {
 		log.Printf("Warning: Failed to refresh materialized views: %v", err)
@@ -299,12 +307,7 @@ func initUploadDirectories() error {
 
 	dirs := []string{
 		"./uploads/receipts",
-		"./uploads/car-licenses",
-		"./uploads/car-licenses-back",
-		"./uploads/calibration-licenses",
-		"./uploads/calibration-licenses-back",
-		"./uploads/tank-licenses",
-		"./uploads/tank-licenses-back",
+		documents.Root,
 	}
 
 	for _, dir := range dirs {

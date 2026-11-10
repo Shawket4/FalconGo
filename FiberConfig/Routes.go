@@ -11,6 +11,7 @@ import (
 	"Falcon/PreviewData"
 	"Falcon/Slack"
 	"Falcon/Whatsapp"
+	"Falcon/documents"
 	"Falcon/middleware"
 	"fmt"
 	"time"
@@ -286,7 +287,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	drivers.Post("/", Controllers.RegisterDriver)
 	drivers.Get("/:id", Apis.GetDriver)
 	drivers.Put("/:id", Controllers.UpdateDriver)
-	drivers.Put("/documents/:id", Apis.UpdateDriverDocuments)
+	// The path the AI advisor edits a driver by. It used to take the document
+	// images too; those now go through /api/documents.
+	drivers.Put("/documents/:id", Controllers.UpdateDriver)
 	drivers.Delete("/:id", Apis.DeleteDriver)
 
 	drivers.Put("/:id/regenerate-pin", middleware.Verify(3), driverAuthController.RegeneratePIN)
@@ -302,7 +305,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	cars.Post("/", Apis.RegisterCar)
 	cars.Get("/", Apis.GetCars)
 	cars.Get("/:id", Apis.GetCar)
-	cars.Put("/:id", Apis.UpdateCarDocuments)
+	cars.Put("/:id", Apis.UpdateCar)
 	cars.Delete("/:id", Apis.DeleteCar)
 	cars.Get("/:carId/service-invoices", Controllers.GetServiceInvoicesByCarID)
 	// Operating company/area. Permission 4: this is what the AI advisor
@@ -429,6 +432,21 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/pricing/quote", middleware.Verify(3), Controllers.GetPricingQuote)
 	api.Post("/pricing/reprice", middleware.Verify(4), Controllers.RepricePricing)
 
+	// Documents: the papers and photos of cars and drivers, with their
+	// history. Everyone signed in reads; managers and above write. The fixed
+	// paths are registered before /:ownerKind/:ownerId so they are not taken
+	// for an owner.
+	docs := api.Group("/documents")
+	docs.Get("/types", middleware.Verify(1), Controllers.GetDocumentTypes)
+	docs.Get("/overview/:ownerKind", middleware.Verify(1), Controllers.GetDocumentsOverview)
+	docs.Post("/files", middleware.Verify(3), Controllers.UploadDocumentFile)
+	docs.Get("/files/:id", middleware.Verify(1), Controllers.GetDocumentFile)
+	docs.Put("/versions/:id", middleware.Verify(3), Controllers.UpdateDocumentVersion)
+	docs.Delete("/versions/:id", middleware.Verify(3), Controllers.HideDocumentVersion)
+	docs.Post("/versions/:id/restore", middleware.Verify(3), Controllers.RestoreDocumentVersion)
+	docs.Get("/:ownerKind/:ownerId", middleware.Verify(1), Controllers.GetOwnerDocuments)
+	docs.Post("/:ownerKind/:ownerId/versions", middleware.Verify(3), Controllers.CreateDocumentVersion)
+
 	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
 	// it had no auth at all. No client calls it, so it is admin-only.
 	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)
@@ -515,24 +533,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	}))
 	static.Static("/receipts", "./uploads/receipts", staticConfig)
 
-	// Car license images
-	static.Static("/car-licenses", "./uploads/car-licenses", staticConfig)
-	static.Static("/car-licenses-back", "./uploads/car-licenses-back", staticConfig)
-
-	// Calibration license images
-	static.Static("/calibration-licenses", "./uploads/calibration-licenses", staticConfig)
-	static.Static("/calibration-licenses-back", "./uploads/calibration-licenses-back", staticConfig)
-
-	// Tank license images
-	static.Static("/tank-licenses", "./uploads/tank-licenses", staticConfig)
-	static.Static("/tank-licenses-back", "./uploads/tank-licenses-back", staticConfig)
-
-	static.Static("/driver-id-licenses", "./uploads/driver-id-licenses", staticConfig)
-	static.Static("/driver-id-licenses-back", "./uploads/driver-id-licenses-back", staticConfig)
-	static.Static("/driver-licenses", "./uploads/driver-licenses", staticConfig)
-	static.Static("/driver-licenses-back", "./uploads/driver-licenses-back", staticConfig)
-	static.Static("/safety-licenses", "./uploads/safety-licenses", staticConfig)
-	static.Static("/drug-tests", "./uploads/drug-tests", staticConfig)
+	// Car and driver papers are not served from here: they are files of the
+	// documents API (/api/documents/files/:id), which checks who is asking.
 
 	// Static files
 	static.Static("/static", "static/", staticConfig)
@@ -616,6 +618,9 @@ func FiberConfig() {
 		// responses are byte-for-byte what they were. With no SENTRY_DSN the
 		// capture is a no-op.
 		ErrorHandler: Observability.ErrorHandler(nil),
+		// Fiber's default is 4 MB, which a scanned PDF passes. Room for one
+		// document file per request.
+		BodyLimit: documents.BodyLimit,
 	})
 
 	useGlobalMiddleware(app)
