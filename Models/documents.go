@@ -54,7 +54,7 @@ type DocumentFile struct {
 func (DocumentFile) TableName() string { return "document_files" }
 
 // MigrateDocuments creates the documents tables and the vehicle identity
-// columns on cars (chassis, engine, cylinders, payload, colour, and the trailer's own).
+// columns on cars (chassis, engine, cylinders, weight, payload, colour, and the trailer's own).
 // Idempotent: it runs on every boot. Importing the old per-column dates and
 // images into these tables is documents.Backfill, run from main after this.
 func MigrateDocuments(db *gorm.DB) error {
@@ -102,17 +102,19 @@ func MigrateDocuments(db *gorm.DB) error {
 		`CREATE INDEX IF NOT EXISTS document_files_version_idx
             ON document_files (version_id, position, id)`,
 		// What the licence says about the vehicle itself. A trailer has its
-		// own plate, chassis number, payload and colour; it stays with its truck, so
+		// own plate, chassis number, weight, payload and colour; it stays with its truck, so
 		// these are columns on the car rather than a vehicle of its own.
 		`ALTER TABLE cars
             ADD COLUMN IF NOT EXISTS chassis_no           text             NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS engine_no            text             NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS engine_cc            integer          NOT NULL DEFAULT 0,
             ADD COLUMN IF NOT EXISTS engine_cylinders     integer          NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS weight_tons          double precision NOT NULL DEFAULT 0,
             ADD COLUMN IF NOT EXISTS payload_tons         double precision NOT NULL DEFAULT 0,
             ADD COLUMN IF NOT EXISTS color                text             NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS trailer_no_plate     text             NOT NULL DEFAULT '',
             ADD COLUMN IF NOT EXISTS trailer_chassis_no   text             NOT NULL DEFAULT '',
+            ADD COLUMN IF NOT EXISTS trailer_weight_tons  double precision NOT NULL DEFAULT 0,
             ADD COLUMN IF NOT EXISTS trailer_payload_tons double precision NOT NULL DEFAULT 0,
             ADD COLUMN IF NOT EXISTS trailer_color        text             NOT NULL DEFAULT ''`,
 	}

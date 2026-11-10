@@ -34,10 +34,12 @@ type carProfileInput struct {
 	EngineNo           *string  `json:"engine_no"`
 	EngineCC           *int     `json:"engine_cc"`
 	EngineCylinders    *int     `json:"engine_cylinders"`
+	WeightTons         *float64 `json:"weight_tons"`
 	PayloadTons        *float64 `json:"payload_tons"`
 	Color              *string  `json:"color"`
 	TrailerNoPlate     *string  `json:"trailer_no_plate"`
 	TrailerChassisNo   *string  `json:"trailer_chassis_no"`
+	TrailerWeightTons  *float64 `json:"trailer_weight_tons"`
 	TrailerPayloadTons *float64 `json:"trailer_payload_tons"`
 	TrailerColor       *string  `json:"trailer_color"`
 
@@ -71,8 +73,9 @@ func RegisterCar(c *fiber.Ctx) error {
 	if car.CarNoPlate == "" {
 		return badCar(c, "The plate number is required")
 	}
-	if car.EngineCC < 0 || car.EngineCylinders < 0 || car.PayloadTons < 0 || car.TrailerPayloadTons < 0 {
-		return badCar(c, "Engine size, cylinders and payload cannot be negative")
+	if car.EngineCC < 0 || car.EngineCylinders < 0 || car.WeightTons < 0 || car.PayloadTons < 0 ||
+		car.TrailerWeightTons < 0 || car.TrailerPayloadTons < 0 {
+		return badCar(c, "Engine size, cylinders, weight and payload cannot be negative")
 	}
 	for _, date := range []string{car.LicenseExpirationDate, car.CalibrationExpirationDate, car.TankLicenseExpirationDate} {
 		if err := documents.CheckLegacyDate(date); err != nil {
@@ -151,9 +154,11 @@ func updateCar(c *fiber.Ctx, id uint, raw []byte) error {
 	}
 	if (in.EngineCC != nil && *in.EngineCC < 0) ||
 		(in.EngineCylinders != nil && *in.EngineCylinders < 0) ||
+		(in.WeightTons != nil && *in.WeightTons < 0) ||
 		(in.PayloadTons != nil && *in.PayloadTons < 0) ||
+		(in.TrailerWeightTons != nil && *in.TrailerWeightTons < 0) ||
 		(in.TrailerPayloadTons != nil && *in.TrailerPayloadTons < 0) {
-		return badCar(c, "Engine size, cylinders and payload cannot be negative")
+		return badCar(c, "Engine size, cylinders, weight and payload cannot be negative")
 	}
 	for _, date := range []*string{in.LicenseExpirationDate, in.CalibrationExpirationDate, in.TankLicenseExpirationDate} {
 		if date != nil {
@@ -187,6 +192,9 @@ func updateCar(c *fiber.Ctx, id uint, raw []byte) error {
 	if in.EngineCylinders != nil {
 		set["engine_cylinders"] = *in.EngineCylinders
 	}
+	if in.WeightTons != nil {
+		set["weight_tons"] = *in.WeightTons
+	}
 	if in.PayloadTons != nil {
 		set["payload_tons"] = *in.PayloadTons
 	}
@@ -194,6 +202,9 @@ func updateCar(c *fiber.Ctx, id uint, raw []byte) error {
 	text("trailer_no_plate", in.TrailerNoPlate)
 	text("trailer_color", in.TrailerColor)
 	text("trailer_chassis_no", in.TrailerChassisNo)
+	if in.TrailerWeightTons != nil {
+		set["trailer_weight_tons"] = *in.TrailerWeightTons
+	}
 	if in.TrailerPayloadTons != nil {
 		set["trailer_payload_tons"] = *in.TrailerPayloadTons
 	}
