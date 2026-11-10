@@ -68,7 +68,7 @@ func (l CarExportLabels) withDefaults() CarExportLabels {
 	l.Capacity = def(l.Capacity, "Capacity (L)")
 	l.License = def(l.License, "Licence")
 	l.Calibration = def(l.Calibration, "Calibration")
-	l.TankLicense = def(l.TankLicense, "Tank licence")
+	l.TankLicense = def(l.TankLicense, "Trailer licence")
 	l.DaysLeft = def(l.DaysLeft, "Days left")
 	l.Status = def(l.Status, "Status")
 	l.StatusValid = def(l.StatusValid, "Valid")

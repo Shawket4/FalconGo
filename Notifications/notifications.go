@@ -120,7 +120,7 @@ func GetExpiringDocuments() {
 			notification.DaysLeft = TankLicenseDaysLeft
 			notification.DateOfExpiry = carDocuments.TankLicenseExpirationDate
 			notification.Type = []string{"Car", "Tank_License"}
-			notification.Message = fmt.Sprintf("رخصة التانك للسيارة رقم %s علي وشك الانتهاء", carDocuments.CarNoPlate)
+			notification.Message = fmt.Sprintf("رخصة المقطورة للسيارة رقم %s علي وشك الانتهاء", carDocuments.CarNoPlate)
 			notification.Transporter = carDocuments.Transporter
 			notification.Name = carDocuments.CarNoPlate
 			NotificationsTemp = append(NotificationsTemp, notification)
