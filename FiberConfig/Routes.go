@@ -390,31 +390,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Put("/service-invoices/:id", middleware.Verify(1), Controllers.UpdateServiceInvoice)
 	api.Delete("/service-invoices/:id", middleware.Verify(1), Controllers.DeleteServiceInvoice)
 
-	// ============================================
-	// TIRE MANAGEMENT
-	// ============================================
-	tires := api.Group("/", middleware.Verify(1))
-
-	// Trucks
-	tires.Get("/trucks", Controllers.GetAllTrucks)
-	tires.Get("/trucks/:id", Controllers.GetTruck)
-	tires.Post("/trucks", Controllers.CreateTruck)
-	tires.Put("/trucks/:id", Controllers.UpdateTruck)
-	tires.Delete("/trucks/:id", Controllers.DeleteTruck)
-	tires.Get("/trucks/:id/positions", Controllers.GetTruckPositions)
-
-	// Tires
-	tires.Get("/tires", Controllers.GetAllTires)
-	tires.Get("/tires/:id", Controllers.GetTire)
-	tires.Post("/tires", Controllers.CreateTire)
-	tires.Put("/tires/:id", Controllers.UpdateTire)
-	tires.Delete("/tires/:id", Controllers.DeleteTire)
-	tires.Get("/tires/search", Controllers.SearchTires)
+	// DOT code OCR (a photo of a sidewall → text). The old tire tables and
+	// their routes (/trucks, /tires, /positions) are retired: tires live in
+	// the maintenance system.
 	api.Post("/dot/ocr", Controllers.EngravedTextOCR)
 
-	// Positions
-	tires.Post("/positions/assign", Controllers.AssignTireToPosition)
-	tires.Put("/positions/:id/remove-tire", Controllers.RemoveTireFromPosition)
 	// maint-rust's stock ledger. Called server-to-server with the user's
 	// relayed token (jwt cookie) at /api/go/api/maint-stock/... through nginx,
 	// like the /api/cars and /api/service-invoices routes it already uses. The
@@ -446,10 +426,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	docs.Post("/versions/:id/restore", middleware.Verify(3), Controllers.RestoreDocumentVersion)
 	docs.Get("/:ownerKind/:ownerId", middleware.Verify(1), Controllers.GetOwnerDocuments)
 	docs.Post("/:ownerKind/:ownerId/versions", middleware.Verify(3), Controllers.CreateDocumentVersion)
-
-	// Bulk Save of arbitrary tire rows (it can overwrite any tire by id), and
-	// it had no auth at all. No client calls it, so it is admin-only.
-	app.Post("/UpdateTireList", middleware.Verify(3), Apis.UpdateTireList)
 
 	// ============================================
 	// TRANSPORTER MANAGEMENT
