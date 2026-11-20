@@ -101,9 +101,6 @@ func fixAllSequences() {
 		"expenses",
 		"loans",
 		"salaries",
-		"tires",
-		"trucks",
-		"tire_positions",
 		"driver_sessions",
 		"location_pings",
 		"fee_mappings",
@@ -188,12 +185,9 @@ func runAutoMigrations() {
 		&Salary{},
 	)
 
-	// Phase 5: Tire system
-	DB.AutoMigrate(
-		&Tire{},
-		&Truck{},
-		&TirePosition{},
-	)
+	// (The old tire system — trucks, tires, tire_positions — is retired: tires
+	// live in the maintenance system. The tables are no longer migrated or
+	// read; see scripts/retire_legacy_tires.sql for dropping them.)
 
 	// Phase 6: Session system (CRITICAL: Session before Pings)
 	DB.AutoMigrate(&DriverSession{})
@@ -705,55 +699,4 @@ func createCustomIndexes() {
     `)
 
 	log.Println("✅ Custom indexes created")
-}
-
-func CreateDefaultPositions(db *gorm.DB, truckID uint) error {
-	positions := []TirePosition{
-		// Steering positions (2)
-		{TruckID: truckID, PositionType: "steering", PositionIndex: 1, Side: "left"},
-		{TruckID: truckID, PositionType: "steering", PositionIndex: 2, Side: "right"},
-
-		// Head axle 1 positions (4) - Properly ordered
-		{TruckID: truckID, PositionType: "head_axle_1", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "head_axle_1", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "head_axle_1", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "head_axle_1", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Head axle 2 positions (4) - Properly ordered
-		{TruckID: truckID, PositionType: "head_axle_2", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "head_axle_2", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "head_axle_2", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "head_axle_2", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Trailer axle 1 positions - Properly ordered
-		{TruckID: truckID, PositionType: "trailer_axle_1", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "trailer_axle_1", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "trailer_axle_1", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "trailer_axle_1", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Trailer axle 2 positions - Properly ordered
-		{TruckID: truckID, PositionType: "trailer_axle_2", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "trailer_axle_2", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "trailer_axle_2", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "trailer_axle_2", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Trailer axle 3 positions - Properly ordered
-		{TruckID: truckID, PositionType: "trailer_axle_3", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "trailer_axle_3", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "trailer_axle_3", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "trailer_axle_3", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Trailer axle 4 positions - Properly ordered
-		{TruckID: truckID, PositionType: "trailer_axle_4", PositionIndex: 1, Side: "left"},        // Outer Left
-		{TruckID: truckID, PositionType: "trailer_axle_4", PositionIndex: 2, Side: "inner_left"},  // Inner Left
-		{TruckID: truckID, PositionType: "trailer_axle_4", PositionIndex: 3, Side: "inner_right"}, // Inner Right
-		{TruckID: truckID, PositionType: "trailer_axle_4", PositionIndex: 4, Side: "right"},       // Outer Right
-
-		// Spare positions (2)
-		{TruckID: truckID, PositionType: "spare", PositionIndex: 1, Side: "none"},
-		{TruckID: truckID, PositionType: "spare", PositionIndex: 2, Side: "none"},
-	}
-
-	result := db.Create(&positions)
-	return result.Error
 }
