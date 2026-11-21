@@ -435,37 +435,47 @@ func GetTransporterProfileData(c *fiber.Ctx) error {
 	}
 }
 
+// DeleteDriver is DELETE /api/drivers/:id. It used to read the id from a JSON
+// body, which the dashboard's DELETE never sends, so every delete from the
+// drivers page failed with "Invalid request body". The param is the
+// identifier; a body {"ID": n} is still accepted from older callers. Drivers
+// are soft-deleted (gorm.Model), so their trips, loans and papers stay.
 func DeleteDriver(c *fiber.Ctx) error {
 	currentUser := Controllers.RequestUser(c)
-	if currentUser.Id != 0 {
-		if currentUser.Permission == 0 {
-			return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
-		} else {
-			var Driver struct {
-				ID uint `json:"ID"`
-			}
-			if err := c.BodyParser(&Driver); err != nil {
-				log.Println(err.Error())
-				return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			}
-			if err := Models.DB.Delete(&Models.Driver{}, Driver.ID).Error; err != nil {
-				log.Println(err.Error())
-				return err
-			}
-			//_, err = db.Exec("DELETE FROM `drivers` WHERE `name` = ?;", Driver.Name)
-			//if err != nil {
-			//	log.Println(err.Error())
-			//	return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
-			//}
-			return c.JSON(fiber.Map{
-				"Message": "Driver deleted successfully",
-			})
-		}
-	} else {
-		return c.JSON(fiber.Map{
-			"message": "Not Logged In.",
-		})
+	if currentUser.Id == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Not Logged In."})
 	}
+	if currentUser.Permission == 0 {
+		return c.Status(fiber.StatusForbidden).SendString("You do not have permission to access this page")
+	}
+	var input struct {
+		ID uint `json:"ID"`
+	}
+	if id, err := strconv.Atoi(c.Params("id")); err == nil && id > 0 {
+		input.ID = uint(id)
+	} else if len(c.Body()) > 0 {
+		if err := c.BodyParser(&input); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Missing driver id"})
+		}
+	}
+	if input.ID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Missing driver id"})
+	}
+	var driver Models.Driver
+	if err := Models.DB.First(&driver, input.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "Driver not found"})
+		}
+		log.Println(err.Error())
+		return err
+	}
+	if err := Models.DB.Delete(&driver).Error; err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	return c.JSON(fiber.Map{
+		"Message": "Driver deleted successfully",
+	})
 }
 
 func DeleteCar(c *fiber.Ctx) error {
