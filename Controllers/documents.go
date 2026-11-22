@@ -15,12 +15,14 @@ import (
 )
 
 // The documents API: the papers and photos of cars and drivers, with their
-// history. Everyone signed in reads; managers (permission 3) and above write,
-// see hidden versions and open the files of sensitive types. Routes:
-// FiberConfig/Routes.go, under /api/documents.
+// history. Every signed-in member of staff (permission 1 and above) reads,
+// writes, sees hidden versions and opens every file, the national ID
+// included (owner's decision, 2026-11-22; it used to take permission 3).
+// Routes: FiberConfig/Routes.go, under /api/documents.
 
-// documentsManager is the permission that writes and sees everything.
-const documentsManager = 3
+// documentsManager is the permission that writes and sees everything. One
+// number: raise it to restrict the whole flow again.
+const documentsManager = 1
 
 func documentsActor(c *fiber.Ctx) documents.Actor {
 	user := RequestUser(c)
