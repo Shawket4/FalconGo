@@ -419,13 +419,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	docs := api.Group("/documents")
 	docs.Get("/types", middleware.Verify(1), Controllers.GetDocumentTypes)
 	docs.Get("/overview/:ownerKind", middleware.Verify(1), Controllers.GetDocumentsOverview)
-	docs.Post("/files", middleware.Verify(3), Controllers.UploadDocumentFile)
+	docs.Post("/files", middleware.Verify(1), Controllers.UploadDocumentFile)
 	docs.Get("/files/:id", middleware.Verify(1), Controllers.GetDocumentFile)
-	docs.Put("/versions/:id", middleware.Verify(3), Controllers.UpdateDocumentVersion)
-	docs.Delete("/versions/:id", middleware.Verify(3), Controllers.HideDocumentVersion)
-	docs.Post("/versions/:id/restore", middleware.Verify(3), Controllers.RestoreDocumentVersion)
+	docs.Put("/versions/:id", middleware.Verify(1), Controllers.UpdateDocumentVersion)
+	docs.Delete("/versions/:id", middleware.Verify(1), Controllers.HideDocumentVersion)
+	docs.Post("/versions/:id/restore", middleware.Verify(1), Controllers.RestoreDocumentVersion)
 	docs.Get("/:ownerKind/:ownerId", middleware.Verify(1), Controllers.GetOwnerDocuments)
-	docs.Post("/:ownerKind/:ownerId/versions", middleware.Verify(3), Controllers.CreateDocumentVersion)
+	docs.Post("/:ownerKind/:ownerId/versions", middleware.Verify(1), Controllers.CreateDocumentVersion)
 
 	// ============================================
 	// TRANSPORTER MANAGEMENT

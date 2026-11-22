@@ -143,9 +143,9 @@ func TestDocumentsUploadSaveAndRead(t *testing.T) {
 	fileID := uint(file["id"].(float64))
 	filePath := fmt.Sprintf("/files/%d", fileID)
 
-	// Staged: its uploader and managers only.
-	if resp, _ := call(t, app, asViewer, "GET", filePath, nil); resp.StatusCode != 403 {
-		t.Errorf("a viewer opening someone's staged file = %d; want 403", resp.StatusCode)
+	// Staged: any member of staff can open it (permission 1 is enough now).
+	if resp, _ := call(t, app, asViewer, "GET", filePath, nil); resp.StatusCode != 200 {
+		t.Errorf("staff opening someone's staged file = %d; want 200", resp.StatusCode)
 	}
 	if resp, _ := call(t, app, asManager, "GET", filePath, nil); resp.StatusCode != 200 {
 		t.Errorf("the uploader opening the staged file = %d; want 200", resp.StatusCode)
@@ -215,14 +215,16 @@ func TestDocumentsUploadSaveAndRead(t *testing.T) {
 		t.Errorf("an oversized upload = %d %v; want 413 file_too_large", resp.StatusCode, out)
 	}
 
-	// Hidden versions are a manager's to see; hiding answers with the
+	// Hiding answers with the
 	// owner's documents, as every write does.
 	resp, data = call(t, app, asOtherManager, "DELETE", fmt.Sprintf("/versions/%d", version.ID), nil)
 	if docs := decodeDocs(t, data); resp.StatusCode != 200 || len(docs) != 1 || !docs[0].Versions[0].Hidden || docs[0].Versions[0].HiddenByName != "user 5" || docs[0].CurrentVersionID != nil {
 		t.Fatalf("hide = %d %s", resp.StatusCode, data)
 	}
-	if _, data := call(t, app, asViewer, "GET", base, nil); len(decodeDocs(t, data)) != 0 {
-		t.Errorf("a viewer still sees the hidden document: %s", data)
+	// Any member of staff sees it in the history, marked hidden, so they can
+	// bring it back; it is not the current paper for anyone.
+	if _, data := call(t, app, asViewer, "GET", base, nil); len(decodeDocs(t, data)) != 1 || !decodeDocs(t, data)[0].Versions[0].Hidden || decodeDocs(t, data)[0].CurrentVersionID != nil {
+		t.Errorf("staff's view of the hidden document: %s", data)
 	}
 	_, data = call(t, app, asViewer, "GET", "/overview/driver", nil)
 	var overview struct {
@@ -261,16 +263,17 @@ func TestSensitiveDocumentFilesAreForManagers(t *testing.T) {
 		resp, data := call(t, app, asViewer, "GET", path, nil)
 		var out map[string]any
 		json.Unmarshal(data, &out)
-		if resp.StatusCode != 403 || out["code"] != "forbidden" {
-			t.Errorf("a viewer opening %s = %d %s; want 403 forbidden", path, resp.StatusCode, data)
+		_ = out
+		if resp.StatusCode != 200 {
+			t.Errorf("staff (permission 1) opening %s = %d %s; want 200", path, resp.StatusCode, data)
 		}
 		if resp, _ := call(t, app, asManager, "GET", path, nil); resp.StatusCode != 200 {
 			t.Errorf("a manager opening %s = %d; want 200", path, resp.StatusCode)
 		}
 	}
-	// The viewer still sees that the document is there, marked restricted.
+	// Nothing is held back from staff in the list either.
 	_, data = call(t, app, asViewer, "GET", fmt.Sprintf("/driver/%d", driver.ID), nil)
-	if docs := decodeDocs(t, data); len(docs) != 1 || !docs[0].Restricted {
-		t.Errorf("a viewer's list = %s; want the document, restricted", data)
+	if docs := decodeDocs(t, data); len(docs) != 1 || docs[0].Restricted {
+		t.Errorf("staff's list = %s; want the document, not restricted", data)
 	}
 }
