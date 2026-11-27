@@ -96,6 +96,32 @@ func (ec *EmployeeController) CreateEmployee(c *fiber.Ctx) error {
 	return c.Status(http.StatusCreated).JSON(employee)
 }
 
+// EmployeeDirectoryEntry is what every member of staff may see of an
+// employee: no phone number, loans or credit balance.
+type EmployeeDirectoryEntry struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	IsActive bool   `json:"is_active"`
+}
+
+// GetEmployeeDirectory lists every employee's id, name, type and whether they
+// are active, at permission 1 (the garage picks its attendance workers from
+// it). The full rows stay behind GetAllEmployees at permission 3.
+func (ec *EmployeeController) GetEmployeeDirectory(c *fiber.Ctx) error {
+	entries := []EmployeeDirectoryEntry{}
+	if err := ec.DB.Model(&Models.Employee{}).
+		Select("id", "name", "type", "is_active").
+		Order("name").
+		Scan(&entries).Error; err != nil {
+		log.Println(err)
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch employees",
+		})
+	}
+	return c.JSON(entries)
+}
+
 // GetAllEmployees returns all employees with their credit balances
 func (ec *EmployeeController) GetAllEmployees(c *fiber.Ctx) error {
 	var employees []Models.Employee
