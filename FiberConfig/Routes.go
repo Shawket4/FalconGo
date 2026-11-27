@@ -416,6 +416,12 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// history. Everyone signed in reads; managers and above write. The fixed
 	// paths are registered before /:ownerKind/:ownerId so they are not taken
 	// for an owner.
+	// Employees' id, name, type and active only, for every member of staff
+	// (the garage's attendance list). Registered here, before
+	// SetupEmployeeRoutes puts permission 3 on the rest of /api/employees.
+	employeeDirectory := &Controllers.EmployeeController{DB: db}
+	api.Get("/employee-directory", middleware.Verify(1), employeeDirectory.GetEmployeeDirectory)
+
 	docs := api.Group("/documents")
 	docs.Get("/types", middleware.Verify(1), Controllers.GetDocumentTypes)
 	docs.Get("/overview/:ownerKind", middleware.Verify(1), Controllers.GetDocumentsOverview)
