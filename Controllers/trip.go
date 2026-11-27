@@ -405,17 +405,16 @@ type RouteResult struct {
 }
 
 func getRouteFromOSRM(ctx context.Context, startLat, startLng, endLat, endLng float64) (*RouteResult, error) {
-	// Through etit-proxy, which owns the routing rules. This used to build its
-	// own http://localhost:5000 URL with no `exclude`, so the route drawn on
-	// the trip map could follow time-gated roads the audit's own routing
-	// avoids — the picture disagreed with the number beside it.
+	// Through etit-proxy, which owns the routing rules (Valhalla, truck
+	// costing, time bans), so the route drawn on the trip map is the same one
+	// the audit measures against. The OSRM name is legacy.
 	distanceKm, durationMin, geometry, err := services.RouteWithGeometryCtx(ctx,
 		startLat, startLng, endLat, endLng, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// Rebuilt in OSRM's shape because generateGoogleMapsURLFromOSRM and the
+	// Kept in the old OSRM response shape because generateGoogleMapsURLFromOSRM and the
 	// trip-details handler both read it that way: metres and seconds, with the
 	// polyline under routes[0].geometry.
 	result := map[string]interface{}{
@@ -663,7 +662,7 @@ func (h *TripHandler) GetTripDetails(c *fiber.Ctx) error {
 		"route_data": func() map[string]interface{} {
 			osrmData, err := getRouteFromOSRM(c.UserContext(), Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 			if err != nil {
-				log.Printf("OSRM error: %v", err)
+				log.Printf("routing error: %v", err)
 				// Fallback to simple calculation
 				distance := calculateDistance(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 				return map[string]interface{}{
@@ -992,7 +991,7 @@ func (h *TripHandler) UpdateTrip(c *fiber.Ctx) error {
 		"route_data": func() map[string]interface{} {
 			osrmData, err := getRouteFromOSRM(c.UserContext(), Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 			if err != nil {
-				log.Printf("OSRM error: %v", err)
+				log.Printf("routing error: %v", err)
 				// Fallback to simple calculation
 				distance := calculateDistance(Terminal.Latitude, Terminal.Longitude, mapping.Latitude, mapping.Longitude)
 				return map[string]interface{}{

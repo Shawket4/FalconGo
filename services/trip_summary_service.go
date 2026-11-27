@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,14 +15,16 @@ import (
 )
 
 type TripSummaryService struct {
-	DB          *gorm.DB
-	OSRMService *OSRMService
+	DB *gorm.DB
+	// Router plans truck routes through etit-proxy (Valhalla). Swappable so
+	// the summary's leg building is testable without a routing engine.
+	Router Router
 }
 
 func NewTripSummaryService(db *gorm.DB) *TripSummaryService {
 	return &TripSummaryService{
-		DB:          db,
-		OSRMService: NewOSRMService(),
+		DB:     db,
+		Router: ProxyRouter{},
 	}
 }
 
@@ -291,7 +294,8 @@ func (s *TripSummaryService) GenerateSummary(parentTripID uint) (*Models.TripSum
 		totalActualDistance += leg.ActualDistance
 	}
 
-	// 14. Build optimal route with OSRM
+	// 14. Best legal truck round trip (etit-proxy / Valhalla), planned to
+	// leave when this trip did, so time-of-day bans apply as they did then.
 	deliveryLocations := []GeoPoint{}
 	for _, visit := range visits {
 		deliveryLocations = append(deliveryLocations, visit.Location)
@@ -304,19 +308,14 @@ func (s *TripSummaryService) GenerateSummary(parentTripID uint) (*Models.TripSum
 		log.Printf("   - Using return terminal for optimal route: %s", returnTerminalName)
 	}
 
-	osrmResult, err := s.OSRMService.CalculateOptimalRoundTrip(terminalForOptimal, deliveryLocations)
+	optimal, err := s.Router.Optimize(context.Background(), terminalForOptimal, deliveryLocations, terminalForOptimal, tripStartTime)
 	if err != nil {
-		return nil, fmt.Errorf("OSRM calculation failed: %w", err)
+		return nil, fmt.Errorf("optimal route failed: %w", err)
 	}
-
-	// Extract geometry
-	var osrmGeometry string
-	if len(osrmResult.Trips) > 0 {
-		osrmGeometry = osrmResult.Trips[0].Geometry
-	}
+	osrmGeometry := optimal.Geometry
 
 	// 15. Build optimal legs
-	optimalLegs := s.buildOptimalLegs(terminalForOptimal, deliveryLocations, osrmResult, visits)
+	optimalLegs := s.buildOptimalLegs(terminalForOptimal, deliveryLocations, optimal, visits)
 
 	// 16. Calculate optimal distance (WITHOUT return leg)
 	osrmDistance := 0.0
@@ -325,14 +324,6 @@ func (s *TripSummaryService) GenerateSummary(parentTripID uint) (*Models.TripSum
 	for i := 0; i < len(optimalLegs)-1; i++ { // Exclude return leg
 		osrmDistance += optimalLegs[i].OSRMDistance
 		osrmDuration += optimalLegs[i].TravelDuration
-	}
-
-	// Fallback to OSRM legs if zero
-	if osrmDistance == 0 && len(osrmResult.Trips) > 0 {
-		for i := 0; i < len(osrmResult.Trips[0].Legs)-1; i++ {
-			osrmDistance += osrmResult.Trips[0].Legs[i].Distance / 1000.0
-			osrmDuration += int(osrmResult.Trips[0].Legs[i].Duration)
-		}
 	}
 
 	// 17. Calculate metrics
@@ -710,11 +701,12 @@ func (s *TripSummaryService) buildDeliveryLegs(terminal GeoPoint, visits []Deliv
 			MaxSpeed:        maxSpeed,
 		}
 
-		// Get OSRM route
-		osrmRoute, err := s.OSRMService.GetRoute(prevLocation, visit.Location)
-		if err == nil && len(osrmRoute.Routes) > 0 {
-			leg.OSRMDistance = osrmRoute.Routes[0].Distance / 1000.0
-			leg.OSRMGeometry = osrmRoute.Routes[0].Geometry
+		// Best legal truck route for this leg, leaving when it did.
+		if km, _, geometry, err := s.Router.RouteAt(context.Background(), prevLocation, visit.Location, prevTime); err == nil {
+			leg.OSRMDistance = km
+			leg.OSRMGeometry = geometry
+		} else {
+			log.Printf("   - leg %d: routing failed: %v", sequence, err)
 		}
 
 		legs = append(legs, leg)
@@ -758,23 +750,26 @@ func (s *TripSummaryService) buildReturnLeg(fromLocation GeoPoint, fromName stri
 		MaxSpeed:        maxSpeed,
 	}
 
-	osrmRoute, err := s.OSRMService.GetRoute(fromLocation, toLocation)
-	if err == nil && len(osrmRoute.Routes) > 0 {
-		leg.OSRMDistance = osrmRoute.Routes[0].Distance / 1000.0
-		leg.OSRMGeometry = osrmRoute.Routes[0].Geometry
+	if km, _, geometry, err := s.Router.RouteAt(context.Background(), fromLocation, toLocation, departureTime); err == nil {
+		leg.OSRMDistance = km
+		leg.OSRMGeometry = geometry
+	} else {
+		log.Printf("   - return leg: routing failed: %v", err)
 	}
 
 	return leg
 }
 
-func (s *TripSummaryService) buildOptimalLegs(terminal GeoPoint, deliveries []GeoPoint, osrmResult *OSRMTripResponse, visits []DeliveryVisit) []Models.TripLeg {
+// buildOptimalLegs turns an optimized round trip into "optimal" legs:
+// terminal → each delivery in the best order, then back to the terminal.
+// OSRMDistance / OSRMGeometry are the legacy column names; they hold the
+// Valhalla truck route now.
+func (s *TripSummaryService) buildOptimalLegs(terminal GeoPoint, deliveries []GeoPoint, optimal *OptimizedTrip, visits []DeliveryVisit) []Models.TripLeg {
 	legs := []Models.TripLeg{}
-	optimizedOrder := s.OSRMService.GetOptimizedOrder(osrmResult)
-
 	prevLocation := terminal
 	prevName := "Terminal"
 
-	for i, deliveryIdx := range optimizedOrder {
+	for i, deliveryIdx := range optimal.Order {
 		if deliveryIdx >= len(deliveries) || deliveryIdx >= len(visits) {
 			continue
 		}
@@ -797,15 +792,11 @@ func (s *TripSummaryService) buildOptimalLegs(terminal GeoPoint, deliveries []Ge
 			ToName:          visit.LocationName,
 			IsOptimal:       true,
 		}
-
-		if i < len(osrmResult.Trips[0].Legs) {
-			osrmLeg := osrmResult.Trips[0].Legs[i]
-			leg.OSRMDistance = osrmLeg.Distance / 1000.0
-			leg.TravelDuration = int(osrmLeg.Duration)
-
-			if len(osrmLeg.Steps) > 0 {
-				leg.OSRMGeometry = osrmLeg.Steps[0].Geometry
-			}
+		if i < len(optimal.Legs) {
+			hop := optimal.Legs[i]
+			leg.OSRMDistance = hop.DistanceKm
+			leg.TravelDuration = int(math.Round(hop.DurationMin * 60))
+			leg.OSRMGeometry = hop.Geometry
 		}
 
 		legs = append(legs, leg)
@@ -816,7 +807,7 @@ func (s *TripSummaryService) buildOptimalLegs(terminal GeoPoint, deliveries []Ge
 	// Return leg
 	returnLeg := Models.TripLeg{
 		LegType:         "optimal",
-		SequenceNumber:  len(optimizedOrder) + 1,
+		SequenceNumber:  len(optimal.Order) + 1,
 		FromLocationLat: prevLocation.Lat,
 		FromLocationLng: prevLocation.Lng,
 		ToLocationLat:   terminal.Lat,
@@ -825,15 +816,11 @@ func (s *TripSummaryService) buildOptimalLegs(terminal GeoPoint, deliveries []Ge
 		ToName:          "Terminal",
 		IsOptimal:       true,
 	}
-
-	if len(optimizedOrder) < len(osrmResult.Trips[0].Legs) {
-		osrmLeg := osrmResult.Trips[0].Legs[len(optimizedOrder)]
-		returnLeg.OSRMDistance = osrmLeg.Distance / 1000.0
-		returnLeg.TravelDuration = int(osrmLeg.Duration)
-
-		if len(osrmLeg.Steps) > 0 {
-			returnLeg.OSRMGeometry = osrmLeg.Steps[0].Geometry
-		}
+	if last := len(optimal.Order); last < len(optimal.Legs) {
+		hop := optimal.Legs[last]
+		returnLeg.OSRMDistance = hop.DistanceKm
+		returnLeg.TravelDuration = int(math.Round(hop.DurationMin * 60))
+		returnLeg.OSRMGeometry = hop.Geometry
 	}
 
 	legs = append(legs, returnLeg)
