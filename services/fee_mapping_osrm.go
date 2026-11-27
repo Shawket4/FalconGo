@@ -14,7 +14,8 @@ import (
 // timeout, and a bulk import must not be able to pile up hundreds of them.
 var enrichSlots = make(chan struct{}, 4)
 
-// EnrichFeeMappingOSRM recomputes one mapping's OSRM distance and duration.
+// EnrichFeeMappingOSRM recomputes one mapping's truck-route distance and
+// duration (Valhalla, via etit-proxy), stored in the legacy osrm_* columns.
 //
 // Fire-and-forget: creating or updating a fee mapping must not fail, or block,
 // because the routing service is slow or down. A mapping that misses its

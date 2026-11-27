@@ -136,7 +136,7 @@ func (h *FeeMappingHandler) CreateFeeMapping(c *fiber.Ctx) error {
 		})
 	}
 
-	// Route it now, so a new mapping has an OSRM distance without anyone
+	// Route it now, so a new mapping has a truck-route distance without anyone
 	// remembering to run the bulk enrich. Fire-and-forget: a slow or absent
 	// routing service must not fail a create.
 	services.EnrichFeeMappingOSRM(h.DB, mapping.ID)

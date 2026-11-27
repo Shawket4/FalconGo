@@ -12,23 +12,28 @@ import (
 	"time"
 )
 
-// Route asks etit-proxy for the road distance between two points.
+// Road routing for FalconGo: every call goes to etit-proxy, which routes with
+// Valhalla for the fleet's tanker (truck size, weight and hazmat, plus the
+// time-of-day bans built into its map).
 //
-// It exists to stop this codebase talking to OSRM directly. FalconGo used to
-// build its own http://localhost:5000/route/v1/driving URL in three places,
-// none of which applied the `exclude` for time-gated truck roads that
-// etit-proxy applies when routing a tanker. Same OSRM instance, different
-// parameters, different answers — so a fee mapping's stored distance and the
-// trip audit's expected distance disagreed for the same pair of points, and
-// nothing said why.
+// Nothing here talks to a routing engine directly. FalconGo used to build its
+// own OSRM URLs: first for fee mappings, which skipped the truck rules
+// etit-proxy applied, and then for trip summaries, which used Madar's car
+// OSRM. The same pair of points got different distances depending on who
+// asked. One service owning "how far is A from B" is what stops that drift;
+// adding a second caller here would bring it back.
+
+// GeoPoint is a coordinate pair.
+type GeoPoint struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
+}
+
+// Route asks etit-proxy for the truck road distance between two points.
 //
-// Routing through the proxy means the exclude class, the retry-without-exclude
-// fallback and the base URL have exactly one definition. Adding a second
-// caller here would recreate the drift this removes.
-//
-// `restricted` says whether the time-gated roads must be avoided. True is the
-// conservative reading and the default for reference distances: a route that
-// avoids restricted roads is legal at any hour, one that uses them is not.
+// `restricted` says whether the route must be legal at any hour. True is the
+// conservative reading and the default for reference distances: it avoids
+// every time-banned road. False means leaving now.
 func Route(fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm, durationMin float64, err error) {
 	km, min, _, err := RouteWithGeometry(fromLat, fromLng, toLat, toLng, restricted)
 	return km, min, err
@@ -52,26 +57,115 @@ func RouteWithGeometry(fromLat, fromLng, toLat, toLng float64, restricted bool) 
 
 // RouteWithGeometryCtx is RouteWithGeometry, carrying the caller's trace.
 func RouteWithGeometryCtx(ctx context.Context, fromLat, fromLng, toLat, toLng float64, restricted bool) (distanceKm, durationMin float64, geometry string, err error) {
-	adminURL := os.Getenv("ETIT_PROXY_ADMIN_URL")
-	adminToken := os.Getenv("ETIT_PROXY_ADMIN_TOKEN")
-	if adminURL == "" || adminToken == "" {
-		return 0, 0, "", fmt.Errorf("routing unavailable: ETIT_PROXY_ADMIN_URL/TOKEN not configured")
-	}
-
-	payload, err := json.Marshal(map[string]any{
+	return routeCall(ctx, map[string]any{
 		"from_lat":   fromLat,
 		"from_lng":   fromLng,
 		"to_lat":     toLat,
 		"to_lng":     toLng,
 		"restricted": restricted,
 	})
-	if err != nil {
-		return 0, 0, "", fmt.Errorf("routing: marshal: %w", err)
+}
+
+// RouteAt is the truck route for a truck leaving at departAt: time-of-day
+// bans apply as they would at that moment. Use it to compare a leg that was
+// actually driven against what was legal when it was driven.
+func RouteAt(ctx context.Context, from, to GeoPoint, departAt time.Time) (distanceKm, durationMin float64, geometry string, err error) {
+	return routeCall(ctx, map[string]any{
+		"from_lat":  from.Lat,
+		"from_lng":  from.Lng,
+		"to_lat":    to.Lat,
+		"to_lng":    to.Lng,
+		"depart_at": departAt.Format(time.RFC3339),
+	})
+}
+
+func routeCall(ctx context.Context, payload map[string]any) (distanceKm, durationMin float64, geometry string, err error) {
+	var out struct {
+		DistanceKm  float64 `json:"distanceKm"`
+		DurationMin float64 `json:"durationMin"`
+		Geometry    string  `json:"geometry"`
+	}
+	if err := callAdmin(ctx, "/admin/routing/route", payload, &out); err != nil {
+		return 0, 0, "", err
+	}
+	if out.DistanceKm <= 0 {
+		return 0, 0, "", fmt.Errorf("routing: proxy returned no usable route")
+	}
+	return out.DistanceKm, out.DurationMin, out.Geometry, nil
+}
+
+// OptimizedLeg is one hop of an optimized trip.
+type OptimizedLeg struct {
+	DistanceKm  float64 `json:"distanceKm"`
+	DurationMin float64 `json:"durationMin"`
+	Geometry    string  `json:"geometry"`
+}
+
+// OptimizedTrip is a trip with its stops in the best visiting order.
+type OptimizedTrip struct {
+	// Order lists indices into the stops passed in, in visiting order.
+	Order []int `json:"order"`
+	// Legs: start → first stop, …, last stop → end (len(Order)+1 hops).
+	Legs        []OptimizedLeg `json:"legs"`
+	DistanceKm  float64        `json:"distanceKm"`
+	DurationMin float64        `json:"durationMin"`
+	// Geometry is the whole trip as one polyline5.
+	Geometry string `json:"geometry"`
+}
+
+// Optimize asks etit-proxy for the best order to visit stops, starting at
+// start and ending at end, for a truck leaving at departAt (zero time: legal
+// at any hour).
+func Optimize(ctx context.Context, start GeoPoint, stops []GeoPoint, end GeoPoint, departAt time.Time) (*OptimizedTrip, error) {
+	if len(stops) == 0 {
+		return nil, fmt.Errorf("routing: optimize needs at least one stop")
+	}
+	payload := map[string]any{"start": start, "stops": stops, "end": end, "restricted": true}
+	if !departAt.IsZero() {
+		payload["depart_at"] = departAt.Format(time.RFC3339)
+	}
+	var out OptimizedTrip
+	if err := callAdmin(ctx, "/admin/routing/optimize", payload, &out); err != nil {
+		return nil, err
+	}
+	if len(out.Order) != len(stops) || len(out.Legs) != len(stops)+1 {
+		return nil, fmt.Errorf("routing: optimize answered %d stops and %d legs for %d stops", len(out.Order), len(out.Legs), len(stops))
+	}
+	return &out, nil
+}
+
+// Router is the routing the trip summary needs; ProxyRouter is the real one.
+type Router interface {
+	Optimize(ctx context.Context, start GeoPoint, stops []GeoPoint, end GeoPoint, departAt time.Time) (*OptimizedTrip, error)
+	RouteAt(ctx context.Context, from, to GeoPoint, departAt time.Time) (distanceKm, durationMin float64, geometry string, err error)
+}
+
+// ProxyRouter routes through etit-proxy.
+type ProxyRouter struct{}
+
+func (ProxyRouter) Optimize(ctx context.Context, start GeoPoint, stops []GeoPoint, end GeoPoint, departAt time.Time) (*OptimizedTrip, error) {
+	return Optimize(ctx, start, stops, end, departAt)
+}
+
+func (ProxyRouter) RouteAt(ctx context.Context, from, to GeoPoint, departAt time.Time) (float64, float64, string, error) {
+	return RouteAt(ctx, from, to, departAt)
+}
+
+// callAdmin POSTs payload to etit-proxy's token-gated admin surface.
+func callAdmin(ctx context.Context, path string, payload any, out any) error {
+	adminURL := os.Getenv("ETIT_PROXY_ADMIN_URL")
+	adminToken := os.Getenv("ETIT_PROXY_ADMIN_TOKEN")
+	if adminURL == "" || adminToken == "" {
+		return fmt.Errorf("routing unavailable: ETIT_PROXY_ADMIN_URL/TOKEN not configured")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, adminURL+"/admin/routing/route", bytes.NewReader(payload))
+	body, err := json.Marshal(payload)
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("routing: build request: %w", err)
+		return fmt.Errorf("routing: marshal: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, adminURL+path, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("routing: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Admin-Token", adminToken)
@@ -79,28 +173,19 @@ func RouteWithGeometryCtx(ctx context.Context, fromLat, fromLng, toLat, toLng fl
 
 	// Longer than the audit hook's 3s: this one is synchronous and a caller is
 	// waiting on the number, where the hook is fire-and-forget.
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("routing: request failed: %w", err)
+		return fmt.Errorf("routing: request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return 0, 0, "", fmt.Errorf("routing: proxy returned %d: %s", resp.StatusCode, bytes.TrimSpace(body))
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("routing: proxy returned %d: %s", resp.StatusCode, bytes.TrimSpace(msg))
 	}
-
-	var out struct {
-		DistanceKm  float64 `json:"distanceKm"`
-		DurationMin float64 `json:"durationMin"`
-		Geometry    string  `json:"geometry"`
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("routing: decode: %w", err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return 0, 0, "", fmt.Errorf("routing: decode: %w", err)
-	}
-	if out.DistanceKm <= 0 {
-		return 0, 0, "", fmt.Errorf("routing: proxy returned no usable route")
-	}
-	return out.DistanceKm, out.DurationMin, out.Geometry, nil
+	return nil
 }

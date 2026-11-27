@@ -28,16 +28,12 @@ type osrmRoute struct {
 	Duration float64 `json:"duration"`
 }
 
-// fetchOSRMRoute asks etit-proxy, which owns the routing rules.
-//
-// This used to build its own http://localhost:5000/route/v1/driving URL. That
-// call never applied the `exclude` for time-gated truck roads that etit-proxy
-// applies, so a fee mapping's stored distance and the trip audit's expected
-// distance disagreed for the same two points — the audit flagged trips against
-// a number produced by different rules.
+// fetchOSRMRoute asks etit-proxy (Valhalla, truck rules) for a mapping's road
+// distance. The OSRM names here and in the `osrm_*` columns are legacy: the
+// engine is Valhalla since 2026-11-27.
 //
 // restricted=true: a reference distance should describe a route the tanker may
-// drive at any hour. See services.Route.
+// drive at any hour, so every time-banned road is avoided. See services.Route.
 func fetchOSRMRoute(originLat, originLng, destLat, destLng float64) (distanceKm, durationMin float64, err error) {
 	return services.Route(originLat, originLng, destLat, destLng, true)
 }
@@ -89,7 +85,7 @@ func (h *OSRMEnrichmentHandler) UpdateDropOffLocation(c *fiber.Ctx) error {
 	osrmDist, osrmDuration, err := fetchOSRMRoute(terminal.Latitude, terminal.Longitude, body.Lat, body.Lng)
 	if err != nil {
 		return c.Status(http.StatusBadGateway).JSON(fiber.Map{
-			"error":   "OSRM route calculation failed",
+			"error":   "Truck route calculation failed",
 			"details": err.Error(),
 		})
 	}
@@ -112,7 +108,7 @@ func (h *OSRMEnrichmentHandler) UpdateDropOffLocation(c *fiber.Ctx) error {
 	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "Drop-off location and OSRM data updated",
+		"message": "Drop-off location and truck route updated",
 		"data": fiber.Map{
 			"id":                 mapping.ID,
 			"company":            mapping.Company,
@@ -128,8 +124,9 @@ func (h *OSRMEnrichmentHandler) UpdateDropOffLocation(c *fiber.Ctx) error {
 	})
 }
 
-// POST /fee-mappings/enrich-osrm
-// Refreshes OSRM data for all mappings that have lat/lng set.
+// POST /fee-mappings/enrich-osrm (legacy path)
+// Re-routes every mapping whose drop-off is pinned through etit-proxy
+// (Valhalla truck route) and stores it in osrm_distance / osrm_duration.
 func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 	var mappings []Models.FeeMapping
 	// Every mapping whose drop-off has a canonical pin — NOT the lat/lng cached
@@ -218,7 +215,7 @@ func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 		osrmDist, osrmDuration, err := fetchOSRMRoute(
 			terminal.Latitude, terminal.Longitude, *point.Latitude, *point.Longitude)
 		if err != nil {
-			r.Error = fmt.Sprintf("OSRM error: %v", err)
+			r.Error = fmt.Sprintf("routing error: %v", err)
 			results = append(results, r)
 			continue
 		}
@@ -245,7 +242,7 @@ func (h *OSRMEnrichmentHandler) BulkEnrichOSRM(c *fiber.Ctx) error {
 	}
 
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"message":   "Bulk OSRM enrichment complete",
+		"message":   "Bulk truck-route enrichment complete",
 		"processed": len(mappings),
 		"succeeded": succeeded,
 		"failed":    len(mappings) - succeeded,
